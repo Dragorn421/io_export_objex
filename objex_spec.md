@@ -103,8 +103,10 @@ then described by the following directives
 
 #### `map`
 
-`map "filename"` is used to specify the image file that
-will be used, relative to the `.mtl`
+`map filename` is used to specify the image file that
+will be used, relative to the `.mtl`, or absolute path
+(`filename` can contain spaces, as the remainder of the
+line is used as the path)
 
 #### `pointer`
 
