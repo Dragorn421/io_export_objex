@@ -355,8 +355,8 @@ with an identity matrix
 #### bones
 
 `(bones * 2)` lines follow the skeleton header;
-the first character on each line will be either
-`+` or `-`, which mean push or pop, respectively;
+the first non-blank character on each line will be
+either `+` or `-`, which mean push or pop, respectively;
 when a bone is pushed (`+`), this format follows:
 
 ```
