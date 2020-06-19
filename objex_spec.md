@@ -85,7 +85,7 @@ vertices influenced by multiple bones
 
 the `f` directive now supports an optional `vc` parameter
 - e.g. `f v/vt/vn/vc`
-- note: it`s possible for certain vertices of a triangle to
+- note: it's possible for certain vertices of a triangle to
 use colors and certain vertices to use shading, with
 the result being interpolated in-game (N64-specific)
 
@@ -314,9 +314,8 @@ pbody [parent "anotherSkeleton" "boneName"]
 ```
 "z64player" = Link skeleton format
 "z64npc"    = non-Link skeleton
-"z64dummy"  = mini skeleton for
-			  producing self-contained
-			  deformable meshes (Pbodies)
+"z64dummy"  = mini skeleton for producing Pbodies
+              (self-contained deformable meshes)
 ```
 
 #### `pbody`
@@ -350,10 +349,11 @@ with an identity matrix
 	the data at the provided address is safe for
 	zzconvert to overwrite in this fashion
   - ex: `segment 0x06005800 local`
+- if no segment is provided, zzconvert defaults to `0x0D000000`
 
 #### bones
 
-`(bones - 2)` lines follow the skeleton header;
+`(bones * 2)` lines follow the skeleton header;
 the first character on each line will be either
 `+` or `-`, which mean push or pop, respectively;
 when a bone is pushed (`+`), this format follows:
@@ -371,7 +371,49 @@ there should be equal numbers of `+` and `-`
 sample:
 
 ```
-TODO put Link's skeleton here
+newskel "player" "z64player"
++ "RootControl" 0.000000 0.000000 -0.000000
+	+ "Waist" -0.004000 -0.104000 -0.000000
+		+ "LowerControl" 0.607000 0.000000 -0.000000
+			+ "Thigh.R" -0.172000 0.050000 -0.190000
+				+ "Shin.R" 0.697000 0.000000 -0.000000
+					+ "Foot.R" 0.825000 0.005000 0.011000
+					-
+				-
+			-
+			+ "Thigh.L" -0.170000 0.057000 0.192000
+				+ "Shin.L" 0.695000 0.000000 -0.000000
+					+ "Foot.L" 0.817000 0.008000 0.004000
+					-
+				-
+			-
+		-
+	-
+	+ "UpperControl" 0.000000 -0.103000 -0.007000
+		+ "Head" 0.996000 -0.201000 -0.001000
+			+ "Hat" -0.365000 -0.670000 -0.000000
+			-
+		-
+		+ "Collar" 0.000000 0.000000 -0.000000
+		-
+		+ "Shoulder.L" 0.696000 -0.175000 0.466000
+			+ "Forearm.L" 0.581000 0.000000 -0.000000
+				+ "Hand.L" 0.514000 0.000000 -0.000000
+				-
+			-
+		-
+		+ "Shoulder.R" 0.696000 -0.175000 -0.466000
+			+ "Forearm.R" 0.577000 0.000000 -0.000000
+				+ "Hand.R" 0.525000 0.000000 -0.000000
+				-
+			-
+		-
+		+ "Sheath" 0.657000 -0.523000 0.367000
+		-
+		+ "Torso" 0.000000 0.000000 -0.000000
+		-
+	-
+-
 ```
 
 # `.anim` files
