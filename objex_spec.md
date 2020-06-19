@@ -15,10 +15,11 @@ one per line, each starting with `skellib` or `animlib`
 
 #### `version`
 
-`version x` where `x` is the version (e.g. `version 2`)
-
-(if no version string is detected, zzconvert will
-tell the user to upgrade their Blender script)
+`version major.minor` (e.g. `version 2.000`)
+- if no version string is detected, zzconvert will
+tell the user to upgrade their Blender script
+- if `major` version is not `2`, zzconvert will
+suggest upgrading zzconvert
 
 #### `useskel`
 
