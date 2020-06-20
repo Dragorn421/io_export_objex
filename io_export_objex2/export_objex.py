@@ -160,7 +160,7 @@ class ObjexWriter():
 
                 # this works too, shared UV's for all verts
                 #~ uv_key = veckey2d(uv)
-                uv_key = loops[l_index].vertex_index, veckey2d(uv, 6)
+                uv_key = loops[l_index].vertex_index, roundVect2d(uv, 6)
 
                 uv_val = uv_get(uv_key)
                 if uv_val is None:
@@ -235,16 +235,34 @@ class ObjexWriter():
                 if self.options['EXPORT_ANIM']:
                     # 421todo store relevant actions
                     #armatures.append((ob, [bpy.data.actions[action_name] for action_name in ob.objex_bonus.actions]))
-                    self.armatures.append((ob, [ob.animation_data.action] if hasattr(ob.animation_data, 'action') else []))
+                    self.armatures.append((ob, [ob.animation_data.action] if hasattr(ob.animation_data, 'action') and ob.animation_data.action else []))
                 else:
                     self.armatures.append((ob, []))
             
+            apply_modifiers = self.options['APPLY_MODIFIERS']
+            # disable armature deform modifiers
+            if apply_modifiers:
+                user_show_armature_modifiers = []
+                for modifier in ob.modifiers:
+                    if modifier.type == 'ARMATURE':
+                        # 421todo not sure armature deform could be used for anything other than main animation?
+                        # and modifier.object == ob.parent
+                        user_show_armature_modifiers.append((modifier, modifier.show_viewport, modifier.show_render))
+                        modifier.show_viewport = False
+                        modifier.show_render = False
             try:
-                me = ob.to_mesh(scene, self.options['APPLY_MODIFIERS'], calc_tessface=False,
+                me = ob.to_mesh(scene, apply_modifiers, calc_tessface=False,
                                 settings='RENDER' if self.options['APPLY_MODIFIERS_RENDER'] else 'PREVIEW')
             except RuntimeError:
                 me = None
-
+            finally:
+                # restore modifiers properties
+                if apply_modifiers:
+                    for modifier, user_show_viewport, user_show_render in user_show_armature_modifiers:
+                        modifier.show_viewport = user_show_viewport
+                        modifier.show_render = user_show_render
+            del apply_modifiers
+            
             if me is None:
                 return
 
@@ -378,7 +396,6 @@ class ObjexWriter():
                         groups = vertex_groups[v.index]
                         if groups:
                             group_name, weight = max(groups, key=lambda _g: _g[1])
-                            fw('v %.6f %.6f %.6f weight %s %.3f\n' % v.co[:])
                             fw('%s %s\n' % (
                                 'v %.6f %.6f %.6f' % v.co[:],
                                 'weight %s 1' % (string_to_literal(group_name))

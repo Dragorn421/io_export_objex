@@ -116,7 +116,7 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
     use_edges = BoolProperty(
             name='Include Edges',
             description='',
-            default=True,
+            default=False,
             )
     use_smooth_groups = BoolProperty(
             name='Smooth Groups',
