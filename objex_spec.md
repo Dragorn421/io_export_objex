@@ -672,13 +672,14 @@ the following zzconvert mesh attribs are supported:
 - `POSMTX`  = include world positioning matrix at start of Dlist
 - `BBMTXS`  = include spherical billboard matrix in Dlist
 - `BBMTXC`  = include cylindrical billboard matrix in Dlist
-- `NOSPLIT` = do not divide mesh by bones
+- `NOSPLIT` = do not divide mesh by bones (and do not write skeleton)
 - `NOSKEL`  = do not write a skeleton to the generated zobj
 - `PROXY`   = write a proxy Dlist (will have `_PROXY` suffix)
-		  (in the case of a divided mesh, a proxy is written
-		  for each Dlist, and a table is generated)
-		  (in play-as data, display list pointers point to
-		  the proxy for each instead of the real display list)
+  - in the case of a divided mesh, a proxy is written
+		  for each Dlist, and a C array is generated
+  - if `NOSKEL` is not present (if a skeleton is written), that C array data is also written to zobj at `PROXY_` offset and the skeleton points to that table
+  - in play-as data, display list pointers point to
+		  the proxy for each instead of the real display list
 
 example:
 ```
