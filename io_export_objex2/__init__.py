@@ -21,7 +21,7 @@
 """
 Based on the io_scene_obj addon shipped with Blender 2.79b
 Removed import feature
-Triangulate by default, and other default values changed
+By default: triangulate, no edges, and other default values changed
 Removed use_animation 'Write out an OBJ for each frame'
 Added vertex colors support
 WIP interface

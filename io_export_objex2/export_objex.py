@@ -667,7 +667,7 @@ class ObjexWriter():
                             animfile_write = animfile.write
                         else:
                             animfile_write = lambda _: None # void output
-                        export_objex_anim.write_anim(animfile_write, skelfile_write, scene, self.armatures)
+                        export_objex_anim.write_anim(animfile_write, skelfile_write, scene, self.options['GLOBAL_MATRIX'], self.armatures)
                     finally:
                         if skelfile:
                             skelfile.close()
