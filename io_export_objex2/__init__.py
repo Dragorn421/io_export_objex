@@ -187,16 +187,6 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             )
 
     # grouping group
-    use_blen_objects = BoolProperty(
-            name='Objects as OBJ Objects',
-            description='',
-            default=True,
-            )
-    group_by_object = BoolProperty(
-            name='Objects as OBJ Groups ',
-            description='',
-            default=False,
-            )
     group_by_material = BoolProperty(
             name='Material Groups',
             description='',
