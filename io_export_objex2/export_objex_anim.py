@@ -198,4 +198,5 @@ def write_action_from_pose_bones(fw, scene, global_matrix, armature, root_bone, 
             
             # OoT actually uses XYZ Euler angles.
             rotation_euler_zyx = rot_matrix.to_euler('XYZ')
-            fw('rot %.3f %.3f %.3f\n' % (rotation_euler_zyx.x, rotation_euler_zyx.y, rotation_euler_zyx.z))
+            # 5 digits: precision of s16 angles in radians is 2pi/2^16 ~ ‭0.000096
+            fw('rot %.5f %.5f %.5f\n' % (rotation_euler_zyx.x, rotation_euler_zyx.y, rotation_euler_zyx.z))
