@@ -27,7 +27,10 @@ def write_skel(file_write_skel, global_matrix, skeletons):
                 pos -= bone.parent.head_local
             # 421todo confirm that bone root position is always assumed to be 0 by oot, if yes make sure WYSIWYG applies with the edit-mode location being accounted for in write_action_from_pose_bones
             else:
-                pos = mathutils.Vector((0,0,0))
+                # 421fixme better warnings, 
+                if pos != mathutils.Vector((0,0,0)):
+                    # 421todo instead of warn, automatically solve the problem (add a bone from (0,0,0) ?)
+                    print('Warning: root bone does not start at armature origin, in-game results may vary')
             # 421todo use global_matrix, make sure this is correct
             pos = global_matrix * pos
             fw('%s+ %s %.6f %.6f %.6f\n' % (' ' * indent, bone.name, pos.x, pos.y, pos.z))
@@ -69,9 +72,6 @@ def order_bones(armature):
 # 421todo make write_skel the main call instead of write_anim since .anim depends on .skel but .skel doesn't depend on .anim
 def write_anim(file_write_anim, file_write_skel, scene, global_matrix, armatures):
     fw = file_write_anim
-    
-    print('global_matrix =')
-    print(global_matrix)
     
     # user_ variables store parameters (potentially) used by the script and to be restored later
     user_frame_current = scene.frame_current
@@ -142,6 +142,15 @@ def write_action_from_pose_bones(fw, scene, global_matrix, armature, root_bone, 
         # 421todo not sure what to do here
         print('WARNING len(armature.children) != 1 -> using %s' % mesh.name)
     """
+    # 421todo some of these warnings may be useless
+    # 421todo figure out how to automatically solve the issues
+    if armature.location != mathutils.Vector((0,0,0)):
+        print('Warning: origin of armature %s %r is not world origin (0,0,0), in-game results may vary' % (armature.name, armature.location))
+    for child in armature.children:
+        if child.location != armature.location:
+            print('Warning: origins of object %s %r and parent armature %s %r mismatch, in-game results may vary' % (child.name, child.location, armature.name, armature.location))
+        if child.location != mathutils.Vector((0,0,0)):
+            print('Warning: origin of object %s %r (parent armature %s) is not world origin (0,0,0), in-game results may vary' % (child.name, child.location, armature.name))
     
     for frame_current_offset in range(frame_count):
         frame_current = frame_start + frame_current_offset

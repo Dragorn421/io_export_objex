@@ -270,8 +270,30 @@ class ObjexWriter():
             if self.options['TRIANGULATE']:
                 # _must_ do this first since it re-allocs arrays
                 mesh_triangulate(me)
-
-            me.transform(self.options['GLOBAL_MATRIX'] * ob_mat)
+            
+            # 421todo apply ob_mat in animations if object is animated
+            # 421fixme (assuming has parent armature = animated ...)
+            # 421fixme scale should still be applied here as it cannot be part of animation data
+            """
+            421todo
+            apply scale here
+            apply translation to root_bone in loc
+            apply rotation to bones in rot
+            """
+            # 421fixme is self.options['EXPORT_ANIM'] the right check? animations may come from some other source
+            """
+            options['DEFORMED_MESH_STRATEGY']
+            -> 'WRITE_WORLD' write world coordinates for every mesh including ones deformed by armature (may break animations if world space != object space)
+            -> 'WRITE_OBJECT_TRANSFORM_IN_ANIMATION' write object coordinates for animated meshs and apply transforms in animation data (would result in world space used as model space, aka WYSIWYG)
+            -> 'WRITE_OBJECT_IGNORE_TRANSFORM' write object coordinates for animated meshs and ignore transform (would result in object space used as model space, may be useful for several animated meshs in one scene, so they are not stacked at world origin but still use 0,0,0 as origin when drawn in-game)
+            ?
+            -> 2 checkboxes? first "always apply object transform when writing mesh data of an animated mesh" (default unchecked) if unchecked 2nd appears "apply object transform to animations instead" (default checked)
+            """
+            if self.options['EXPORT_ANIM'] and ob.find_armature():
+                print('Writing mesh data for %s in object space as it seems animated' % ob.name)
+                me.transform(self.options['GLOBAL_MATRIX'])
+            else:
+                me.transform(self.options['GLOBAL_MATRIX'] * ob_mat)
             # If negative scaling, we have to invert the normals...
             if ob_mat.determinant() < 0.0:
                 me.flip_normals()
@@ -804,7 +826,6 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                     else:
                         fw('%s %s\n' % (key, repr(filepath)[1:-1]))
         """
-
 
 def test_nurbs_compat(ob):
     if ob.type != 'CURVE':
