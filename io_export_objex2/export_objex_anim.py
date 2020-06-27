@@ -49,14 +49,25 @@ def order_bones(armature):
     bones = armature.data.bones
     root_bone = None
     bones_ordered = []
+    skipped_bones = []
     for bone in bones:
+        # 421todo skip bones assigned to no vertex if they're root
+        # 421todo do not skip non-root bones if parent isnt skipped
+        if not bone.use_deform:
+            print('Skipping non-deform bone %s' % bone.name)
+            skipped_bones.append(bone)
+            continue
         # make sure there is only one root bone
         bone_parents = bone.parent_recursive
+        for skipped_bone in skipped_bones:
+            # 421todo does "in" work with bone objects?
+            if skipped_bone in bone_parents:
+                print('Error: bone %s has bone %s that was skipped as parent' % (bone.name, skipped_bone.name))
         root_parent_bone = bone_parents[-1] if bone_parents else bone
         if root_bone and root_parent_bone.name != root_bone.name:
             # 421todo
             print('bone_parents=%r root_bone=%r root_parent_bone=%r' % (bone_parents,root_bone,root_parent_bone))
-            print('Error: armature %s has multiple root bones, at least %s and %s' % (armature_name, root_bone.name, root_parent_bone.name))
+            print('Error: armature %s has multiple root bones, at least %s and %s' % (armature.name, root_bone.name, root_parent_bone.name))
         root_bone = root_parent_bone
         
         # preserve ordering from armature
