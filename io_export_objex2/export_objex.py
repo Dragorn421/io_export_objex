@@ -390,14 +390,20 @@ class ObjexWriter():
             if is_rigged:
                 fw('useskel %s\n' % string_to_literal(ob.parent.name))
             if self.options['EXPORT_WEIGHTS'] and vertex_groups and is_rigged:
+                # 421fixme if the bone space coords works, what about multiweight
+                # 
                 # only group of maximum weight, with weight 1
                 if self.options['UNIQUE_WEIGHTS']:
                     for v in vertices:
                         groups = vertex_groups[v.index]
                         if groups:
+                            co = v.co.copy() # 421todo check copy() usefulness in code in general
                             group_name, weight = max(groups, key=lambda _g: _g[1])
+                            if is_rigged:
+                                bone = ob.parent.data.bones[group_name]
+                                #co -= bone.head_local
                             fw('%s %s\n' % (
-                                'v %.6f %.6f %.6f' % v.co[:],
+                                'v %.6f %.6f %.6f' % co[:],
                                 'weight %s 1' % (string_to_literal(group_name))
                             ))
                         else:

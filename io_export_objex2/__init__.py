@@ -210,7 +210,7 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
 
     global_scale = FloatProperty(
             name='Scale',
-            min=0.01, max=1000.0,
+            min=0.01, max=1000.0, # 421todo use softmin/max not hard
             default=1.0,
             )
 
@@ -231,7 +231,9 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
                          axis_conversion(to_forward=self.axis_forward,
                                          to_up=self.axis_up,
                                          ).to_4x4())
-
+        
+        #global_matrix = Matrix() # 421FIXME use blender space everywhere for now
+        
         keywords['global_matrix'] = global_matrix
         return export_objex.save(context, **keywords)
 
