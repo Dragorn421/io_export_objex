@@ -170,57 +170,23 @@ def write_action_from_pose_bones(fw, scene, global_matrix, armature, root_bone, 
             
             """
             pose_bone.matrix_channel is the deform matrix in armature space
-            The idea is to use the bone deform relative to parent (parent_pose_bone.matrix_channel.inverted() * pose_bone.matrix_channel)
-            So, using
-                rot_matrix = global_matrix * parent_pose_bone.matrix_channel.inverted() * pose_bone.matrix_channel * global_matrix.inverted()
-            makes sense but due to how OoT does matrix maths instead of:
-                rotation_euler_zyx = rot_matrix.to_euler('ZYX')
-                fw('rot %.3f %.3f %.3f\n' % (rotation_euler_zyx.x, rotation_euler_zyx.y, rotation_euler_zyx.z))
-            I had to use:
-                rotation_euler_zyx = rot_matrix.inverted().to_euler('ZYX')
-                fw('rot %.3f %.3f %.3f\n' % (-rotation_euler_zyx.x, -rotation_euler_zyx.y, -rotation_euler_zyx.z))
-            
-            About OoT matrix math
-            let x,y,z be a Euler angle in ZYX order
-            c/s stands for cos/sin, eg cx is cosine of x rotation
-            
-            Here is how OoT and Blender compute the rotation matrix:
-                    OoT                         Blender
-            xx	    cz * cy			            cz * cy
-            yy	    cz * cx + sz * sy * sx		cz * cx - sz * sy * sx
-            zz	    cy * cx			            cy * cx
-            xz	    -sy			                -cx * sy * cz + sx * sz
-            zx	    cz * sy * cx + sz * sx		sy
-            xy	    sz * cy			            sx * sy * cz + cx * sz
-            yx  	-sz * cx + cz * sy * sx		-cy * sz
-            yz	    cy * sx			            cx * sy * sz + sx * cz
-            zy	    sz * sy * cx - cz * sx		-sx * cy
-            
-            the formulas become the same by
-                - changing sx,sy,sz into -sx,-sy,-sz
-                - transposing one of the resulting matrices (xz<->zx, xy<->yx, yz<->zy)
-            since cos is an even function, that means x,y,z must be changed into -x,-y,-z
-            since the matrices are rotation matrices, transposing and inverting produce the same result
-            421todo OoT's calculations are exactly the blender euler XYZ to matrix calculations, so, use blender XYZ?
-            
-            TLDR this explains the need for the seemingly weird transform above
+            We use the deform relative to parent (parent_pose_bone.matrix_channel.inverted() * pose_bone.matrix_channel)
             
             Reference:
                 OoT: Matrix_JointPosition source (decomp at 0x800d1340)
                 Blender: eulO_to_mat3 source
-            
-            What follows is equivalent to what I just described, but more optimized (less operations)
             """
             
             # 421todo what if armature/object transforms are not identity?
-            # 421todo .transposed() is the same as .inverted() for rotations, prob quicker
             if parent_pose_bone:
                 # we only care about the 3x3 rotation part
-                rot_matrix = pose_bone.matrix_channel.to_3x3().transposed() * parent_pose_bone.matrix_channel.to_3x3()
+                # for rotations, .transposed() is the same as .inverted()
+                rot_matrix = parent_pose_bone.matrix_channel.to_3x3().transposed() * pose_bone.matrix_channel.to_3x3()
             else:
                 # without a parent, transform can stay relative to armature (as if parent_pose_bone.matrix_channel = Identity)
-                rot_matrix = pose_bone.matrix_channel.to_3x3().transposed()
+                rot_matrix = pose_bone.matrix_channel.to_3x3()
             rot_matrix = global_matrix3 * rot_matrix * global_matrix3_inv
             
-            rotation_euler_zyx = rot_matrix.to_euler('ZYX')
-            fw('rot %.3f %.3f %.3f\n' % (-rotation_euler_zyx.x, -rotation_euler_zyx.y, -rotation_euler_zyx.z))
+            # OoT actually uses XYZ Euler angles.
+            rotation_euler_zyx = rot_matrix.to_euler('XYZ')
+            fw('rot %.3f %.3f %.3f\n' % (rotation_euler_zyx.x, rotation_euler_zyx.y, rotation_euler_zyx.z))
