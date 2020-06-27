@@ -683,12 +683,6 @@ class ObjexWriter():
 def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
     from mathutils import Color, Vector
 
-    world = scene.world
-    if world:
-        world_amb = world.ambient_color
-    else:
-        world_amb = Color((0.0, 0.0, 0.0))
-
     source_dir = os.path.dirname(bpy.data.filepath)
     dest_dir = os.path.dirname(filepath)
 
@@ -697,7 +691,63 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
 
         fw('# Blender MTL File: %r\n' % (os.path.basename(bpy.data.filepath) or "None"))
         fw('# Material Count: %i\n' % len(mtl_dict))
-
+        
+        # maps a file path to a texture name, to avoid duplicate newtex declarations
+        texture_names = {}
+        # mtl_dict.values() is a list of (material_name, material, face_img)
+        # materials is a list of (material_name, material, texture_name)
+        materials = []
+        
+        # write textures
+        for material_name, material, face_img in mtl_dict.values():
+            image = None
+            
+            # Write images!
+            # face_img.filepath may be '' for generated images
+            if face_img and face_img.filepath: # We have an image on the face!
+                image = face_img
+            elif material:  # No face image. if we have a material search for MTex image.
+                image_map = {}
+                # backwards so topmost are highest priority
+                for mtex in reversed(material.texture_slots):
+                    if mtex and mtex.texture and mtex.texture.type == 'IMAGE':
+                        image = mtex.texture.image
+                        if image and (mtex.use_map_color_diffuse and
+                            (mtex.use_map_warp is False) and (mtex.texture_coords != 'REFLECTION')):
+                            """
+                            what about mtex.offset, mtex.scale? see original code
+                            
+                            if mtex.offset != Vector((0.0, 0.0, 0.0)):
+                                options.append('-o %.6f %.6f %.6f' % mtex.offset[:])
+                            if mtex.scale != Vector((1.0, 1.0, 1.0)):
+                                options.append('-s %.6f %.6f %.6f' % mtex.scale[:])
+                            """
+                            break
+                        else:
+                            image = None
+            
+            if image:
+                image_filepath = image.filepath
+                texture_name = texture_names.get(image_filepath)
+                if not texture_name:
+                    texture_name = 'texture_%d' % len(texture_names)
+                    fw('newtex %s\n' % texture_name)
+                    filepath = bpy_extras.io_utils.path_reference(image_filepath, source_dir, dest_dir,
+                                                                  path_mode, "", copy_set, image.library)
+                    fw('map %s\n' % filepath)
+                    texture_names[image_filepath] = texture_name
+            else:
+                texture_name = None
+            materials.append((material_name, material, texture_name))
+        
+        for material_name, material, texture_name in materials:
+            fw('newmtl %s\n' % material_name)
+            if texture_name:
+                fw('texel0 %s\n' % texture_name)
+            if material:
+                fw('Kd %.6f %.6f %.6f\n' % (material.diffuse_intensity * material.diffuse_color)[:])
+        
+        """
         mtl_dict_values = list(mtl_dict.values())
         mtl_dict_values.sort(key=lambda m: m[0])
 
@@ -710,61 +760,11 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
             fw('\nnewmtl %s\n' % mtl_mat_name)  # Define a new material: matname_imgname
 
             if mat:
-                use_mirror = mat.raytrace_mirror.use and mat.raytrace_mirror.reflect_factor != 0.0
-
-                # convert from blenders spec to 0 - 1000 range.
-                if mat.specular_shader == 'WARDISO':
-                    tspec = (0.4 - mat.specular_slope) / 0.0004
-                else:
-                    tspec = (mat.specular_hardness - 1) / 0.51
-                fw('Ns %.6f\n' % tspec)
-                del tspec
-
                 # Ambient
-                if use_mirror:
-                    fw('Ka %.6f %.6f %.6f\n' % (mat.raytrace_mirror.reflect_factor * mat.mirror_color)[:])
-                else:
-                    fw('Ka %.6f %.6f %.6f\n' % (mat.ambient, mat.ambient, mat.ambient))  # Do not use world color!
                 fw('Kd %.6f %.6f %.6f\n' % (mat.diffuse_intensity * mat.diffuse_color)[:])  # Diffuse
-                fw('Ks %.6f %.6f %.6f\n' % (mat.specular_intensity * mat.specular_color)[:])  # Specular
-                # Emission, not in original MTL standard but seems pretty common, see T45766.
-                # XXX Blender has no color emission, it's using diffuse color instead...
-                fw('Ke %.6f %.6f %.6f\n' % (mat.emit * mat.diffuse_color)[:])
-                if hasattr(mat, "raytrace_transparency") and hasattr(mat.raytrace_transparency, "ior"):
-                    fw('Ni %.6f\n' % mat.raytrace_transparency.ior)  # Refraction index
-                else:
-                    fw('Ni %.6f\n' % 1.0)
-                fw('d %.6f\n' % mat.alpha)  # Alpha (obj uses 'd' for dissolve)
-
-                # See http://en.wikipedia.org/wiki/Wavefront_.obj_file for whole list of values...
-                # Note that mapping is rather fuzzy sometimes, trying to do our best here.
-                if mat.use_shadeless:
-                    fw('illum 0\n')  # ignore lighting
-                elif mat.specular_intensity == 0:
-                    fw('illum 1\n')  # no specular.
-                elif use_mirror:
-                    if mat.use_transparency and mat.transparency_method == 'RAYTRACE':
-                        if mat.raytrace_mirror.fresnel != 0.0:
-                            fw('illum 7\n')  # Reflection, Transparency, Ray trace and Fresnel
-                        else:
-                            fw('illum 6\n')  # Reflection, Transparency, Ray trace
-                    elif mat.raytrace_mirror.fresnel != 0.0:
-                        fw('illum 5\n')  # Reflection, Ray trace and Fresnel
-                    else:
-                        fw('illum 3\n')  # Reflection and Ray trace
-                elif mat.use_transparency and mat.transparency_method == 'RAYTRACE':
-                    fw('illum 9\n')  # 'Glass' transparency and no Ray trace reflection... fuzzy matching, but...
-                else:
-                    fw('illum 2\n')  # light normaly
-
             else:
                 # Write a dummy material here?
-                fw('Ns 0\n')
-                fw('Ka %.6f %.6f %.6f\n' % world_amb[:])  # Ambient, uses mirror color,
                 fw('Kd 0.8 0.8 0.8\n')
-                fw('Ks 0.8 0.8 0.8\n')
-                fw('d 1\n')  # No alpha
-                fw('illum 2\n')  # light normaly
 
             # Write images!
             if face_img:  # We have an image on the face!
@@ -790,37 +790,11 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                             if (mtex.use_map_color_diffuse and (face_img is None) and
                                 (mtex.use_map_warp is False) and (mtex.texture_coords != 'REFLECTION')):
                                 image_map["map_Kd"] = (mtex, image)
-                            if mtex.use_map_ambient:
-                                image_map["map_Ka"] = (mtex, image)
-                            # this is the Spec intensity channel but Ks stands for specular Color
-                            '''
-                            if mtex.use_map_specular:
-                                image_map["map_Ks"] = (mtex, image)
-                            '''
-                            if mtex.use_map_color_spec:  # specular color
-                                image_map["map_Ks"] = (mtex, image)
-                            if mtex.use_map_hardness:  # specular hardness/glossiness
-                                image_map["map_Ns"] = (mtex, image)
-                            if mtex.use_map_alpha:
-                                image_map["map_d"] = (mtex, image)
-                            if mtex.use_map_translucency:
-                                image_map["map_Tr"] = (mtex, image)
-                            if mtex.use_map_normal:
-                                image_map["map_Bump"] = (mtex, image)
-                            if mtex.use_map_displacement:
-                                image_map["disp"] = (mtex, image)
-                            if mtex.use_map_color_diffuse and (mtex.texture_coords == 'REFLECTION'):
-                                image_map["refl"] = (mtex, image)
-                            if mtex.use_map_emit:
-                                image_map["map_Ke"] = (mtex, image)
 
                 for key, (mtex, image) in sorted(image_map.items()):
                     filepath = bpy_extras.io_utils.path_reference(image.filepath, source_dir, dest_dir,
                                                                   path_mode, "", copy_set, image.library)
                     options = []
-                    if key == "map_Bump":
-                        if mtex.normal_factor != 1.0:
-                            options.append('-bm %.6f' % mtex.normal_factor)
                     if mtex.offset != Vector((0.0, 0.0, 0.0)):
                         options.append('-o %.6f %.6f %.6f' % mtex.offset[:])
                     if mtex.scale != Vector((1.0, 1.0, 1.0)):
@@ -829,6 +803,7 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                         fw('%s %s %s\n' % (key, " ".join(options), repr(filepath)[1:-1]))
                     else:
                         fw('%s %s\n' % (key, repr(filepath)[1:-1]))
+        """
 
 
 def test_nurbs_compat(ob):
