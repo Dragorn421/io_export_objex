@@ -93,7 +93,7 @@ the result being interpolated in-game (N64-specific)
 # .mtl files
 
 objex supports the standard Wavefront mtl specification,
-though what to do with everything besides `Kd` and `map_Kd`
+though what is done with everything besides `map_Kd`
 is undefined; that's because everything has been overhauled
 to work in a way fine-tuned to the Nintendo 64
 
@@ -177,9 +177,9 @@ specified with `map` for the texture mapping dimensions
 - if no format has been specified before this, it will default
 to `ci8`
 
-## `usemtl`
+## `newmtl`
 
-`usemtl name` creates a material; `usemtl` can be followed
+`newmtl name` creates a material; `newmtl` can be followed
 by any of these new (optional) directives:
 
 #### `gbi`
