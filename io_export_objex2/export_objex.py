@@ -670,8 +670,8 @@ class ObjexWriter():
                             animfile = open(self.filepath_anim, "w", encoding="utf8", newline="\n")
                             animfile_write = animfile.write
                         else:
-                            animfile_write = lambda _: None # void output
-                        export_objex_anim.write_anim(animfile_write, skelfile_write, scene, self.options['GLOBAL_MATRIX'], self.armatures)
+                            animfile_write = None
+                        export_objex_anim.write_armatures(skelfile_write, animfile_write, scene, self.options['GLOBAL_MATRIX'], self.armatures)
                     finally:
                         if skelfile:
                             skelfile.close()

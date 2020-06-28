@@ -4,42 +4,40 @@ import mathutils
 import re
 import ast
 
-def write_skel(file_write_skel, global_matrix, skeletons):
+def write_skeleton(file_write_skel, global_matrix, armature, bones_ordered):
     fw = file_write_skel
-    for armature, bones_ordered in skeletons:
-        # 421todo
-        # extra is optional
-        # quote and escape strings
-        # segment, pbody
-        fw('newskel %s %s\n' % (armature.name, armature.data.objex_bonus.type))
-        indent = 0
-        stack = [None]
-        for bone in bones_ordered:
-            #print('indent=%d bone=%s parent=%s stack=%r' % (indent, bone.name, bone.parent.name if bone.parent else 'None', stack))
-            while bone.parent != stack[-1]:
-                indent -= 1
-                fw('%s-\n' % (' ' * indent))
-                stack.pop()
-            # 421todo make sure this is correct, each bone relative to parent in object space axes
-            pos = bone.head_local
-            if bone.parent:
-                pos = pos.copy()
-                pos -= bone.parent.head_local
-            # 421todo confirm that bone root position is always assumed to be 0 by oot, if yes make sure WYSIWYG applies with the edit-mode location being accounted for in write_action_from_pose_bones
-            else:
-                # 421fixme better warnings, 
-                if pos != mathutils.Vector((0,0,0)):
-                    # 421todo instead of warn, automatically solve the problem (add a bone from (0,0,0) ?)
-                    print('Warning: root bone does not start at armature origin, in-game results may vary')
-            # 421todo use global_matrix, make sure this is correct
-            pos = global_matrix * pos
-            fw('%s+ %s %.6f %.6f %.6f\n' % (' ' * indent, bone.name, pos.x, pos.y, pos.z))
-            indent += 1
-            stack.append(bone)
-        while indent > 0:
+    # 421todo
+    # extra is optional
+    # quote and escape strings
+    # segment, pbody
+    objex_data = armature.data.objex_bonus
+    fw('newskel %s %s\n' % (armature.name, objex_data.type))
+    indent = 0
+    stack = [None]
+    for bone in bones_ordered:
+        #print('indent=%d bone=%s parent=%s stack=%r' % (indent, bone.name, bone.parent.name if bone.parent else 'None', stack))
+        while bone.parent != stack[-1]:
             indent -= 1
             fw('%s-\n' % (' ' * indent))
-        fw('\n')
+            stack.pop()
+        pos = bone.head_local
+        if bone.parent:
+            pos = pos.copy()
+            pos -= bone.parent.head_local
+        # 421todo confirm that bone root position is always assumed to be 0 by oot, if yes make sure WYSIWYG applies with the edit-mode location being accounted for in write_action_from_pose_bones
+        else:
+            # 421fixme better warnings, 
+            if pos != mathutils.Vector((0,0,0)):
+                # 421todo instead of warn, automatically solve the problem (add a bone from (0,0,0) ?)
+                print('Warning: root bone does not start at armature origin, in-game results may vary')
+        pos = global_matrix * pos
+        fw('%s+ %s %.6f %.6f %.6f\n' % (' ' * indent, bone.name, pos.x, pos.y, pos.z))
+        indent += 1
+        stack.append(bone)
+    while indent > 0:
+        indent -= 1
+        fw('%s-\n' % (' ' * indent))
+    fw('\n')
 
 def order_bones(armature):
     """
@@ -80,67 +78,54 @@ def order_bones(armature):
     
     return root_bone, bones_ordered
 
-# 421todo make write_skel the main call instead of write_anim since .anim depends on .skel but .skel doesn't depend on .anim
-def write_anim(file_write_anim, file_write_skel, scene, global_matrix, armatures):
-    fw = file_write_anim
-    
+def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, armatures):
+
     # user_ variables store parameters (potentially) used by the script and to be restored later
     user_frame_current = scene.frame_current
     user_frame_subframe = scene.frame_subframe
     
-    """
-    421todo force 20 fps somewhere?
-    bpy.context.scene.render.fps = 20 # fps
-    bpy.context.scene.render.fps_base = 1.0 # frame duration? (real_fps = fps/fps_base https://github.com/blender/blender/blob/89b6a7bae9160d762f085eff8e927bdac1a60801/release/scripts/startup/bl_operators/screen_play_rendered_anim.py#L85 )
-    """
+    # 421todo force 20 fps somewhere?
     scene_fps = scene.render.fps / scene.render.fps_base
     if scene_fps != 20:
         # 421todo better error/warning reporting
         print('Warning: animations are being viewed at %.1f fps, but will be used at 20 fps' % scene_fps)
     
-    skeletons = []
-    
     for armature, armature_actions in armatures:
-        
-        # no, just let the script crash if armature.animation_data doesn't exist but we still use it when writing an action
-        """
-        # unlikely but who knows? (animation_data_create doesn't create any action)
-        if not armature.animation_data:
-            armature.animation_data_create()
-        """
         if armature.animation_data:
             user_armature_action = armature.animation_data.action
         
-        armature_name = armature.name
         root_bone, bones_ordered = order_bones(armature)
         
-        if root_bone is None:
+        if not bones_ordered:
             # 421todo abort?
-            print('Error: armature %s has no bones' % armature_name)
+            print('Error: armature %s has no bones' % armature.name)
         
-        bones_idx = {bone.name: bone_idx for bone_idx, bone in enumerate(bones_ordered)}
-        skeletons.append((armature, bones_ordered))
+        if file_write_skel:
+            write_skeleton(file_write_skel, global_matrix, armature, bones_ordered)
         
-        # write animations
-        fw('# %s\n' % armature_name)
-        for action in armature_actions:
-            frame_start, frame_end = action.frame_range
-            frame_count = int(frame_end - frame_start + 1)
-            fw('newanim %s %s %d\n' % (armature_name, action.name, frame_count))
-            write_action_from_pose_bones(fw, scene, global_matrix, armature, root_bone, bones_ordered, bones_idx, action, frame_start, frame_count)
-            fw('\n')
-        fw('\n')
+        if file_write_anim:
+            write_animations(file_write_anim, scene, global_matrix, armature, root_bone, bones_ordered, armature_actions)
         
         if armature.animation_data:
             armature.animation_data.action = user_armature_action
     
-    write_skel(file_write_skel, global_matrix, skeletons)
-    
     scene.frame_set(user_frame_current, user_frame_subframe)
 
-def write_action_from_pose_bones(fw, scene, global_matrix, armature, root_bone, bones_ordered, bones_idx, action, frame_start, frame_count):
+def write_animations(file_write_anim, scene, global_matrix, armature, root_bone, bones_ordered, actions):
+    fw = file_write_anim
+    fw('# %s\n' % armature.name)
+    for action in actions:
+        frame_start, frame_end = action.frame_range
+        frame_count = int(frame_end - frame_start + 1) # 421fixme is this correct?
+        fw('newanim %s %s %d\n' % (armature.name, action.name, frame_count))
+        write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, action, frame_start, frame_count)
+        fw('\n')
+    fw('\n')
+
+def write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, action, frame_start, frame_count):
     global_matrix3 = global_matrix.to_3x3()
     global_matrix3_inv = global_matrix3.inverted()
+    
     armature.animation_data.action = action
     
     pose_bones = armature.pose.bones
@@ -178,10 +163,7 @@ def write_action_from_pose_bones(fw, scene, global_matrix, armature, root_bone, 
         the root bone loc will always be relative to armature
         so if root bone is not at 0,0,0 in edit mode (aka root_bone.head != 0) it may cause issues if loc and root_bone.head are summed
         """
-        # 421fixme I have no idea what axes .location uses, definitely not armature coordinates though, unlike .head
-        #root_loc = root_pose_bone.location
-        root_loc = root_pose_bone.head
-        # 421todo use global_matrix, make sure this is correct
+        root_loc = root_pose_bone.head # armature space
         root_loc = global_matrix * root_loc
         fw('loc %.6f %.6f %.6f\n' % (root_loc.x, root_loc.y, root_loc.z))
         for bone in bones_ordered:
