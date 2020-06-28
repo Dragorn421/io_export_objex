@@ -83,35 +83,38 @@ def findFaceMainVertexGroup(face, vWeightMap):
         return '(null)'
 
 class ObjexWriter():
+    default_options = {
+        'TRIANGULATE': True,
+        'EXPORT_SMOOTH_GROUPS': False,
+        'EXPORT_SMOOTH_GROUPS_BITFLAGS': False,
+        'EXPORT_NORMALS': True,
+        'EXPORT_VERTEX_COLORS': True,
+        'EXPORT_UV': True,
+        'EXPORT_MTL': True,
+        'EXPORT_SKEL': True,
+        'EXPORT_ANIM': True,
+        'EXPORT_WEIGHTS': True,
+        'UNIQUE_WEIGHTS': False,
+        'APPLY_MODIFIERS': True,
+        'APPLY_MODIFIERS_RENDER': False,
+        'KEEP_VERTEX_ORDER': False,
+        'EXPORT_POLYGROUPS': False,
+        'GLOBAL_MATRIX': None,
+        'PATH_MODE': 'AUTO'
+    }
     
     def __init__(self, context):
         self.context = context
         self.objects = []
-        self.options = {
-            'TRIANGULATE': True,
-            'EXPORT_SMOOTH_GROUPS': False,
-            'EXPORT_SMOOTH_GROUPS_BITFLAGS': False,
-            'EXPORT_NORMALS': True,
-            'EXPORT_VERTEX_COLORS': True,
-            'EXPORT_UV': True,
-            'EXPORT_MTL': True,
-            'EXPORT_SKEL': True,
-            'EXPORT_ANIM': True,
-            'EXPORT_WEIGHTS': True,
-            'UNIQUE_WEIGHTS': False, # 421todo default value? (btw, should fix that default values are defined in three different places)
-            'APPLY_MODIFIERS': True,
-            'APPLY_MODIFIERS_RENDER': False,
-            'KEEP_VERTEX_ORDER': False,
-            'EXPORT_POLYGROUPS': False,
-            'GLOBAL_MATRIX': None,
-            'PATH_MODE': 'AUTO'
-        }
+        self.options = ObjexWriter.default_options.copy()
     
     def add_target_objects(self, objects):
         self.objects.extend(objects)
     
     def set_options(self, options):
-        self.options.update(options)
+        for k,v in options.items():
+            if v is not None:
+                self.options[k] = v
     
     def write_header(self):
         fw = self.fw_objex
@@ -809,24 +812,24 @@ Currently the exporter lacks these features:
 def save(context,
          filepath,
          *,
-         use_triangles=True,
-         use_normals=True,
-         use_vertex_colors=True,
-         use_smooth_groups=False,
-         use_smooth_groups_bitflags=False,
-         use_uvs=True,
-         use_materials=True,
-         use_skeletons=True,
-         use_animations=True,
-         use_weights=True,
-         use_unique_weights=False, # 421todo default value?
-         use_mesh_modifiers=True,
-         use_mesh_modifiers_render=False,
-         keep_vertex_order=False,
-         use_vertex_groups=False,
-         use_selection=True,
+         use_triangles=None,
+         use_normals=None,
+         use_vertex_colors=None,
+         use_smooth_groups=None,
+         use_smooth_groups_bitflags=None,
+         use_uvs=None,
+         use_materials=None,
+         use_skeletons=None,
+         use_animations=None,
+         use_weights=None,
+         use_unique_weights=None,
+         use_mesh_modifiers=None,
+         use_mesh_modifiers_render=None,
+         keep_vertex_order=None,
+         use_vertex_groups=None,
+         use_selection=None,
          global_matrix=None,
-         path_mode='AUTO'
+         path_mode=None
          ):
 
     objex_writer = ObjexWriter(context)

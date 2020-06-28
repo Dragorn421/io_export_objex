@@ -104,86 +104,86 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
     use_mesh_modifiers = BoolProperty(
             name='Apply Modifiers',
             description='Apply modifiers',
-            default=True,
+            default=export_objex.ObjexWriter.default_options['APPLY_MODIFIERS'],
             )
     use_mesh_modifiers_render = BoolProperty(
             name='Use Modifiers Render Settings',
             description='Use render settings when applying modifiers to mesh objects',
-            default=False,
+            default=export_objex.ObjexWriter.default_options['APPLY_MODIFIERS_RENDER'],
             )
 
     # extra data group
     use_smooth_groups = BoolProperty(
             name='Smooth Groups',
             description='Write sharp edges as smooth groups',
-            default=False,
+            default=export_objex.ObjexWriter.default_options['EXPORT_SMOOTH_GROUPS'],
             )
     use_smooth_groups_bitflags = BoolProperty(
             name='Bitflag Smooth Groups',
             description='Same as Smooth Groups, but generate smooth groups IDs as bitflags '
                         '(produces at most 32 different smooth groups, usually much less)',
-            default=False,
+            default=export_objex.ObjexWriter.default_options['EXPORT_SMOOTH_GROUPS_BITFLAGS'],
             )
     use_normals = BoolProperty(
             name='Write Normals',
             description='Export one normal per vertex and per face, to represent flat faces and sharp edges',
-            default=True,
+            default=export_objex.ObjexWriter.default_options['EXPORT_NORMALS'],
             )
     use_vertex_colors = BoolProperty(
             name='Write Vertex Colors',
             description='Export one color per vertex and per face',
-            default=True,
+            default=export_objex.ObjexWriter.default_options['EXPORT_VERTEX_COLORS'],
             )
     use_uvs = BoolProperty(
             name='Include UVs',
             description='Write out the active UV coordinates',
-            default=True,
+            default=export_objex.ObjexWriter.default_options['EXPORT_UV'],
             )
     use_materials = BoolProperty(
             name='Write Materials',
             description='Write out the MTL file',
-            default=True,
+            default=export_objex.ObjexWriter.default_options['EXPORT_MTL'],
             )
     use_skeletons = BoolProperty(
             name='Write Skeletons',
             description='Write out the SKEL file',
-            default=True,
+            default=export_objex.ObjexWriter.default_options['EXPORT_SKEL'],
             )
     use_animations = BoolProperty(
             name='Write Animations',
             description='Write out the ANIM file',
-            default=True,
+            default=export_objex.ObjexWriter.default_options['EXPORT_ANIM'],
             )
     use_weights = BoolProperty(
             name='Write Weights',
             description='Write out the vertex weights',
-            default=True,
+            default=export_objex.ObjexWriter.default_options['EXPORT_WEIGHTS'],
             )
     use_unique_weights = BoolProperty(
-            name='Only write one weight per vertex',
-            description='Use vertex group with maximum weight, with weight 1.0',
-            default=False, # 421todo True by default? for OoT maybe
+            name='Write one weight per vertex',
+            description="Use vertex group with maximum weight, with weight 1.0 (doesn't write any weight if there is no vertex group assigned)",
+            default=export_objex.ObjexWriter.default_options['UNIQUE_WEIGHTS'],
             )
     use_triangles = BoolProperty(
             name='Triangulate Faces',
             description='Convert all faces to triangles',
-            default=True,
+            default=export_objex.ObjexWriter.default_options['TRIANGULATE'],
             )
     use_vertex_groups = BoolProperty(
             name='Polygroups',
             description='',
-            default=False,
+            default=export_objex.ObjexWriter.default_options['EXPORT_POLYGROUPS'],
             )
 
     keep_vertex_order = BoolProperty(
             name='Keep Vertex Order',
             description='',
-            default=False,
+            default=export_objex.ObjexWriter.default_options['KEEP_VERTEX_ORDER'],
             )
 
     global_scale = FloatProperty(
             name='Scale',
-            min=0.01, max=1000.0, # 421todo use softmin/max not hard
+            soft_min=0.01, soft_max=1000.0,
             default=1.0,
             )
 
