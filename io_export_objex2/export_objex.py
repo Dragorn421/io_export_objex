@@ -223,7 +223,12 @@ class ObjexWriter():
                 if self.options['EXPORT_ANIM']:
                     # 421todo store relevant actions
                     #armatures.append((ob, [bpy.data.actions[action_name] for action_name in ob.objex_bonus.actions]))
-                    self.armatures.append((ob, [ob.animation_data.action] if hasattr(ob.animation_data, 'action') and ob.animation_data.action else []))
+                    objex_data = ob.data.objex_bonus
+                    if objex_data.export_all_actions:
+                        actions = bpy.data.actions
+                    else:
+                        actions = [item.action for item in objex_data.export_actions if item.action]
+                    self.armatures.append((ob, actions))
                 else:
                     self.armatures.append((ob, []))
             

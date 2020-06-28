@@ -1,5 +1,6 @@
 import bpy
 import re
+import traceback
 
 """
 useful reference for UI
@@ -32,10 +33,50 @@ add input socket to a specific node instance #bpy.data.materials['Material'].nod
 
 # armature
 
+def armature_export_actions_change(self, context):
+    armature = context.armature
+    data = armature.objex_bonus
+    actions = data.export_actions
+    # remove all items without an action set
+    # this purposefully skips actions[-1]
+    i = len(actions) - 1
+    while i > 0:
+        i -= 1
+        item = actions[i]
+        if not item.action:
+            actions.remove(i)
+    # make sure last item is empty, to allow adding actions
+    if not actions or actions[-1].action:
+        actions.add()
+
+class ObjexArmatureExportActionsItem(bpy.types.PropertyGroup):
+    action = bpy.props.PointerProperty(
+            type=bpy.types.Action,
+            name='Action',
+            description='',
+            update=armature_export_actions_change
+        )
+
+class OBJEX_UL_actions(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        layout.prop(item, 'action', text='')
+
 class ObjexArmatureProperties(bpy.types.PropertyGroup):
     parent_object = bpy.props.PointerProperty(
             type=bpy.types.Object,
             name='Parent Object',
+            description=''
+        )
+    export_all_actions = bpy.props.BoolProperty(
+            name='Export all actions',
+            description='',
+            default=True,
+            update=armature_export_actions_change
+        )
+    export_actions_active = bpy.props.IntProperty()
+    export_actions = bpy.props.CollectionProperty(
+            type=ObjexArmatureExportActionsItem,
+            name='Actions',
             description=''
         )
     parent_bone = bpy.props.StringProperty(
@@ -73,8 +114,12 @@ class OBJEX_PT_armature(bpy.types.Panel):
         armature = context.armature
         data = armature.objex_bonus
         self.layout.prop(data, 'parent_object')
-        if data.parent_object and data.parent_object.type == 'ARMATURE':
+        if data.parent_object and hasattr(data.parent_object, 'type') and data.parent_object.type == 'ARMATURE':
             self.layout.prop_search(data, 'parent_bone', data.parent_object.data, 'bones', text='Parent Bone', icon=('NONE' if data.parent_bone in armature.bones else 'ERROR'))
+        self.layout.prop(data, 'export_all_actions')
+        if not data.export_all_actions:
+            self.layout.label(text='Actions to export:')
+            self.layout.template_list('OBJEX_UL_actions', '', data, 'export_actions', data, 'export_actions_active')
         self.layout.prop(data, 'type')
         self.layout.prop(data, 'segment', icon=('NONE' if re.match(r'^(?:0x)?[0-9a-fA-F]+$', data.segment) else 'ERROR'))
         self.layout.label(text='end!')
@@ -112,18 +157,29 @@ class OBJEX_PT_material(bpy.types.Panel):
         self.layout.prop(data, 'my_color')
         self.layout.label(text='HELLLLLLLOOOOO')
 
+classes = (
+    ObjexArmatureExportActionsItem,
+    ObjexArmatureProperties,
+    OBJEX_UL_actions,
+    OBJEX_PT_armature,
+    ObjexMaterialProperties,
+    OBJEX_PT_material
+)
+
 def register_interface():
-    bpy.utils.register_class(ObjexArmatureProperties)
+    for clazz in classes:
+        try:
+            bpy.utils.register_class(clazz)
+        except:
+            traceback.print_exc()
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
-    bpy.utils.register_class(OBJEX_PT_armature)
-    bpy.utils.register_class(ObjexMaterialProperties)
     bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
-    bpy.utils.register_class(OBJEX_PT_material)
 
 def unregister_interface():
-    bpy.utils.unregister_class(OBJEX_PT_armature)
     del bpy.types.Armature.objex_bonus
-    bpy.utils.unregister_class(ObjexArmatureProperties)
-    bpy.utils.unregister_class(OBJEX_PT_material)
     del bpy.types.Material.objex_bonus
-    bpy.utils.unregister_class(ObjexMaterialProperties)
+    for clazz in reversed(classes):
+        try:
+            bpy.utils.unregister_class(clazz)
+        except:
+            traceback.print_exc()
