@@ -9,9 +9,20 @@ def write_skeleton(file_write_skel, global_matrix, armature, bones_ordered):
     # 421todo
     # extra is optional
     # quote and escape strings
-    # segment, pbody
     objex_data = armature.data.objex_bonus
     fw('newskel %s %s\n' % (armature.name, objex_data.type))
+    if objex_data.segment:
+        fw('segment %s%s%s\n' % (
+            '' if objex_data.segment.startswith('0x') else '0x',
+            objex_data.segment,
+            ' local' if objex_data.segment_local else ''
+        ))
+    if objex_data.pbody:
+        fw('pbody')
+        if objex_data.pbody_parent_object:
+            # 421todo escape, make sure name written here is same as in target's newskel
+            fw(' parent %s %s' % (objex_data.pbody_parent_object.name, objex_data.pbody_parent_bone))
+        fw('\n')
     indent = 0
     stack = [None]
     for bone in bones_ordered:

@@ -62,11 +62,6 @@ class OBJEX_UL_actions(bpy.types.UIList):
         layout.prop(item, 'action', text='')
 
 class ObjexArmatureProperties(bpy.types.PropertyGroup):
-    parent_object = bpy.props.PointerProperty(
-            type=bpy.types.Object,
-            name='Parent Object',
-            description=''
-        )
     export_all_actions = bpy.props.BoolProperty(
             name='Export all actions',
             description='',
@@ -79,10 +74,7 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
             name='Actions',
             description=''
         )
-    parent_bone = bpy.props.StringProperty(
-            name='Parent Bone',
-            description=''
-        )
+    
     type = bpy.props.EnumProperty(
             items=[
                 ('z64player','z64player','',1),
@@ -93,9 +85,30 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
             description='',
             default='z64dummy'
         )
+    
+    pbody = bpy.props.BoolProperty(
+            name='Physics Body',
+            description='',
+            default=False
+        )
+    pbody_parent_object = bpy.props.PointerProperty(
+            type=bpy.types.Object,
+            name='Parent Object',
+            description='Optional'
+        )
+    pbody_parent_bone = bpy.props.StringProperty(
+            name='Parent Bone',
+            description=''
+        )
+    
     segment = bpy.props.StringProperty(
             name='Segment',
-            description=''
+            description='Hexadecimal'
+        )
+    segment_local = bpy.props.BoolProperty(
+            name='Local',
+            description='',
+            default=False
         )
 
 class OBJEX_PT_armature(bpy.types.Panel):
@@ -110,19 +123,40 @@ class OBJEX_PT_armature(bpy.types.Panel):
         return armature is not None
     
     def draw(self, context):
-        self.layout.label(text='Hello World')
         armature = context.armature
         data = armature.objex_bonus
-        self.layout.prop(data, 'parent_object')
-        if data.parent_object and hasattr(data.parent_object, 'type') and data.parent_object.type == 'ARMATURE':
-            self.layout.prop_search(data, 'parent_bone', data.parent_object.data, 'bones', text='Parent Bone', icon=('NONE' if data.parent_bone in armature.bones else 'ERROR'))
+        # actions
         self.layout.prop(data, 'export_all_actions')
         if not data.export_all_actions:
             self.layout.label(text='Actions to export:')
             self.layout.template_list('OBJEX_UL_actions', '', data, 'export_actions', data, 'export_actions_active')
+        # type
         self.layout.prop(data, 'type')
-        self.layout.prop(data, 'segment', icon=('NONE' if re.match(r'^(?:0x)?[0-9a-fA-F]+$', data.segment) else 'ERROR'))
-        self.layout.label(text='end!')
+        # pbody
+        if data.pbody:
+            box = self.layout.box()
+            box.prop(data, 'pbody')
+            if data.pbody_parent_object:
+                if hasattr(data.pbody_parent_object, 'type') and data.pbody_parent_object.type == 'ARMATURE':
+                    box.prop(data, 'pbody_parent_object')
+                    valid_bone = data.pbody_parent_bone in armature.bones
+                    box.prop_search(data, 'pbody_parent_bone', data.pbody_parent_object.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
+                    if not valid_bone:
+                        box.label(text='A bone must be picked')
+                else:
+                    box.prop(data, 'pbody_parent_object', icon='ERROR')
+                    box.label(text='If set, parent must be an armature')
+            else:
+                box.prop(data, 'pbody_parent_object')
+        else:
+            self.layout.prop(data, 'pbody')
+        # segment
+        box = self.layout.box()
+        valid_segment = re.match(r'^(?:(?:0x)?[0-9a-fA-F]|)+$', data.segment)
+        box.prop(data, 'segment', icon=('NONE' if valid_segment else 'ERROR'))
+        if not valid_segment:
+            box.label(text='Segment must be hexadecimal')
+        box.prop(data, 'segment_local')
 
 # material
 
