@@ -228,8 +228,6 @@ class ObjexWriter():
 
             if self.options['EXPORT_SKEL'] and ob.type == 'ARMATURE':
                 if self.options['EXPORT_ANIM']:
-                    # 421todo store relevant actions
-                    #armatures.append((ob, [bpy.data.actions[action_name] for action_name in ob.objex_bonus.actions]))
                     objex_data = ob.data.objex_bonus
                     if objex_data.export_all_actions:
                         actions = bpy.data.actions

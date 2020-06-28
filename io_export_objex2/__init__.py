@@ -28,14 +28,15 @@ WIP interface
 Added writing skeletons and animations
 Added writing weights, and option to only write maximum weight for each vertex
 Refactor, cut the giant write-obj function into a few pieces into the ObjexWriter class, hopefully made the code more readable
+Removed edge, nurb and "by material" exports
+Removed a lot from write_mtl
 """
 
 """
 TODO:
-write_mtl for writing the .mtl is still the untouched obj version
+write_mtl is very bare bones
 interface: but designing is required first
 writing animations flow from write_anim to write_skel, should be the opposite
-write_anim sucks
 ctrl+f "421todo" for less important details
 """
 
@@ -225,7 +226,6 @@ def register():
     bpy.types.INFO_MT_file_export.append(menu_func_export)
     
     interface.register_interface()
-    print('objex init register ok')
 
 
 def unregister():
