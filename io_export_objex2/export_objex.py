@@ -397,16 +397,21 @@ class ObjexWriter():
                 del vertGroupNames
 
             # Vert
-            # 421todo for weights, we may want to filter out groups not named after bones, those may cause issues
-            # 421todo putting the "parent armature" check because zzconvert doesnt like weight otherwise
             is_rigged = ob.parent and ob.parent.type == 'ARMATURE'
             if is_rigged:
                 fw('useskel %s\n' % string_to_literal(ob.parent.name))
             if self.options['EXPORT_WEIGHTS'] and vertex_groups and is_rigged:
+                # only write vertex groups named after actual bones
+                armature = ob.parent
+                bone_names = [bone.name for bone in armature.data.bones]
+                bone_vertex_groups = [
+                    [(group_name, weight) for group_name, weight in vertex_vertex_groups if group_name in bone_names]
+                    for vertex_vertex_groups in vertex_groups
+                ]
                 # only group of maximum weight, with weight 1
                 if self.options['UNIQUE_WEIGHTS']:
                     for v in vertices:
-                        groups = vertex_groups[v.index] # list of (group_name, group_weight) tuples for that vertex
+                        groups = bone_vertex_groups[v.index] # list of (group_name, group_weight) tuples for that vertex
                         if groups:
                             group_name, weight = max(groups, key=lambda _g: _g[1])
                             fw('%s %s\n' % (
@@ -414,15 +419,13 @@ class ObjexWriter():
                                 'weight %s 1' % (string_to_literal(group_name))
                             ))
                         else:
-                            # 421todo is this legal? potentially mixing vertices with and without weight set
                             fw('v %.6f %.6f %.6f\n' % v.co[:])
                 # all (non-zero) weights
                 else:
                     for v in vertices:
-                        # 421todo the != 0 check may cause the same issue as 5 lines above, if it turns out to be an issue
                         fw('%s%s\n' % (
                             'v %.6f %.6f %.6f' % v.co[:],
-                            ','.join([' weight %s %.3f' % (string_to_literal(group_name), weight) for group_name, weight in vertex_groups[v.index] if weight != 0])
+                            ','.join([' weight %s %.3f' % (string_to_literal(group_name), weight) for group_name, weight in bone_vertex_groups[v.index] if weight != 0])
                         ))
             # no weights
             else:
