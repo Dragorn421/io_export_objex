@@ -113,11 +113,6 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             )
 
     # extra data group
-    use_edges = BoolProperty(
-            name='Include Edges',
-            description='',
-            default=False,
-            )
     use_smooth_groups = BoolProperty(
             name='Smooth Groups',
             description='Write sharp edges as smooth groups',
@@ -174,24 +169,12 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             description='Convert all faces to triangles',
             default=True,
             )
-    use_nurbs = BoolProperty(
-            name='Write Nurbs',
-            description='Write nurbs curves as OBJ nurbs rather than '
-                        'converting to geometry',
-            default=False,
-            )
     use_vertex_groups = BoolProperty(
             name='Polygroups',
             description='',
             default=False,
             )
 
-    # grouping group
-    group_by_material = BoolProperty(
-            name='Material Groups',
-            description='',
-            default=False,
-            )
     keep_vertex_order = BoolProperty(
             name='Keep Vertex Order',
             description='',

@@ -89,7 +89,6 @@ class ObjexWriter():
         self.objects = []
         self.options = {
             'TRIANGULATE': True,
-            'EXPORT_EDGES': False,
             'EXPORT_SMOOTH_GROUPS': False,
             'EXPORT_SMOOTH_GROUPS_BITFLAGS': False,
             'EXPORT_NORMALS': True,
@@ -102,12 +101,8 @@ class ObjexWriter():
             'UNIQUE_WEIGHTS': False, # 421todo default value? (btw, should fix that default values are defined in three different places)
             'APPLY_MODIFIERS': True,
             'APPLY_MODIFIERS_RENDER': False,
-            'EXPORT_BLEN_OBS': True,
-            'EXPORT_GROUP_BY_OB': False,
-            'EXPORT_GROUP_BY_MAT': False,
             'KEEP_VERTEX_ORDER': False,
             'EXPORT_POLYGROUPS': False,
-            'EXPORT_CURVE_AS_NURBS': True,
             'GLOBAL_MATRIX': None,
             'PATH_MODE': 'AUTO'
         }
@@ -224,13 +219,6 @@ class ObjexWriter():
         
         with ProgressReportSubstep(progress, 6) as subprogress2:
 
-            # Nurbs curve support
-            if self.options['EXPORT_CURVE_AS_NURBS'] and test_nurbs_compat(ob):
-                ob_mat = self.options['GLOBAL_MATRIX'] * ob_mat
-                self.total_vertex += write_nurb(fw, ob, ob_mat)
-                return
-            # END NURBS
-            
             if self.options['EXPORT_SKEL'] and ob.type == 'ARMATURE':
                 if self.options['EXPORT_ANIM']:
                     # 421todo store relevant actions
@@ -312,12 +300,7 @@ class ObjexWriter():
             face_index_pairs = [(face, index) for index, face in enumerate(me.polygons)]
             # faces = [ f for f in me.tessfaces ]
 
-            if self.options['EXPORT_EDGES']:
-                edges = me.edges
-            else:
-                edges = []
-
-            if not (len(face_index_pairs) + len(edges) + len(vertices)):  # Make sure there is something to write
+            if not (len(face_index_pairs) + len(vertices)):  # Make sure there is something to write
                 # clean up
                 bpy.data.meshes.remove(me)
                 return  # dont bother with this mesh.
@@ -375,18 +358,14 @@ class ObjexWriter():
 
                 del sort_func
 
-            if self.options['EXPORT_BLEN_OBS'] or self.options['EXPORT_GROUP_BY_OB']:
-                name1 = ob.name
-                name2 = ob.data.name
-                if name1 == name2:
-                    obnamestring = name_compat(name1)
-                else:
-                    obnamestring = '%s_%s' % (name_compat(name1), name_compat(name2))
-
-                if self.options['EXPORT_BLEN_OBS']:
-                    fw('o %s\n' % obnamestring)  # Write Object name
-                else:  # if EXPORT_GROUP_BY_OB:
-                    fw('g %s\n' % obnamestring)
+            name1 = ob.name
+            name2 = ob.data.name
+            if name1 == name2:
+                obnamestring = name_compat(name1)
+            else:
+                obnamestring = '%s_%s' % (name_compat(name1), name_compat(name2))
+            fw('g %s\n' % obnamestring)
+            del name1, name2, obnamestring
 
             subprogress2.step()
 
@@ -471,7 +450,7 @@ class ObjexWriter():
             # those context_* variables are used to keep track of the last g/usemtl/s directive written, according to options
             # Set the default mat to no material and no image.
             context_vertex_group = '' # g written if EXPORT_POLYGROUPS (has_polygroups)
-            context_material_name = context_texture_name = 0  # Can never be this, so we will label a new material the first chance we get. g written if EXPORT_GROUP_BY_MAT, also used for usemtl directives if EXPORT_MTL
+            context_material_name = context_texture_name = 0  # Can never be this, so we will label a new material the first chance we get. used for usemtl directives if EXPORT_MTL
             context_smooth = None  # Will either be true or false,  set bad to force initialization switch. with EXPORT_SMOOTH_GROUPS or EXPORT_SMOOTH_GROUPS_BITFLAGS, has effects on writing the s directive
 
             for f, f_index in face_index_pairs:
@@ -506,9 +485,6 @@ class ObjexWriter():
                 else:
                     if current_material_name is None and current_texture_name is None:
                         # Write a null material, since we know the context has changed.
-                        if self.options['EXPORT_GROUP_BY_MAT']:
-                            # can be mat_image or (null)
-                            fw("g %s_%s\n" % (name_compat(ob.name), name_compat(ob.data.name)))
                         if self.options['EXPORT_MTL']:
                             fw("usemtl (null)\n")  # mat, image
 
@@ -539,9 +515,6 @@ class ObjexWriter():
                             mat_data = self.mtl_dict[current_key] = mtl_name, materials[f_mat], f_image
                             self.mtl_rev_dict[mtl_name] = current_key
 
-                        if self.options['EXPORT_GROUP_BY_MAT']:
-                            # can be mat_image or (null)
-                            fw("g %s_%s_%s\n" % (name_compat(ob.name), name_compat(ob.data.name), mat_data[0]))
                         if self.options['EXPORT_MTL']:
                             fw("usemtl %s\n" % mat_data[0])  # can be mat_image or (null)
 
@@ -579,12 +552,6 @@ class ObjexWriter():
                 fw('\n')
 
             subprogress2.step()
-
-            # Write edges.
-            if self.options['EXPORT_EDGES']:
-                for ed in edges:
-                    if ed.is_loose:
-                        fw('l %d %d\n' % (self.total_vertex + ed.vertices[0], self.total_vertex + ed.vertices[1]))
 
             # Make the indices global rather then per mesh
             self.total_vertex += len(vertices)
@@ -827,82 +794,6 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                         fw('%s %s\n' % (key, repr(filepath)[1:-1]))
         """
 
-def test_nurbs_compat(ob):
-    if ob.type != 'CURVE':
-        return False
-
-    for nu in ob.data.splines:
-        if nu.point_count_v == 1 and nu.type != 'BEZIER':  # not a surface and not bezier
-            return True
-
-    return False
-
-
-def write_nurb(fw, ob, ob_mat):
-    tot_verts = 0
-    cu = ob.data
-
-    # use negative indices
-    for nu in cu.splines:
-        if nu.type == 'POLY':
-            DEG_ORDER_U = 1
-        else:
-            DEG_ORDER_U = nu.order_u - 1  # odd but tested to be correct
-
-        if nu.type == 'BEZIER':
-            print("\tWarning, bezier curve:", ob.name, "only poly and nurbs curves supported")
-            continue
-
-        if nu.point_count_v > 1:
-            print("\tWarning, surface:", ob.name, "only poly and nurbs curves supported")
-            continue
-
-        if len(nu.points) <= DEG_ORDER_U:
-            print("\tWarning, order_u is lower then vert count, skipping:", ob.name)
-            continue
-
-        pt_num = 0
-        do_closed = nu.use_cyclic_u
-        do_endpoints = (do_closed == 0) and nu.use_endpoint_u
-
-        for pt in nu.points:
-            fw('v %.6f %.6f %.6f\n' % (ob_mat * pt.co.to_3d())[:])
-            pt_num += 1
-        tot_verts += pt_num
-
-        fw('g %s\n' % (name_compat(ob.name)))  # name_compat(ob.getData(1)) could use the data name too
-        fw('cstype bspline\n')  # not ideal, hard coded
-        fw('deg %d\n' % DEG_ORDER_U)  # not used for curves but most files have it still
-
-        curve_ls = [-(i + 1) for i in range(pt_num)]
-
-        # 'curv' keyword
-        if do_closed:
-            if DEG_ORDER_U == 1:
-                pt_num += 1
-                curve_ls.append(-1)
-            else:
-                pt_num += DEG_ORDER_U
-                curve_ls = curve_ls + curve_ls[0:DEG_ORDER_U]
-
-        fw('curv 0.0 1.0 %s\n' % (" ".join([str(i) for i in curve_ls])))  # Blender has no U and V values for the curve
-
-        # 'parm' keyword
-        tot_parm = (DEG_ORDER_U + 1) + pt_num
-        tot_parm_div = float(tot_parm - 1)
-        parm_ls = [(i / tot_parm_div) for i in range(tot_parm)]
-
-        if do_endpoints:  # end points, force param
-            for i in range(DEG_ORDER_U + 1):
-                parm_ls[i] = 0.0
-                parm_ls[-(1 + i)] = 1.0
-
-        fw("parm u %s\n" % " ".join(["%.6f" % i for i in parm_ls]))
-
-        fw('end\n')
-
-    return tot_verts
-
 
 """
 Currently the exporter lacks these features:
@@ -914,7 +805,6 @@ def save(context,
          filepath,
          *,
          use_triangles=True,
-         use_edges=False,
          use_normals=True,
          use_vertex_colors=True,
          use_smooth_groups=False,
@@ -927,12 +817,8 @@ def save(context,
          use_unique_weights=False, # 421todo default value?
          use_mesh_modifiers=True,
          use_mesh_modifiers_render=False,
-         use_blen_objects=False,
-         group_by_object=True,
-         group_by_material=False,
          keep_vertex_order=False,
          use_vertex_groups=False,
-         use_nurbs=True,
          use_selection=True,
          global_matrix=None,
          path_mode='AUTO'
@@ -941,7 +827,6 @@ def save(context,
     objex_writer = ObjexWriter(context)
     objex_writer.set_options({
         'TRIANGULATE':use_triangles,
-        'EXPORT_EDGES':use_edges,
         'EXPORT_SMOOTH_GROUPS':use_smooth_groups,
         'EXPORT_SMOOTH_GROUPS_BITFLAGS':use_smooth_groups_bitflags,
         'EXPORT_NORMALS':use_normals,
@@ -954,12 +839,8 @@ def save(context,
         'UNIQUE_WEIGHTS':use_unique_weights,
         'APPLY_MODIFIERS':use_mesh_modifiers,
         'APPLY_MODIFIERS_RENDER':use_mesh_modifiers_render,
-        'EXPORT_BLEN_OBS':use_blen_objects,
-        'EXPORT_GROUP_BY_OB':group_by_object,
-        'EXPORT_GROUP_BY_MAT':group_by_material,
         'KEEP_VERTEX_ORDER':keep_vertex_order,
         'EXPORT_POLYGROUPS':use_vertex_groups,
-        'EXPORT_CURVE_AS_NURBS':use_nurbs,
         'GLOBAL_MATRIX':global_matrix,
         'PATH_MODE':path_mode
     })
