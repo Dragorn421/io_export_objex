@@ -205,13 +205,17 @@ class ObjexWriter():
         loops_to_vertex_colors = [0] * len(loops)
         for f, f_index in face_index_pairs:
             for l_idx in f.loop_indices:
-                # 421todo support alpha 
-                vc_key = loop_colors[l_idx].color
-                vc_key = (round(vc_key[0], 6), round(vc_key[1], 6), round(vc_key[2], 6))
+                color = loop_colors[l_idx].color
+                # 3 digits: 1/256 ~ 0.0039
+                vc_key = (round(color[0], 3), round(color[1], 3), round(color[2], 3), 1.0)
+                # 421todo support alpha for all blender versions (nodes)
+                # 421todo confirm this does detect the blender version that supports vertex alpha
+                if bpy.app.version == (2,79,7) and bpy.app.build_hash == b'10f724cec5e3':
+                    vc_key[3] = round(color[3], 3)
                 vc_val = vertex_colors_to_idx.get(vc_key)
                 if vc_val is None:
                     vc_val = vertex_colors_to_idx[vc_key] = vc_unique_count
-                    fw('vc %.6f %.6f %.6f 1.0\n' % vc_key)
+                    fw('vc %.3f %.3f %.3f %.3f\n' % vc_key)
                     vc_unique_count += 1
                 loops_to_vertex_colors[l_idx] = vc_val
         return loops_to_vertex_colors, vc_unique_count
