@@ -169,7 +169,7 @@ class CST:
     CYCLE_COLOR = 'C'
     CYCLE_ALPHA = 'A'
 
-    SUPPORTED_FLAGS = {
+    SUPPORTED_FLAGS_COLOR = {
         'A': {
             'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
             #'G_CCMUX_SHADE',
@@ -190,7 +190,7 @@ class CST:
             #'G_CCMUX_SHADE',
             'G_CCMUX_ENVIRONMENT',
             #'G_CCMUX_SCALE',
-            #'G_CCMUX_COMBINED_ALPHA',
+            'G_CCMUX_COMBINED_ALPHA',
             #'G_CCMUX_TEXEL0_ALPHA',
             #'G_CCMUX_TEXEL1_ALPHA',
             'G_CCMUX_PRIMITIVE_ALPHA',
@@ -205,6 +205,35 @@ class CST:
             'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
             #'G_CCMUX_SHADE',
             'G_CCMUX_ENVIRONMENT','G_CCMUX_1','G_CCMUX_0'
+        },
+    }
+
+    SUPPORTED_FLAGS_ALPHA = {
+        'A': {
+            'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
+            #'G_ACMUX_SHADE',
+            'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
+            'G_ACMUX_0'
+        },
+        'B': {
+            'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
+            #'G_ACMUX_SHADE',
+            'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
+            'G_ACMUX_0'
+        },
+        'C': {
+            #'G_ACMUX_LOD_FRACTION',
+            'G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
+            #'G_ACMUX_SHADE',
+            'G_ACMUX_ENVIRONMENT',
+            #'G_ACMUX_PRIM_LOD_FRAC',
+            'G_ACMUX_0'
+        },
+        'D': {
+            'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
+            #'G_ACMUX_SHADE',
+            'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
+            'G_ACMUX_0'
         },
     }
 
@@ -241,6 +270,7 @@ class OBJEX_NodeSocketCombiner_CA_Output():
 
     def draw(self, context, layout, node, text):
         layout.label(text='%s (%s/%s)' % (text, stripPrefix(self.flagColorCycle, 'G_CCMUX_'), stripPrefix(self.flagAlphaCycle, 'G_ACMUX_')))
+        # todo "show compat" operator which makes A/B/C/D blink when they support this output?
 
     def draw_color(self, context, node):
         return CST.COLOR_OK
@@ -276,7 +306,7 @@ class OBJEX_NodeSocketCombiner_CA_Input():
                     icon = 'ERROR'
                     warnMsg = 'Unknown cycle'
             if flag:
-                if flag not in CST.SUPPORTED_FLAGS[text]: # 421todo do not rely on text = A/B/C/D
+                if flag not in (CST.SUPPORTED_FLAGS_COLOR if self.__class__.cycle == CST.CYCLE_COLOR else CST.SUPPORTED_FLAGS_ALPHA)[text]: # 421todo do not rely on text = A/B/C/D
                     icon = 'ERROR'
                     warnMsg = 'Unsupported for %s' % text
             else: # flag can be empty if non exists
@@ -312,7 +342,7 @@ class OBJEX_NodeSocketCombiner_CA_Input():
                     icon = 'ERROR'
                     warnMsg = 'Unknown cycle'
             if flag:
-                if flag not in CST.SUPPORTED_FLAGS[text]: # 421todo do not rely on text = A/B/C/D
+                if flag not in (CST.SUPPORTED_FLAGS_COLOR if self.__class__.cycle == CST.CYCLE_COLOR else CST.SUPPORTED_FLAGS_ALPHA)[text]: # 421todo do not rely on text = A/B/C/D
                     icon = 'ERROR'
                     warnMsg = 'Unsupported for %s' % text
             else: # flag can be empty if non exists
@@ -369,6 +399,44 @@ def create_node_group_color_cycle(group_name):
     cc.outputs['Result'].name = '(A-B)*C+D' # rename from 'Result' to formula
 
     return cc
+
+def create_node_group_alpha_cycle(group_name):
+    ac = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
+
+    def addMathNode(operation):
+        n = ac.nodes.new('ShaderNodeMath')
+        n.operation = operation
+        return n
+
+    ac_inputs_node = ac.nodes.new('NodeGroupInput')
+    ac_inputs_node.location = (-450,0)
+    ac.inputs.new('OBJEX_NodeSocketCombinerAlphaInput', 'A')
+    ac.inputs.new('OBJEX_NodeSocketCombinerAlphaInput', 'B')
+    ac.inputs.new('OBJEX_NodeSocketCombinerAlphaInput', 'C')
+    ac.inputs.new('OBJEX_NodeSocketCombinerAlphaInput', 'D')
+
+    A_minus_B = addMathNode('SUBTRACT')
+    A_minus_B.location = (-250,150)
+    ac.links.new(ac_inputs_node.outputs['A'], A_minus_B.inputs[0])
+    ac.links.new(ac_inputs_node.outputs['B'], A_minus_B.inputs[1])
+
+    times_C = addMathNode('MULTIPLY')
+    times_C.location = (-50,100)
+    ac.links.new(A_minus_B.outputs[0], times_C.inputs[0])
+    ac.links.new(ac_inputs_node.outputs['C'], times_C.inputs[1])
+
+    plus_D = addMathNode('ADD')
+    plus_D.location = (150,50)
+    ac.links.new(times_C.outputs[0], plus_D.inputs[0])
+    ac.links.new(ac_inputs_node.outputs['D'], plus_D.inputs[1])
+
+    ac_outputs_node = ac.nodes.new('NodeGroupOutput')
+    ac_outputs_node.location = (350,0)
+    ac.outputs.new('OBJEX_NodeSocketCombinerAlphaOutput', 'Result')
+    ac.links.new(plus_D.outputs[0], ac_outputs_node.inputs['Result'])
+    ac.outputs['Result'].name = '(A-B)*C+D' # rename from 'Result' to formula
+
+    return ac
 
 def create_node_group_color_static(group_name, colorValue, colorValueName):
     color0 = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
@@ -456,6 +524,7 @@ def update_node_groups():
     #   (if the order must change, more complex upgrading code is required)
     groups = {
         'OBJEX_ColorCycle': (1, create_node_group_color_cycle),
+        'OBJEX_AlphaCycle': (1, create_node_group_alpha_cycle),
         'OBJEX_Color0': (1, lambda group_name: create_node_group_color_static(group_name, (0,0,0,0), '0')),
         'OBJEX_Color1': (1, lambda group_name: create_node_group_color_static(group_name, (1,1,1,1), '1')),
         'OBJEX_ScaleUV': (1, create_node_group_scale_uv),
@@ -600,10 +669,9 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             cc0.node_tree = bpy.data.node_groups['OBJEX_ColorCycle']
             cc0.name = 'OBJEX_ColorCycle0' # internal name
             cc0.label = 'Color Cycle 0' # displayed name
-            cc0.location = (500, 100)
+            cc0.location = (500, 200)
             cc0.width = 200
             cc0.outputs[0].flagColorCycle = 'G_CCMUX_COMBINED'
-            cc0.outputs[0].flagAlphaCycle = 'G_ACMUX_COMBINED'
         else:
             cc0 = nodes['OBJEX_ColorCycle0']
         if 'OBJEX_ColorCycle1' not in nodes:
@@ -611,10 +679,31 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             cc1.node_tree = bpy.data.node_groups['OBJEX_ColorCycle']
             cc1.name = 'OBJEX_ColorCycle1'
             cc1.label = 'Color Cycle 1'
-            cc1.location = (750, 100)
+            cc1.location = (750, 200)
             cc1.width = 200
         else:
             cc1 = nodes['OBJEX_ColorCycle1']
+        
+        if 'OBJEX_AlphaCycle0' not in nodes:
+            ac0 = nodes.new('ShaderNodeGroup')
+            ac0.node_tree = bpy.data.node_groups['OBJEX_AlphaCycle']
+            ac0.name = 'OBJEX_AlphaCycle0'
+            ac0.label = 'Alpha Cycle 0'
+            ac0.location = (500, 0)
+            ac0.width = 200
+            ac0.outputs[0].flagColorCycle = 'G_CCMUX_COMBINED_ALPHA'
+            ac0.outputs[0].flagAlphaCycle = 'G_ACMUX_COMBINED'
+        else:
+            ac0 = nodes['OBJEX_AlphaCycle0']
+        if 'OBJEX_AlphaCycle1' not in nodes:
+            ac1 = nodes.new('ShaderNodeGroup')
+            ac1.node_tree = bpy.data.node_groups['OBJEX_AlphaCycle']
+            ac1.name = 'OBJEX_AlphaCycle1'
+            ac1.label = 'Alpha Cycle 1'
+            ac1.location = (750, 0)
+            ac1.width = 200
+        else:
+            ac1 = nodes['OBJEX_AlphaCycle1']
         
         if 'Output' not in nodes:
             output = nodes.new('ShaderNodeOutput')
