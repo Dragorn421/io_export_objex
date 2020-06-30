@@ -273,7 +273,10 @@ class OBJEX_NodeSocketCombiner_CA_Output():
     flagAlphaCycle = bpy.props.StringProperty()
 
     def draw(self, context, layout, node, text):
-        layout.label(text='%s (%s/%s)' % (text, stripPrefix(self.flagColorCycle, 'G_CCMUX_'), stripPrefix(self.flagAlphaCycle, 'G_ACMUX_')))
+        if node.bl_idname == 'NodeGroupOutput':
+            layout.label(text=text)
+        else:
+            layout.label(text='%s (%s/%s)' % (text, stripPrefix(self.flagColorCycle, 'G_CCMUX_'), stripPrefix(self.flagAlphaCycle, 'G_ACMUX_')))
         # todo "show compat" operator which makes A/B/C/D blink when they support this output?
 
     def draw_color(self, context, node):
@@ -290,6 +293,9 @@ class OBJEX_NodeSocketCombiner_CA_Input():
         pass # 421todo
 
     def draw(self, context, layout, node, text):
+        if node.bl_idname == 'NodeGroupInput':
+            layout.label(text=text)
+            return
         value = None
         icon = 'NONE'
         warnMsg = None
@@ -356,7 +362,7 @@ class OBJEX_NodeSocketCombiner_CA_Input():
         return (0,1,0,1) if icon != 'ERROR' else (1,0,0,1)
 
 class OBJEX_NodeSocketCombinerColorInput(bpy.types.NodeSocket, OBJEX_NodeSocketCombiner_CA_Input):
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0.0, 0.0, 0.0), min=0, max=1, subtype='COLOR')
+    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,0,0), min=0, max=1, subtype='COLOR')
     cycle = CST.CYCLE_COLOR
 
 class OBJEX_NodeSocketCombinerAlphaInput(bpy.types.NodeSocket, OBJEX_NodeSocketCombiner_CA_Input):
@@ -760,7 +766,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             color0.node_tree = bpy.data.node_groups['OBJEX_Color0']
             color0.name = 'OBJEX_Color0'
             color0.label = 'Color 0'
-            color0.location = (300, -100)
+            color0.location = (300, -350)
             color0.outputs[0].flagColorCycle = 'G_CCMUX_0'
             color0.outputs[0].flagAlphaCycle = 'G_ACMUX_0'
         else:
@@ -770,7 +776,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             color1.node_tree = bpy.data.node_groups['OBJEX_Color1']
             color1.name = 'OBJEX_Color1'
             color1.label = 'Color 1'
-            color1.location = (300, -200)
+            color1.location = (300, -430)
             color1.outputs[0].flagColorCycle = 'G_CCMUX_1'
             color1.outputs[0].flagAlphaCycle = 'G_ACMUX_1'
         else:
@@ -824,6 +830,15 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         else:
             output = nodes['Output']
         
+        # decoration
+        if 'OBJEX_Frame_CombinerInputs' not in nodes:
+            frame = nodes.new('NodeFrame')
+            frame.name = 'OBJEX_Frame_CombinerInputs'
+            frame.label = 'Combiner Inputs'
+            frame.location = primColor.location + mathutils.Vector((-25,50))
+            frame.width = 25 + primColor.width + 25
+            frame.height = 25 + primColor.location[1] - (color1.location[1] - color1.height) + 25
+        
         # texel0
         node_tree.links.new(geometry.outputs['UV'], multiTexScale0.inputs['UV'])
         node_tree.links.new(multiTexScale0.outputs[0], texel0texture.inputs[0])
@@ -837,7 +852,9 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         # shade
         node_tree.links.new(geometry.outputs['Vertex Color'], shade.inputs[0])
         node_tree.links.new(geometry.outputs['Vertex Alpha'], shade.inputs[1])
+        # combiners output
         node_tree.links.new(cc1.outputs[0], output.inputs[0])
+        node_tree.links.new(ac1.outputs[0], output.inputs[1])
         
         return {'FINISHED'}
 
@@ -909,7 +926,7 @@ def register_interface():
         try:
             bpy.utils.register_class(clazz)
         except:
-            print(clazz)
+            print('Error registering', clazz)
             traceback.print_exc()
             raise
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
@@ -922,4 +939,5 @@ def unregister_interface():
         try:
             bpy.utils.unregister_class(clazz)
         except:
+            print('Error unregistering', clazz)
             traceback.print_exc()
