@@ -169,17 +169,18 @@ class CST:
     CYCLE_COLOR = 'C'
     CYCLE_ALPHA = 'A'
 
+    # 421todo *_SHADE* is only vertex colors atm
     SUPPORTED_FLAGS_COLOR = {
         'A': {
             'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-            #'G_CCMUX_SHADE',
+            'G_CCMUX_SHADE',
             'G_CCMUX_ENVIRONMENT','G_CCMUX_1',
             #'G_CCMUX_NOISE',
             'G_CCMUX_0'
         },
         'B': {
             'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-            #'G_CCMUX_SHADE',
+            'G_CCMUX_SHADE',
             'G_CCMUX_ENVIRONMENT',
             #'G_CCMUX_CENTER',
             #'G_CCMUX_K4',
@@ -187,14 +188,14 @@ class CST:
         },
         'C': {
             'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-            #'G_CCMUX_SHADE',
+            'G_CCMUX_SHADE',
             'G_CCMUX_ENVIRONMENT',
             #'G_CCMUX_SCALE',
             'G_CCMUX_COMBINED_ALPHA',
             #'G_CCMUX_TEXEL0_ALPHA',
             #'G_CCMUX_TEXEL1_ALPHA',
             'G_CCMUX_PRIMITIVE_ALPHA',
-            #'G_CCMUX_SHADE_ALPHA',
+            'G_CCMUX_SHADE_ALPHA',
             'G_CCMUX_ENV_ALPHA',
             #'G_CCMUX_LOD_FRACTION',
             #'G_CCMUX_PRIM_LOD_FRAC',
@@ -203,7 +204,7 @@ class CST:
         },
         'D': {
             'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-            #'G_CCMUX_SHADE',
+            'G_CCMUX_SHADE',
             'G_CCMUX_ENVIRONMENT','G_CCMUX_1','G_CCMUX_0'
         },
     }
@@ -211,27 +212,27 @@ class CST:
     SUPPORTED_FLAGS_ALPHA = {
         'A': {
             'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-            #'G_ACMUX_SHADE',
+            'G_ACMUX_SHADE',
             'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
             'G_ACMUX_0'
         },
         'B': {
             'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-            #'G_ACMUX_SHADE',
+            'G_ACMUX_SHADE',
             'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
             'G_ACMUX_0'
         },
         'C': {
             #'G_ACMUX_LOD_FRACTION',
             'G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-            #'G_ACMUX_SHADE',
+            'G_ACMUX_SHADE',
             'G_ACMUX_ENVIRONMENT',
             #'G_ACMUX_PRIM_LOD_FRAC',
             'G_ACMUX_0'
         },
         'D': {
             'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-            #'G_ACMUX_SHADE',
+            'G_ACMUX_SHADE',
             'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
             'G_ACMUX_0'
         },
@@ -643,6 +644,19 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         else:
             envColor = nodes['OBJEX_EnvColor']
         
+        if 'OBJEX_Shade' not in nodes:
+            shade = nodes.new('ShaderNodeGroup')
+            shade.node_tree = bpy.data.node_groups['OBJEX_rgba']
+            shade.name = 'OBJEX_Shade'
+            shade.label = 'Shade'
+            shade.location = (300, -200)
+            shade.outputs[0].flagColorCycle = 'G_CCMUX_SHADE'
+            shade.outputs[1].flagColorCycle = 'G_CCMUX_SHADE_ALPHA'
+            shade.outputs[0].flagAlphaCycle = ''
+            shade.outputs[1].flagAlphaCycle = 'G_ACMUX_SHADE'
+        else:
+            shade = nodes['OBJEX_Shade']
+        
         if 'OBJEX_Color0' not in nodes:
             color0 = nodes.new('ShaderNodeGroup')
             color0.node_tree = bpy.data.node_groups['OBJEX_Color0']
@@ -716,6 +730,9 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         node_tree.links.new(multiTexScale0.outputs[0], texel0.inputs[0])
         node_tree.links.new(geometry.outputs['UV'], multiTexScale1.inputs['UV'])
         node_tree.links.new(multiTexScale1.outputs[0], texel1.inputs[0])
+        # shade
+        node_tree.links.new(geometry.outputs['Vertex Color'], shade.inputs[0])
+        node_tree.links.new(geometry.outputs['Vertex Alpha'], shade.inputs[1])
         node_tree.links.new(cc1.outputs[0], output.inputs[0])
         
         return {'FINISHED'}
