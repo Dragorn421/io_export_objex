@@ -807,8 +807,23 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         node_tree.links.new(texel1texture.outputs[1], texel1.inputs[0])
         node_tree.links.new(texel1texture.outputs[0], texel1.inputs[1])
         # shade
-        node_tree.links.new(geometry.outputs['Vertex Color'], shade.inputs[0])
-        node_tree.links.new(geometry.outputs['Vertex Alpha'], shade.inputs[1])
+        # vertex colors (do not use by default as it would make shade (0,0,0,0))
+        #node_tree.links.new(geometry.outputs['Vertex Color'], shade.inputs[0])
+        #node_tree.links.new(geometry.outputs['Vertex Alpha'], shade.inputs[1])
+        # 421todo implement lighting calculations
+        # for now, use opaque white shade
+        node_tree.links.new(color1.outputs[0], shade.inputs[0])
+        node_tree.links.new(color1.outputs[0], shade.inputs[1])
+        # cycle 0: (TEXEL0 - 0) * PRIM  + 0
+        node_tree.links.new(texel0.outputs[0], cc0.inputs['A'])
+        node_tree.links.new(primColor.outputs[0], cc0.inputs['C'])
+        node_tree.links.new(texel0.outputs[1], ac0.inputs['A'])
+        node_tree.links.new(primColor.outputs[1], ac0.inputs['C'])
+        # cycle 1: (RESULT - 0) * SHADE + 0
+        node_tree.links.new(cc0.outputs[0], cc1.inputs['A'])
+        node_tree.links.new(shade.outputs[0], cc1.inputs['C'])
+        node_tree.links.new(ac0.outputs[0], ac1.inputs['A'])
+        node_tree.links.new(shade.outputs[1], ac1.inputs['C'])
         # combiners output
         node_tree.links.new(cc1.outputs[0], output.inputs[0])
         node_tree.links.new(ac1.outputs[0], output.inputs[1])
