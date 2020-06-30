@@ -455,33 +455,46 @@ def create_node_group_color_static(group_name, colorValue, colorValueName):
 
 def create_node_group_scale_uv(group_name):
     tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
-
+    
+    def draw_if(self, context, layout, node, text):
+        super().draw(context, layout, node, text)
+    
     inputs_node = tree.nodes.new('NodeGroupInput')
-    inputs_node.location = (-400,0)
+    inputs_node.location = (-400,150)
     tree.inputs.new('NodeSocketVector', 'UV')
-    tree.inputs.new('NodeSocketInt', 'Scale Exponent')
-
-    scalePower = tree.nodes.new('ShaderNodeMath')
-    scalePower.operation = 'POWER'
-    scalePower.location = (-200,0)
-    scalePower.inputs[0].default_value = 2
-    tree.links.new(inputs_node.outputs['Scale Exponent'], scalePower.inputs[1])
+    # 421todo if Uniform UV Scale is checked, only display Scale Exponent and use for both U and V scales (is this possible?)
+    #tree.inputs.new('NodeSocketBool', 'Uniform UV Scale').default_value = True
+    #tree.inputs.new('NodeSocketInt', 'Scale Exponent')
+    tree.inputs.new('NodeSocketInt', 'U Scale Exponent')
+    tree.inputs.new('NodeSocketInt', 'V Scale Exponent')
 
     separateXYZ = tree.nodes.new('ShaderNodeSeparateXYZ')
-    separateXYZ.location = (-200,150)
+    separateXYZ.location = (-200,300)
     tree.links.new(inputs_node.outputs['UV'], separateXYZ.inputs[0])
+
+    uScalePower = tree.nodes.new('ShaderNodeMath')
+    uScalePower.operation = 'POWER'
+    uScalePower.location = (-200,150)
+    uScalePower.inputs[0].default_value = 2
+    tree.links.new(inputs_node.outputs['U Scale Exponent'], uScalePower.inputs[1])
+
+    vScalePower = tree.nodes.new('ShaderNodeMath')
+    vScalePower.operation = 'POWER'
+    vScalePower.location = (-200,-50)
+    vScalePower.inputs[0].default_value = 2
+    tree.links.new(inputs_node.outputs['V Scale Exponent'], vScalePower.inputs[1])
 
     scaleU = tree.nodes.new('ShaderNodeMath')
     scaleU.operation = 'MULTIPLY'
     scaleU.location = (0,200)
     tree.links.new(separateXYZ.outputs[0], scaleU.inputs[0])
-    tree.links.new(scalePower.outputs[0], scaleU.inputs[1])
+    tree.links.new(uScalePower.outputs[0], scaleU.inputs[1])
 
     scaleV = tree.nodes.new('ShaderNodeMath')
     scaleV.operation = 'MULTIPLY'
     scaleV.location = (0,0)
     tree.links.new(separateXYZ.outputs[1], scaleV.inputs[0])
-    tree.links.new(scalePower.outputs[0], scaleV.inputs[1])
+    tree.links.new(vScalePower.outputs[0], scaleV.inputs[1])
 
     combineXYZ = tree.nodes.new('ShaderNodeCombineXYZ')
     combineXYZ.location = (200,100)
