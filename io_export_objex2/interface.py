@@ -163,81 +163,94 @@ class OBJEX_PT_armature(bpy.types.Panel):
 # material
 #
 
-# 421todo regroup constants
 class CST:
-    COLOR_OK = (0,1,0,1)
-    COLOR_BAD = (1,0,0,1)
-    COLOR_RGBA_COLOR = (1,1,0,1)
-    COLOR_RGBA_ALPHA = (.5,.5,.5,1)
+    COLOR_OK = (0,1,0,1) # green
+    COLOR_BAD = (1,0,0,1) # red
+    COLOR_RGBA_COLOR = (1,1,0,1) # yellow
+    COLOR_RGBA_ALPHA = (.5,.5,.5,1) # gray
+
     CYCLE_COLOR = 'C'
     CYCLE_ALPHA = 'A'
 
-    # 421todo *_SHADE* is only vertex colors atm
-    SUPPORTED_FLAGS_COLOR = {
-        'A': {
-            'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-            'G_CCMUX_SHADE',
-            'G_CCMUX_ENVIRONMENT','G_CCMUX_1',
-            #'G_CCMUX_NOISE',
-            'G_CCMUX_0'
-        },
-        'B': {
-            'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-            'G_CCMUX_SHADE',
-            'G_CCMUX_ENVIRONMENT',
-            #'G_CCMUX_CENTER',
-            #'G_CCMUX_K4',
-            'G_CCMUX_0'
-        },
-        'C': {
-            'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-            'G_CCMUX_SHADE',
-            'G_CCMUX_ENVIRONMENT',
-            #'G_CCMUX_SCALE',
-            'G_CCMUX_COMBINED_ALPHA',
-            'G_CCMUX_TEXEL0_ALPHA',
-            'G_CCMUX_TEXEL1_ALPHA',
-            'G_CCMUX_PRIMITIVE_ALPHA',
-            'G_CCMUX_SHADE_ALPHA',
-            'G_CCMUX_ENV_ALPHA',
-            #'G_CCMUX_LOD_FRACTION',
-            #'G_CCMUX_PRIM_LOD_FRAC',
-            #'G_CCMUX_K5',
-            'G_CCMUX_0'
-        },
-        'D': {
-            'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-            'G_CCMUX_SHADE',
-            'G_CCMUX_ENVIRONMENT','G_CCMUX_1','G_CCMUX_0'
-        },
+    COMBINER_FLAGS_0 = {
+        CST.CYCLE_COLOR: 'G_CCMUX_0',
+        CST.CYCLE_ALPHA: 'G_ACMUX_0',
     }
 
-    SUPPORTED_FLAGS_ALPHA = {
-        'A': {
-            'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-            'G_ACMUX_SHADE',
-            'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
-            'G_ACMUX_0'
+    COMBINER_FLAGS_PREFIX = {
+        CST.CYCLE_COLOR: 'G_CCMUX_',
+        CST.CYCLE_ALPHA: 'G_ACMUX_',
+    }
+
+    # 421todo *_SHADE* is only vertex colors atm
+    # supported combiner inputs by cycle (Color, Alpha) and by variable (A,B,C,D)
+    # source: https://wiki.cloudmodding.com/oot/F3DZEX#Color_Combiner_Settings
+    COMBINER_FLAGS_SUPPORT = {
+        CST.CYCLE_COLOR: {
+            'A': {
+                'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
+                'G_CCMUX_SHADE',
+                'G_CCMUX_ENVIRONMENT','G_CCMUX_1',
+                #'G_CCMUX_NOISE',
+                'G_CCMUX_0'
+            },
+            'B': {
+                'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
+                'G_CCMUX_SHADE',
+                'G_CCMUX_ENVIRONMENT',
+                #'G_CCMUX_CENTER',
+                #'G_CCMUX_K4',
+                'G_CCMUX_0'
+            },
+            'C': {
+                'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
+                'G_CCMUX_SHADE',
+                'G_CCMUX_ENVIRONMENT',
+                #'G_CCMUX_SCALE',
+                'G_CCMUX_COMBINED_ALPHA',
+                'G_CCMUX_TEXEL0_ALPHA',
+                'G_CCMUX_TEXEL1_ALPHA',
+                'G_CCMUX_PRIMITIVE_ALPHA',
+                'G_CCMUX_SHADE_ALPHA',
+                'G_CCMUX_ENV_ALPHA',
+                #'G_CCMUX_LOD_FRACTION',
+                #'G_CCMUX_PRIM_LOD_FRAC',
+                #'G_CCMUX_K5',
+                'G_CCMUX_0'
+            },
+            'D': {
+                'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
+                'G_CCMUX_SHADE',
+                'G_CCMUX_ENVIRONMENT','G_CCMUX_1','G_CCMUX_0'
+            },
         },
-        'B': {
-            'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-            'G_ACMUX_SHADE',
-            'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
-            'G_ACMUX_0'
-        },
-        'C': {
-            #'G_ACMUX_LOD_FRACTION',
-            'G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-            'G_ACMUX_SHADE',
-            'G_ACMUX_ENVIRONMENT',
-            #'G_ACMUX_PRIM_LOD_FRAC',
-            'G_ACMUX_0'
-        },
-        'D': {
-            'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-            'G_ACMUX_SHADE',
-            'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
-            'G_ACMUX_0'
+        CST.CYCLE_ALPHA: {
+            'A': {
+                'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
+                'G_ACMUX_SHADE',
+                'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
+                'G_ACMUX_0'
+            },
+            'B': {
+                'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
+                'G_ACMUX_SHADE',
+                'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
+                'G_ACMUX_0'
+            },
+            'C': {
+                #'G_ACMUX_LOD_FRACTION',
+                'G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
+                'G_ACMUX_SHADE',
+                'G_ACMUX_ENVIRONMENT',
+                #'G_ACMUX_PRIM_LOD_FRAC',
+                'G_ACMUX_0'
+            },
+            'D': {
+                'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
+                'G_ACMUX_SHADE',
+                'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
+                'G_ACMUX_0'
+            },
         },
     }
 
@@ -246,34 +259,46 @@ def stripPrefix(s, prefix):
 
 # NodeSocketInterface
 
-class OBJEX_NodeSocketCombiner_CA_IO_Interface(bpy.types.NodeSocketInterface):
+class OBJEX_NodeSocketInterface_CombinerIO():
     def draw(self, context, layout):
         pass
     def draw_color(self, context):
         return CST.COLOR_OK
 
-class OBJEX_NodeSocketCombinerColorOutputInterface(OBJEX_NodeSocketCombiner_CA_IO_Interface):
-    bl_socket_idname = 'OBJEX_NodeSocketCombinerColorOutput'
+class OBJEX_NodeSocketInterface_CombinerOutput(bpy.types.NodeSocketInterface, OBJEX_NodeSocketInterface_CombinerIO):
+    bl_socket_idname = 'OBJEX_NodeSocket_CombinerOutput'
 
-class OBJEX_NodeSocketCombinerColorInputInterface(OBJEX_NodeSocketCombiner_CA_IO_Interface):
-    bl_socket_idname = 'OBJEX_NodeSocketCombinerColorInput'
+class OBJEX_NodeSocketInterface_CombinerInput(bpy.types.NodeSocketInterface, OBJEX_NodeSocketInterface_CombinerIO):
+    bl_socket_idname = 'OBJEX_NodeSocket_CombinerInput'
 
-class OBJEX_NodeSocketCombinerAlphaOutputInterface(OBJEX_NodeSocketCombiner_CA_IO_Interface):
-    bl_socket_idname = 'OBJEX_NodeSocketCombinerAlphaOutput'
+class OBJEX_NodeSocketInterface_RGBA_Color(bpy.types.NodeSocketInterface):
+    bl_socket_idname = 'OBJEX_NodeSocket_RGBA_Color'
+    # 421fixme COLOR_GAMMA or COLOR for the different uses in this file?
+    # 421fixme is default_value in interface used at all?
+    #default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1,1), min=0, max=1, size=4, subtype='COLOR_GAMMA')
+    def draw(self, context, layout):
+        pass
+    def draw_color(self, context):
+        return CST.COLOR_RGBA_COLOR
 
-class OBJEX_NodeSocketCombinerAlphaInputInterface(OBJEX_NodeSocketCombiner_CA_IO_Interface):
-    bl_socket_idname = 'OBJEX_NodeSocketCombinerAlphaInput'
+class OBJEX_NodeSocketInterface_RGBA_Alpha(bpy.types.NodeSocketInterface):
+    bl_socket_idname = 'OBJEX_NodeSocket_RGBA_Alpha'
+    #default_value = bpy.props.FloatProperty(name='default_value', default=1, min=0, max=1)
+    def draw(self, context, layout):
+        pass
+    def draw_color(self, context):
+        return CST.COLOR_RGBA_ALPHA
 
 # NodeSocket
 
-# used for mixin by Color/Alpha outputs
-class OBJEX_NodeSocketCombiner_CA_Output():
+class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
+    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,0,0), min=0, max=1, subtype='COLOR_GAMMA')
 
-    flagColorCycle = bpy.props.StringProperty()
-    flagAlphaCycle = bpy.props.StringProperty()
+    flagColorCycle = bpy.props.StringProperty(default='')
+    flagAlphaCycle = bpy.props.StringProperty(default='')
 
     def draw(self, context, layout, node, text):
-        if node.bl_idname == 'NodeGroupOutput':
+        if node.bl_idname == 'NodeGroupOutput' or (not self.flagColorCycle and not self.flagAlphaCycle):
             layout.label(text=text)
         else:
             layout.label(text='%s (%s/%s)' % (text, stripPrefix(self.flagColorCycle, 'G_CCMUX_'), stripPrefix(self.flagAlphaCycle, 'G_ACMUX_')))
@@ -282,238 +307,167 @@ class OBJEX_NodeSocketCombiner_CA_Output():
     def draw_color(self, context, node):
         return CST.COLOR_OK
 
-class OBJEX_NodeSocketCombinerColorOutput(bpy.types.NodeSocket, OBJEX_NodeSocketCombiner_CA_Output):
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0.0, 0.0, 0.0), min=0, max=1, subtype='COLOR')
+class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
+    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,0,0), min=0, max=1, subtype='COLOR_GAMMA')
 
-class OBJEX_NodeSocketCombinerAlphaOutput(bpy.types.NodeSocket, OBJEX_NodeSocketCombiner_CA_Output):
-    default_value = bpy.props.FloatProperty(name='default_value', default=0, min=0, max=1)
-
-class OBJEX_NodeSocketCombiner_CA_Input():
     def linkToFlag(self):
-        pass # 421todo
+        """
+        returns a (flag, error) tuple
+        flag standing for what is linked to this socket
+        and error being an error message string
+        success: flag is a string and error is None
+        failure: flag is None and error is a string
+        Note that flag may be an empty string '' to
+        indicate lack of support for the cycle
+        This does not check if the input can be used for
+        this socket's variable (A,B,C,D)
+        """
+        cycle = self.node.get('cycle')
+        if cycle not in (CST.CYCLE_COLOR, CST.CYCLE_ALPHA):
+            return None, 'Unknown cycle %s' % cycle
+        # default to 0 (allowed everywhere)
+        if not self.links:
+            return CST.COMBINER_FLAGS_0[cycle], None
+        otherSocket = self.links[0].from_socket
+        if otherSocket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
+            return None, 'Bad link to %s' % otherSocket.bl_idname
+        if cycle == CST.CYCLE_COLOR:
+            return otherSocket.flagColorCycle, None
+        else: # CST.CYCLE_ALPHA
+            return otherSocket.flagAlphaCycle, None
 
     def draw(self, context, layout, node, text):
+        # don't do anything fancy in node group "inside" view
         if node.bl_idname == 'NodeGroupInput':
             layout.label(text=text)
             return
-        value = None
-        icon = 'NONE'
-        warnMsg = None
-        if not self.links:
-            value = '0'
+        cycle = self.node.get('cycle')
+        name = self.name # A,B,C,D
+        flag, warnMsg = self.linkToFlag()
+        if flag is None:
+            value = '?'
+        elif flag == '':
+            value = 'XXX'
+            warnMsg = 'Not for cycle %s' % cycle
         else:
-            otherSocket = self.links[0].from_socket
-            flag = None
-            if hasattr(otherSocket, 'flagColorCycle'): # 421todo better "is mixin with OBJEX_NodeSocketCombiner_CA_Output" check
-                if self.__class__.cycle == CST.CYCLE_COLOR:
-                    flag = otherSocket.flagColorCycle
-                    value = stripPrefix(flag, 'G_CCMUX_')
-                elif self.__class__.cycle == CST.CYCLE_ALPHA:
-                    flag = otherSocket.flagAlphaCycle
-                    value = stripPrefix(flag, 'G_ACMUX_')
-                else:
-                    value = '?'
-                    icon = 'ERROR'
-                    warnMsg = 'Unknown cycle'
-            if flag:
-                if flag not in (CST.SUPPORTED_FLAGS_COLOR if self.__class__.cycle == CST.CYCLE_COLOR else CST.SUPPORTED_FLAGS_ALPHA)[text]: # 421todo do not rely on text = A/B/C/D
-                    icon = 'ERROR'
-                    warnMsg = 'Unsupported for %s' % text
-            else: # flag can be empty if non exists
-                icon = 'ERROR'
-                warnMsg = 'Unsupported'
+            value = stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle])
+            if flag not in CST.COMBINER_FLAGS_SUPPORT[cycle][name]:
+                warnMsg = 'Only for %s, not %s' % (','.join(var for var,flags in CST.COMBINER_FLAGS_SUPPORT[cycle].items() if flag in flags), name)
         if warnMsg:
             col = layout.column()
-            col.label(text='%s = %s' % (text, value), icon=icon)
+            col.label(text='%s = %s' % (name, value), icon='ERROR')
             col.label(text=warnMsg, icon='ERROR')
         else:
-            layout.label(text='%s = %s' % (text, value), icon=icon)
+            layout.label(text='%s = %s' % (name, value))
 
     def draw_color(self, context, node):
-        text = self.name
-        # 421fixme copypaste of the above
-        value = None
-        icon = 'NONE'
-        warnMsg = None
-        if not self.links:
-            value = '0'
-        else:
-            otherSocket = self.links[0].from_socket
-            flag = None
-            if hasattr(otherSocket, 'flagColorCycle'): # 421todo better "is mixin with OBJEX_NodeSocketCombiner_CA_Output" check
-                if self.__class__.cycle == CST.CYCLE_COLOR:
-                    flag = otherSocket.flagColorCycle
-                    value = stripPrefix(flag, 'G_CCMUX_')
-                elif self.__class__.cycle == CST.CYCLE_ALPHA:
-                    flag = otherSocket.flagAlphaCycle
-                    value = stripPrefix(flag, 'G_ACMUX_')
-                else:
-                    value = '?'
-                    icon = 'ERROR'
-                    warnMsg = 'Unknown cycle'
-            if flag:
-                if flag not in (CST.SUPPORTED_FLAGS_COLOR if self.__class__.cycle == CST.CYCLE_COLOR else CST.SUPPORTED_FLAGS_ALPHA)[text]: # 421todo do not rely on text = A/B/C/D
-                    icon = 'ERROR'
-                    warnMsg = 'Unsupported for %s' % text
-            else: # flag can be empty if non exists
-                icon = 'ERROR'
-                warnMsg = 'Unsupported'
-        # (199/255,199/255,41/255,1) vanilla NodeSocketColor color
-        return (0,1,0,1) if icon != 'ERROR' else (1,0,0,1)
+        if node.bl_idname == 'NodeGroupInput':
+            return CST.COLOR_OK
+        flag, warnMsg = self.linkToFlag()
+        return CST.COLOR_BAD if warnMsg else CST.COLOR_OK
 
-class OBJEX_NodeSocketCombinerColorInput(bpy.types.NodeSocket, OBJEX_NodeSocketCombiner_CA_Input):
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,0,0), min=0, max=1, subtype='COLOR')
-    cycle = CST.CYCLE_COLOR
+# OBJEX_NodeSocket_RGBA_* sockets are meant to be used by the OBJEX_rgba node group
+# they sync the alpha between the alpha socket and the alpha of the color socket
 
-class OBJEX_NodeSocketCombinerAlphaInput(bpy.types.NodeSocket, OBJEX_NodeSocketCombiner_CA_Input):
-    default_value = bpy.props.FloatProperty(name='default_value', default=0, min=0, max=1)
-    cycle = CST.CYCLE_ALPHA
-
-class OBJEX_NodeSocketColor_RGBA_Interface(bpy.types.NodeSocketInterface):
-    bl_socket_idname = 'OBJEX_NodeSocketColor_RGBA'
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1,1), min=0, max=1, size=4, subtype='COLOR_GAMMA')
-    def draw(self, context, layout):
-        pass
-    def draw_color(self, context):
-        return CST.COLOR_RGBA_COLOR
-
-class OBJEX_NodeSocketAlpha_RGBA_Interface(bpy.types.NodeSocketInterface):
-    bl_socket_idname = 'OBJEX_NodeSocketColor_RGBA'
-    default_value = bpy.props.FloatProperty(name='default_value', default=1, min=0, max=1)
-    def draw(self, context, layout):
-        pass
-    def draw_color(self, context):
-        return CST.COLOR_RGBA_ALPHA
-
-def OBJEX_NodeSocketColor_RGBA_default_value_update(self, context):
+def OBJEX_NodeSocket_RGBA_Color_default_value_update(self, context):
+    # set (default_value of Alpha socket) to (alpha of default_value color of Color socket)
     self.node.inputs[1].default_value = self.default_value[3]
 
-def OBJEX_NodeSocketAlpha_RGBA_default_value_update(self, context):
+def OBJEX_NodeSocket_RGBA_Alpha_default_value_update(self, context):
+    # set (alpha of default_value color of Color socket) to (default_value of Alpha socket)
     c = self.node.inputs[0].default_value
     self.node.inputs[0].default_value = (c[0], c[1], c[2], self.default_value)
 
-class OBJEX_NodeSocketColor_RGBA(bpy.types.NodeSocket):# todo COLOR or COLOR_GAMMA ?
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1,1), min=0, max=1, size=4, subtype='COLOR_GAMMA', update=OBJEX_NodeSocketColor_RGBA_default_value_update)
+class OBJEX_NodeSocket_RGBA_CA():
     no_links = bpy.props.BoolProperty(default=False)
-    def draw(self, context, layout, node, text):
-        col = layout
-        if self.is_linked and self.no_links:
-            col = layout.column()
-            col.label(text='DO NOT LINK',icon='ERROR')
-        if not self.is_linked or self.no_links:
-            col.prop(self, 'default_value', text='')
-        elif self.is_linked:
-            col.label(text=text)
-    def draw_color(self, context, node):
-        return CST.COLOR_BAD if self.is_linked and self.no_links else CST.COLOR_RGBA_COLOR
 
-class OBJEX_NodeSocketAlpha_RGBA(bpy.types.NodeSocket):
-    default_value = bpy.props.FloatProperty(name='default_value', default=1, min=0, max=1, update=OBJEX_NodeSocketAlpha_RGBA_default_value_update)
-    no_links = bpy.props.BoolProperty()
     def draw(self, context, layout, node, text):
         col = layout
         if self.is_linked and self.no_links:
             col = layout.column()
             col.label(text='DO NOT LINK',icon='ERROR')
         if not self.is_linked or self.no_links:
-            col.prop(self, 'default_value', text=text)
+            col.prop(self, 'default_value', text=self.text(text))
         elif self.is_linked:
             col.label(text=text)
+
     def draw_color(self, context, node):
-        return CST.COLOR_RGBA_ALPHA
+        return CST.COLOR_BAD if self.is_linked and self.no_links else self.__class__.COLOR_OK
+
+    def text(self, txt):
+        return txt
+
+class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket, OBJEX_NodeSocket_RGBA_CA):
+    default_value = bpy.props.FloatVectorProperty(
+        name='default_value', default=(1,1,1,1),
+        min=0, max=1, size=4, subtype='COLOR_GAMMA',
+        update=OBJEX_NodeSocket_RGBA_Color_default_value_update,
+    )
+
+    COLOR_OK = CST.COLOR_RGBA_COLOR
+
+class OBJEX_NodeSocket_RGBA_Alpha(bpy.types.NodeSocket, OBJEX_NodeSocket_RGBA_CA):
+    default_value = bpy.props.FloatProperty(
+        name='default_value', default=1, min=0, max=1,
+        update=OBJEX_NodeSocket_RGBA_Alpha_default_value_update,
+    )
+
+    COLOR_OK = CST.COLOR_RGBA_ALPHA
 
 # node groups creation
 
-def create_node_group_color_cycle(group_name):
-    cc = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
+def create_node_group_cycle(group_name):
+    tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
 
     def addMixRGBnode(operation):
-        n = cc.nodes.new('ShaderNodeMixRGB')
+        n = tree.nodes.new('ShaderNodeMixRGB')
         n.blend_type = operation
         n.inputs[0].default_value = 1 # "Fac"
         return n
 
-    cc_inputs_node = cc.nodes.new('NodeGroupInput')
-    cc_inputs_node.location = (-450,0)
-    cc.inputs.new('OBJEX_NodeSocketCombinerColorInput', 'A')
-    cc.inputs.new('OBJEX_NodeSocketCombinerColorInput', 'B')
-    cc.inputs.new('OBJEX_NodeSocketCombinerColorInput', 'C')
-    cc.inputs.new('OBJEX_NodeSocketCombinerColorInput', 'D')
+    inputs_node = tree.nodes.new('NodeGroupInput')
+    inputs_node.location = (-450,0)
+    tree.inputs.new('OBJEX_NodeSocket_CombinerInput', 'A')
+    tree.inputs.new('OBJEX_NodeSocket_CombinerInput', 'B')
+    tree.inputs.new('OBJEX_NodeSocket_CombinerInput', 'C')
+    tree.inputs.new('OBJEX_NodeSocket_CombinerInput', 'D')
 
     A_minus_B = addMixRGBnode('SUBTRACT')
     A_minus_B.location = (-250,150)
-    cc.links.new(cc_inputs_node.outputs['A'], A_minus_B.inputs[1])
-    cc.links.new(cc_inputs_node.outputs['B'], A_minus_B.inputs[2])
+    tree.links.new(inputs_node.outputs['A'], A_minus_B.inputs[1])
+    tree.links.new(inputs_node.outputs['B'], A_minus_B.inputs[2])
 
     times_C = addMixRGBnode('MULTIPLY')
     times_C.location = (-50,100)
-    cc.links.new(A_minus_B.outputs[0], times_C.inputs[1])
-    cc.links.new(cc_inputs_node.outputs['C'], times_C.inputs[2])
+    tree.links.new(A_minus_B.outputs[0], times_C.inputs[1])
+    tree.links.new(inputs_node.outputs['C'], times_C.inputs[2])
 
     plus_D = addMixRGBnode('ADD')
     plus_D.location = (150,50)
-    cc.links.new(times_C.outputs[0], plus_D.inputs[1])
-    cc.links.new(cc_inputs_node.outputs['D'], plus_D.inputs[2])
+    tree.links.new(times_C.outputs[0], plus_D.inputs[1])
+    tree.links.new(inputs_node.outputs['D'], plus_D.inputs[2])
 
-    cc_outputs_node = cc.nodes.new('NodeGroupOutput')
-    cc_outputs_node.location = (350,0)
-    cc.outputs.new('OBJEX_NodeSocketCombinerColorOutput', 'Result')
-    cc.links.new(plus_D.outputs[0], cc_outputs_node.inputs['Result'])
-    cc.outputs['Result'].name = '(A-B)*C+D' # rename from 'Result' to formula
+    outputs_node = tree.nodes.new('NodeGroupOutput')
+    outputs_node.location = (350,0)
+    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'Result')
+    tree.links.new(plus_D.outputs[0], outputs_node.inputs['Result'])
+    tree.outputs['Result'].name = '(A-B)*C+D' # rename from 'Result' to formula
 
-    return cc
-
-def create_node_group_alpha_cycle(group_name):
-    ac = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
-
-    def addMathNode(operation):
-        n = ac.nodes.new('ShaderNodeMath')
-        n.operation = operation
-        return n
-
-    ac_inputs_node = ac.nodes.new('NodeGroupInput')
-    ac_inputs_node.location = (-450,0)
-    ac.inputs.new('OBJEX_NodeSocketCombinerAlphaInput', 'A')
-    ac.inputs.new('OBJEX_NodeSocketCombinerAlphaInput', 'B')
-    ac.inputs.new('OBJEX_NodeSocketCombinerAlphaInput', 'C')
-    ac.inputs.new('OBJEX_NodeSocketCombinerAlphaInput', 'D')
-
-    A_minus_B = addMathNode('SUBTRACT')
-    A_minus_B.location = (-250,150)
-    ac.links.new(ac_inputs_node.outputs['A'], A_minus_B.inputs[0])
-    ac.links.new(ac_inputs_node.outputs['B'], A_minus_B.inputs[1])
-
-    times_C = addMathNode('MULTIPLY')
-    times_C.location = (-50,100)
-    ac.links.new(A_minus_B.outputs[0], times_C.inputs[0])
-    ac.links.new(ac_inputs_node.outputs['C'], times_C.inputs[1])
-
-    plus_D = addMathNode('ADD')
-    plus_D.location = (150,50)
-    ac.links.new(times_C.outputs[0], plus_D.inputs[0])
-    ac.links.new(ac_inputs_node.outputs['D'], plus_D.inputs[1])
-
-    ac_outputs_node = ac.nodes.new('NodeGroupOutput')
-    ac_outputs_node.location = (350,0)
-    ac.outputs.new('OBJEX_NodeSocketCombinerAlphaOutput', 'Result')
-    ac.links.new(plus_D.outputs[0], ac_outputs_node.inputs['Result'])
-    ac.outputs['Result'].name = '(A-B)*C+D' # rename from 'Result' to formula
-
-    return ac
+    return tree
 
 def create_node_group_color_static(group_name, colorValue, colorValueName):
-    color0 = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
+    tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
 
-    rgb = color0.nodes.new('ShaderNodeRGB')
+    rgb = tree.nodes.new('ShaderNodeRGB')
     rgb.outputs[0].default_value = colorValue
     rgb.location = (0,100)
-    
-    outputs_node = color0.nodes.new('NodeGroupOutput')
-    outputs_node.location = (150,50)
-    color0.outputs.new('OBJEX_NodeSocketCombinerColorOutput', colorValueName)
-    color0.links.new(rgb.outputs[0], outputs_node.inputs[colorValueName])
 
-    return color0
+    outputs_node = tree.nodes.new('NodeGroupOutput')
+    outputs_node.location = (150,50)
+    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', colorValueName)
+    tree.links.new(rgb.outputs[0], outputs_node.inputs[colorValueName])
+
+    return tree
 
 def create_node_group_scale_uv(group_name):
     tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
@@ -575,9 +529,9 @@ def create_node_group_rgba(group_name):
 
     inputs_node = tree.nodes.new('NodeGroupInput')
     inputs_node.location = (-100,50)
-    tree.inputs.new('OBJEX_NodeSocketColor_RGBA', 'Color')
+    tree.inputs.new('OBJEX_NodeSocket_RGBA_Color', 'Color')
     # doesn't seem like blender 2.79 provides a way to pick and use rgba directly
-    alpha_input_socket = tree.inputs.new('OBJEX_NodeSocketAlpha_RGBA', 'Alpha')
+    alpha_input_socket = tree.inputs.new('OBJEX_NodeSocket_RGBA_Alpha', 'Alpha')
 
     alpha_3d = tree.nodes.new('ShaderNodeCombineRGB')
     for i in range(3):
@@ -585,8 +539,8 @@ def create_node_group_rgba(group_name):
 
     outputs_node = tree.nodes.new('NodeGroupOutput')
     outputs_node.location = (100,50)
-    tree.outputs.new('OBJEX_NodeSocketCombinerColorOutput', 'RGB')
-    tree.outputs.new('OBJEX_NodeSocketCombinerColorOutput', 'A') # 421todo OBJEX_NodeSocketCombinerColorOutput -> ColorOut and AlphaOut redundant?
+    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'RGB')
+    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'A')
     tree.links.new(inputs_node.outputs[0], outputs_node.inputs['RGB'])
     tree.links.new(alpha_3d.outputs[0], outputs_node.inputs['A'])
 
@@ -599,8 +553,7 @@ def update_node_groups():
     # WARNING: the upgrading preserves links, which is the intent, but it means outputs/inputs order must not change
     #   (if the order must change, more complex upgrading code is required)
     groups = {
-        'OBJEX_ColorCycle': (1, create_node_group_color_cycle),
-        'OBJEX_AlphaCycle': (1, create_node_group_alpha_cycle),
+        'OBJEX_Cycle': (1, create_node_group_cycle),
         'OBJEX_Color0': (1, lambda group_name: create_node_group_color_static(group_name, (0,0,0,0), '0')),
         'OBJEX_Color1': (1, lambda group_name: create_node_group_color_static(group_name, (1,1,1,1), '1')),
         'OBJEX_ScaleUV': (1, create_node_group_scale_uv),
@@ -651,7 +604,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         node_tree = material.node_tree
         nodes = node_tree.nodes
         
-        nodes.clear() # todo
+        nodes.clear() # 421fixme do not inconditionally rebuild
         
         if 'Geometry' not in nodes:
             geometry = nodes.new('ShaderNodeGeometry')
@@ -663,8 +616,8 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         if 'OBJEX_MultiTexScale0' not in nodes:
             multiTexScale0 = nodes.new('ShaderNodeGroup')
             multiTexScale0.node_tree = bpy.data.node_groups['OBJEX_ScaleUV']
-            multiTexScale0.name = 'OBJEX_MultiTexScale0'
-            multiTexScale0.label = 'Multitexture Scale 0'
+            multiTexScale0.name = 'OBJEX_MultiTexScale0' # internal name
+            multiTexScale0.label = 'Multitexture Scale 0' # displayed name
             multiTexScale0.location = (-150, 200)
             multiTexScale0.width += 50
         else:
@@ -784,42 +737,46 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         
         if 'OBJEX_ColorCycle0' not in nodes:
             cc0 = nodes.new('ShaderNodeGroup')
-            cc0.node_tree = bpy.data.node_groups['OBJEX_ColorCycle']
-            cc0.name = 'OBJEX_ColorCycle0' # internal name
-            cc0.label = 'Color Cycle 0' # displayed name
+            cc0.node_tree = bpy.data.node_groups['OBJEX_Cycle']
+            cc0.name = 'OBJEX_ColorCycle0'
+            cc0.label = 'Color Cycle 0'
             cc0.location = (500, 200)
             cc0.width = 200
             cc0.outputs[0].flagColorCycle = 'G_CCMUX_COMBINED'
+            cc0['cycle'] = CST.CYCLE_COLOR
         else:
             cc0 = nodes['OBJEX_ColorCycle0']
         if 'OBJEX_ColorCycle1' not in nodes:
             cc1 = nodes.new('ShaderNodeGroup')
-            cc1.node_tree = bpy.data.node_groups['OBJEX_ColorCycle']
+            cc1.node_tree = bpy.data.node_groups['OBJEX_Cycle']
             cc1.name = 'OBJEX_ColorCycle1'
             cc1.label = 'Color Cycle 1'
             cc1.location = (750, 200)
             cc1.width = 200
+            cc1['cycle'] = CST.CYCLE_COLOR
         else:
             cc1 = nodes['OBJEX_ColorCycle1']
         
         if 'OBJEX_AlphaCycle0' not in nodes:
             ac0 = nodes.new('ShaderNodeGroup')
-            ac0.node_tree = bpy.data.node_groups['OBJEX_AlphaCycle']
+            ac0.node_tree = bpy.data.node_groups['OBJEX_Cycle']
             ac0.name = 'OBJEX_AlphaCycle0'
             ac0.label = 'Alpha Cycle 0'
             ac0.location = (500, 0)
             ac0.width = 200
             ac0.outputs[0].flagColorCycle = 'G_CCMUX_COMBINED_ALPHA'
             ac0.outputs[0].flagAlphaCycle = 'G_ACMUX_COMBINED'
+            ac0['cycle'] = CST.CYCLE_ALPHA
         else:
             ac0 = nodes['OBJEX_AlphaCycle0']
         if 'OBJEX_AlphaCycle1' not in nodes:
             ac1 = nodes.new('ShaderNodeGroup')
-            ac1.node_tree = bpy.data.node_groups['OBJEX_AlphaCycle']
+            ac1.node_tree = bpy.data.node_groups['OBJEX_Cycle']
             ac1.name = 'OBJEX_AlphaCycle1'
             ac1.label = 'Alpha Cycle 1'
             ac1.location = (750, 0)
             ac1.width = 200
+            ac1['cycle'] = CST.CYCLE_ALPHA
         else:
             ac1 = nodes['OBJEX_AlphaCycle1']
         
@@ -904,18 +861,15 @@ classes = (
     OBJEX_UL_actions,
     OBJEX_PT_armature,
 
-    OBJEX_NodeSocketCombinerColorOutputInterface,
-    OBJEX_NodeSocketCombinerColorOutput,
-    OBJEX_NodeSocketCombinerAlphaOutputInterface,
-    OBJEX_NodeSocketCombinerAlphaOutput,
-    OBJEX_NodeSocketCombinerColorInputInterface,
-    OBJEX_NodeSocketCombinerColorInput,
-    OBJEX_NodeSocketCombinerAlphaInputInterface,
-    OBJEX_NodeSocketCombinerAlphaInput,
-    OBJEX_NodeSocketColor_RGBA_Interface,
-    OBJEX_NodeSocketColor_RGBA,
-    OBJEX_NodeSocketAlpha_RGBA_Interface,
-    OBJEX_NodeSocketAlpha_RGBA,
+    OBJEX_NodeSocketInterface_CombinerOutput,
+    OBJEX_NodeSocketInterface_CombinerInput,
+    OBJEX_NodeSocketInterface_RGBA_Color,
+    OBJEX_NodeSocketInterface_RGBA_Alpha,
+    OBJEX_NodeSocket_CombinerOutput,
+    OBJEX_NodeSocket_CombinerInput,
+    OBJEX_NodeSocket_RGBA_Color,
+    OBJEX_NodeSocket_RGBA_Alpha,
+
     OBJEX_OT_material_init,
     ObjexMaterialProperties,
     OBJEX_PT_material
