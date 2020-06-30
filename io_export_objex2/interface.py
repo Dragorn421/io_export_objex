@@ -192,8 +192,8 @@ class CST:
             'G_CCMUX_ENVIRONMENT',
             #'G_CCMUX_SCALE',
             'G_CCMUX_COMBINED_ALPHA',
-            #'G_CCMUX_TEXEL0_ALPHA',
-            #'G_CCMUX_TEXEL1_ALPHA',
+            'G_CCMUX_TEXEL0_ALPHA',
+            'G_CCMUX_TEXEL1_ALPHA',
             'G_CCMUX_PRIMITIVE_ALPHA',
             'G_CCMUX_SHADE_ALPHA',
             'G_CCMUX_ENV_ALPHA',
@@ -604,20 +604,20 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         else:
             multiTexScale1 = nodes['OBJEX_MultiTexScale1']
         
-        if 'OBJEX_Texel0' not in nodes:
-            texel0 = nodes.new('ShaderNodeTexture')
-            texel0.name = 'OBJEX_Texel0'
-            texel0.label = 'Texel 0'
-            texel0.location = (100, 300)
+        if 'OBJEX_Texel0Texture' not in nodes:
+            texel0texture = nodes.new('ShaderNodeTexture')
+            texel0texture.name = 'OBJEX_Texel0Texture'
+            texel0texture.label = 'Texel 0 Texture'
+            texel0texture.location = (100, 300)
         else:
-            texel0 = nodes['OBJEX_Texel0']
-        if 'OBJEX_Texel1' not in nodes:
-            texel1 = nodes.new('ShaderNodeTexture')
-            texel1.name = 'OBJEX_Texel1'
-            texel1.label = 'Texel 1'
-            texel1.location = (100, 0)
+            texel0texture = nodes['OBJEX_Texel0Texture']
+        if 'OBJEX_Texel1Texture' not in nodes:
+            texel1texture = nodes.new('ShaderNodeTexture')
+            texel1texture.name = 'OBJEX_Texel1Texture'
+            texel1texture.label = 'Texel 1 Texture'
+            texel1texture.location = (100, 0)
         else:
-            texel1 = nodes['OBJEX_Texel1']
+            texel1texture = nodes['OBJEX_Texel1Texture']
         
         if 'OBJEX_PrimColor' not in nodes:
             primColor = nodes.new('ShaderNodeGroup')
@@ -643,6 +643,31 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             envColor.outputs[1].flagAlphaCycle = 'G_ACMUX_ENVIRONMENT'
         else:
             envColor = nodes['OBJEX_EnvColor']
+        
+        if 'OBJEX_Texel0' not in nodes:
+            texel0 = nodes.new('ShaderNodeGroup')
+            texel0.node_tree = bpy.data.node_groups['OBJEX_rgba']
+            texel0.name = 'OBJEX_Texel0'
+            texel0.label = 'Texel 0'
+            texel0.location = (300, 100)
+            texel0.outputs[0].flagColorCycle = 'G_CCMUX_TEXEL0'
+            texel0.outputs[1].flagColorCycle = 'G_CCMUX_TEXEL0_ALPHA'
+            texel0.outputs[0].flagAlphaCycle = ''
+            texel0.outputs[1].flagAlphaCycle = 'G_ACMUX_TEXEL0'
+        else:
+            texel0 = nodes['OBJEX_Texel0']
+        if 'OBJEX_Texel1' not in nodes:
+            texel1 = nodes.new('ShaderNodeGroup')
+            texel1.node_tree = bpy.data.node_groups['OBJEX_rgba']
+            texel1.name = 'OBJEX_Texel1'
+            texel1.label = 'Texel 1'
+            texel1.location = (300, -50)
+            texel1.outputs[0].flagColorCycle = 'G_CCMUX_TEXEL1'
+            texel1.outputs[1].flagColorCycle = 'G_CCMUX_TEXEL1_ALPHA'
+            texel1.outputs[0].flagAlphaCycle = ''
+            texel1.outputs[1].flagAlphaCycle = 'G_ACMUX_TEXEL1'
+        else:
+            texel1 = nodes['OBJEX_Texel1']
         
         if 'OBJEX_Shade' not in nodes:
             shade = nodes.new('ShaderNodeGroup')
@@ -726,10 +751,16 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         else:
             output = nodes['Output']
         
+        # texel0
         node_tree.links.new(geometry.outputs['UV'], multiTexScale0.inputs['UV'])
-        node_tree.links.new(multiTexScale0.outputs[0], texel0.inputs[0])
+        node_tree.links.new(multiTexScale0.outputs[0], texel0texture.inputs[0])
+        node_tree.links.new(texel0texture.outputs[1], texel0.inputs[0])
+        node_tree.links.new(texel0texture.outputs[0], texel0.inputs[1])
+        # texel1
         node_tree.links.new(geometry.outputs['UV'], multiTexScale1.inputs['UV'])
-        node_tree.links.new(multiTexScale1.outputs[0], texel1.inputs[0])
+        node_tree.links.new(multiTexScale1.outputs[0], texel1texture.inputs[0])
+        node_tree.links.new(texel1texture.outputs[1], texel1.inputs[0])
+        node_tree.links.new(texel1texture.outputs[0], texel1.inputs[1])
         # shade
         node_tree.links.new(geometry.outputs['Vertex Color'], shade.inputs[0])
         node_tree.links.new(geometry.outputs['Vertex Alpha'], shade.inputs[1])
