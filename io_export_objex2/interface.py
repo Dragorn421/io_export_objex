@@ -1,4 +1,5 @@
 import bpy
+import mathutils
 import re
 import traceback
 
@@ -166,6 +167,8 @@ class OBJEX_PT_armature(bpy.types.Panel):
 class CST:
     COLOR_OK = (0,1,0,1)
     COLOR_BAD = (1,0,0,1)
+    COLOR_RGBA_COLOR = (1,1,0,1)
+    COLOR_RGBA_ALPHA = (.5,.5,.5,1)
     CYCLE_COLOR = 'C'
     CYCLE_ALPHA = 'A'
 
@@ -360,6 +363,59 @@ class OBJEX_NodeSocketCombinerAlphaInput(bpy.types.NodeSocket, OBJEX_NodeSocketC
     default_value = bpy.props.FloatProperty(name='default_value', default=0, min=0, max=1)
     cycle = CST.CYCLE_ALPHA
 
+class OBJEX_NodeSocketColor_RGBA_Interface(bpy.types.NodeSocketInterface):
+    bl_socket_idname = 'OBJEX_NodeSocketColor_RGBA'
+    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1,1), min=0, max=1, size=4, subtype='COLOR_GAMMA')
+    def draw(self, context, layout):
+        pass
+    def draw_color(self, context):
+        return CST.COLOR_RGBA_COLOR
+
+class OBJEX_NodeSocketAlpha_RGBA_Interface(bpy.types.NodeSocketInterface):
+    bl_socket_idname = 'OBJEX_NodeSocketColor_RGBA'
+    default_value = bpy.props.FloatProperty(name='default_value', default=1, min=0, max=1)
+    def draw(self, context, layout):
+        pass
+    def draw_color(self, context):
+        return CST.COLOR_RGBA_ALPHA
+
+def OBJEX_NodeSocketColor_RGBA_default_value_update(self, context):
+    self.node.inputs[1].default_value = self.default_value[3]
+
+def OBJEX_NodeSocketAlpha_RGBA_default_value_update(self, context):
+    c = self.node.inputs[0].default_value
+    self.node.inputs[0].default_value = (c[0], c[1], c[2], self.default_value)
+
+class OBJEX_NodeSocketColor_RGBA(bpy.types.NodeSocket):# todo COLOR or COLOR_GAMMA ?
+    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1,1), min=0, max=1, size=4, subtype='COLOR_GAMMA', update=OBJEX_NodeSocketColor_RGBA_default_value_update)
+    no_links = bpy.props.BoolProperty(default=False)
+    def draw(self, context, layout, node, text):
+        col = layout
+        if self.is_linked and self.no_links:
+            col = layout.column()
+            col.label(text='DO NOT LINK',icon='ERROR')
+        if not self.is_linked or self.no_links:
+            col.prop(self, 'default_value', text='')
+        elif self.is_linked:
+            col.label(text=text)
+    def draw_color(self, context, node):
+        return CST.COLOR_BAD if self.is_linked and self.no_links else CST.COLOR_RGBA_COLOR
+
+class OBJEX_NodeSocketAlpha_RGBA(bpy.types.NodeSocket):
+    default_value = bpy.props.FloatProperty(name='default_value', default=1, min=0, max=1, update=OBJEX_NodeSocketAlpha_RGBA_default_value_update)
+    no_links = bpy.props.BoolProperty()
+    def draw(self, context, layout, node, text):
+        col = layout
+        if self.is_linked and self.no_links:
+            col = layout.column()
+            col.label(text='DO NOT LINK',icon='ERROR')
+        if not self.is_linked or self.no_links:
+            col.prop(self, 'default_value', text=text)
+        elif self.is_linked:
+            col.label(text=text)
+    def draw_color(self, context, node):
+        return CST.COLOR_RGBA_ALPHA
+
 # node groups creation
 
 def create_node_group_color_cycle(group_name):
@@ -513,20 +569,20 @@ def create_node_group_rgba(group_name):
 
     inputs_node = tree.nodes.new('NodeGroupInput')
     inputs_node.location = (-100,50)
-    tree.inputs.new('NodeSocketColor', 'Color')
+    tree.inputs.new('OBJEX_NodeSocketColor_RGBA', 'Color')
     # doesn't seem like blender 2.79 provides a way to pick and use rgba directly
-    alpha_input_socket = tree.inputs.new('NodeSocketFloat', 'Alpha')
-    alpha_input_socket.min_value = 0
-    alpha_input_socket.max_value = 1
+    alpha_input_socket = tree.inputs.new('OBJEX_NodeSocketAlpha_RGBA', 'Alpha')
 
-    rgb_a = inputs_node
+    alpha_3d = tree.nodes.new('ShaderNodeCombineRGB')
+    for i in range(3):
+        tree.links.new(inputs_node.outputs[1], alpha_3d.inputs[i])
 
     outputs_node = tree.nodes.new('NodeGroupOutput')
     outputs_node.location = (100,50)
     tree.outputs.new('OBJEX_NodeSocketCombinerColorOutput', 'RGB')
-    tree.outputs.new('OBJEX_NodeSocketCombinerAlphaOutput', 'A')
-    tree.links.new(rgb_a.outputs[0], outputs_node.inputs['RGB'])
-    tree.links.new(rgb_a.outputs[1], outputs_node.inputs['A'])
+    tree.outputs.new('OBJEX_NodeSocketCombinerColorOutput', 'A') # 421todo OBJEX_NodeSocketCombinerColorOutput -> ColorOut and AlphaOut redundant?
+    tree.links.new(inputs_node.outputs[0], outputs_node.inputs['RGB'])
+    tree.links.new(alpha_3d.outputs[0], outputs_node.inputs['A'])
 
     return tree
 
@@ -637,7 +693,9 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             primColor.node_tree = bpy.data.node_groups['OBJEX_rgba']
             primColor.name = 'OBJEX_PrimColor'
             primColor.label = 'Prim Color'
-            primColor.location = (300, 300)
+            primColor.location = (300, 400)
+            primColor.inputs[0].no_links = True
+            primColor.inputs[1].no_links = True
             primColor.outputs[0].flagColorCycle = 'G_CCMUX_PRIMITIVE'
             primColor.outputs[1].flagColorCycle = 'G_CCMUX_PRIMITIVE_ALPHA'
             primColor.outputs[0].flagAlphaCycle = ''
@@ -649,7 +707,9 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             envColor.node_tree = bpy.data.node_groups['OBJEX_rgba']
             envColor.name = 'OBJEX_EnvColor'
             envColor.label = 'Env Color'
-            envColor.location = (300, 100)
+            envColor.location = (300, 250)
+            envColor.inputs[0].no_links = True
+            envColor.inputs[1].no_links = True
             envColor.outputs[0].flagColorCycle = 'G_CCMUX_ENVIRONMENT'
             envColor.outputs[1].flagColorCycle = 'G_CCMUX_ENV_ALPHA'
             envColor.outputs[0].flagAlphaCycle = ''
@@ -835,6 +895,10 @@ classes = (
     OBJEX_NodeSocketCombinerColorInput,
     OBJEX_NodeSocketCombinerAlphaInputInterface,
     OBJEX_NodeSocketCombinerAlphaInput,
+    OBJEX_NodeSocketColor_RGBA_Interface,
+    OBJEX_NodeSocketColor_RGBA,
+    OBJEX_NodeSocketAlpha_RGBA_Interface,
+    OBJEX_NodeSocketAlpha_RGBA,
     OBJEX_OT_material_init,
     ObjexMaterialProperties,
     OBJEX_PT_material
