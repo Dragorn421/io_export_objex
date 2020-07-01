@@ -167,26 +167,26 @@ class CST:
     COLOR_OK = (0,1,0,1) # green
     COLOR_BAD = (1,0,0,1) # red
     COLOR_RGBA_COLOR = (1,1,0,1) # yellow
-    COLOR_RGBA_ALPHA = (.5,.5,.5,1) # gray
+    COLOR_NONE = (0,0,0,0) # transparent
 
     CYCLE_COLOR = 'C'
     CYCLE_ALPHA = 'A'
 
     COMBINER_FLAGS_0 = {
-        CST.CYCLE_COLOR: 'G_CCMUX_0',
-        CST.CYCLE_ALPHA: 'G_ACMUX_0',
+        'C': 'G_CCMUX_0',
+        'A': 'G_ACMUX_0',
     }
 
     COMBINER_FLAGS_PREFIX = {
-        CST.CYCLE_COLOR: 'G_CCMUX_',
-        CST.CYCLE_ALPHA: 'G_ACMUX_',
+        'C': 'G_CCMUX_',
+        'A': 'G_ACMUX_',
     }
 
     # 421todo *_SHADE* is only vertex colors atm
     # supported combiner inputs by cycle (Color, Alpha) and by variable (A,B,C,D)
     # source: https://wiki.cloudmodding.com/oot/F3DZEX#Color_Combiner_Settings
     COMBINER_FLAGS_SUPPORT = {
-        CST.CYCLE_COLOR: {
+        'C': {
             'A': {
                 'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
                 'G_CCMUX_SHADE',
@@ -224,7 +224,7 @@ class CST:
                 'G_CCMUX_ENVIRONMENT','G_CCMUX_1','G_CCMUX_0'
             },
         },
-        CST.CYCLE_ALPHA: {
+        'A': {
             'A': {
                 'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
                 'G_ACMUX_SHADE',
@@ -275,24 +275,16 @@ class OBJEX_NodeSocketInterface_RGBA_Color(bpy.types.NodeSocketInterface):
     bl_socket_idname = 'OBJEX_NodeSocket_RGBA_Color'
     # 421fixme COLOR_GAMMA or COLOR for the different uses in this file?
     # 421fixme is default_value in interface used at all?
-    #default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1,1), min=0, max=1, size=4, subtype='COLOR_GAMMA')
+    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1), min=0, max=1, subtype='COLOR')
     def draw(self, context, layout):
         pass
     def draw_color(self, context):
         return CST.COLOR_RGBA_COLOR
 
-class OBJEX_NodeSocketInterface_RGBA_Alpha(bpy.types.NodeSocketInterface):
-    bl_socket_idname = 'OBJEX_NodeSocket_RGBA_Alpha'
-    #default_value = bpy.props.FloatProperty(name='default_value', default=1, min=0, max=1)
-    def draw(self, context, layout):
-        pass
-    def draw_color(self, context):
-        return CST.COLOR_RGBA_ALPHA
-
 # NodeSocket
 
 class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,0,0), min=0, max=1, subtype='COLOR_GAMMA')
+    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,0,0), min=0, max=1, subtype='COLOR')
 
     flagColorCycle = bpy.props.StringProperty(default='')
     flagAlphaCycle = bpy.props.StringProperty(default='')
@@ -308,7 +300,7 @@ class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
         return CST.COLOR_OK
 
 class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,0,0), min=0, max=1, subtype='COLOR_GAMMA')
+    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,1,0), min=0, max=1, subtype='COLOR')
 
     def linkToFlag(self):
         """
@@ -366,53 +358,25 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
         flag, warnMsg = self.linkToFlag()
         return CST.COLOR_BAD if warnMsg else CST.COLOR_OK
 
-# OBJEX_NodeSocket_RGBA_* sockets are meant to be used by the OBJEX_rgba node group
-# they sync the alpha between the alpha socket and the alpha of the color socket
-
-def OBJEX_NodeSocket_RGBA_Color_default_value_update(self, context):
-    # set (default_value of Alpha socket) to (alpha of default_value color of Color socket)
-    self.node.inputs[1].default_value = self.default_value[3]
-
-def OBJEX_NodeSocket_RGBA_Alpha_default_value_update(self, context):
-    # set (alpha of default_value color of Color socket) to (default_value of Alpha socket)
-    c = self.node.inputs[0].default_value
-    self.node.inputs[0].default_value = (c[0], c[1], c[2], self.default_value)
-
-class OBJEX_NodeSocket_RGBA_CA():
-    no_links = bpy.props.BoolProperty(default=False)
+class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket):
+    default_value = bpy.props.FloatVectorProperty(
+        name='default_value', default=(1,1,1),
+        min=0, max=1, subtype='COLOR',
+    )
 
     def draw(self, context, layout, node, text):
-        col = layout
-        if self.is_linked and self.no_links:
+        if self.is_linked:
+            layout.label(text=text)
+        else:
             col = layout.column()
-            col.label(text='DO NOT LINK',icon='ERROR')
-        if not self.is_linked or self.no_links:
-            col.prop(self, 'default_value', text=self.text(text))
-        elif self.is_linked:
-            col.label(text=text)
+            col.label(text=text,icon='ERROR')
+            col.label(text='MUST BE LINKED',icon='ERROR')
 
     def draw_color(self, context, node):
-        return CST.COLOR_BAD if self.is_linked and self.no_links else self.__class__.COLOR_OK
+        return CST.COLOR_RGBA_COLOR if self.is_linked else CST.COLOR_BAD
 
     def text(self, txt):
         return txt
-
-class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket, OBJEX_NodeSocket_RGBA_CA):
-    default_value = bpy.props.FloatVectorProperty(
-        name='default_value', default=(1,1,1,1),
-        min=0, max=1, size=4, subtype='COLOR_GAMMA',
-        update=OBJEX_NodeSocket_RGBA_Color_default_value_update,
-    )
-
-    COLOR_OK = CST.COLOR_RGBA_COLOR
-
-class OBJEX_NodeSocket_RGBA_Alpha(bpy.types.NodeSocket, OBJEX_NodeSocket_RGBA_CA):
-    default_value = bpy.props.FloatProperty(
-        name='default_value', default=1, min=0, max=1,
-        update=OBJEX_NodeSocket_RGBA_Alpha_default_value_update,
-    )
-
-    COLOR_OK = CST.COLOR_RGBA_ALPHA
 
 # node groups creation
 
@@ -476,29 +440,45 @@ def create_node_group_scale_uv(group_name):
         super().draw(context, layout, node, text)
     
     inputs_node = tree.nodes.new('NodeGroupInput')
-    inputs_node.location = (-400,150)
+    inputs_node.location = (-600,150)
     tree.inputs.new('NodeSocketVector', 'UV')
     # 421todo if Uniform UV Scale is checked, only display Scale Exponent and use for both U and V scales (is this possible?)
     #tree.inputs.new('NodeSocketBool', 'Uniform UV Scale').default_value = True
     #tree.inputs.new('NodeSocketInt', 'Scale Exponent')
-    tree.inputs.new('NodeSocketInt', 'U Scale Exponent')
-    tree.inputs.new('NodeSocketInt', 'V Scale Exponent')
+    # blender 2.79 fails to transfer data somewhere when linking int socket to float socket of math node...
+    #tree.inputs.new('NodeSocketInt', 'U Scale Exponent')
+    #tree.inputs.new('NodeSocketInt', 'V Scale Exponent')
+    # instead, round float inputs
+    tree.inputs.new('NodeSocketFloat', 'U Scale Exponent')
+    tree.inputs.new('NodeSocketFloat', 'V Scale Exponent')
+    # 421todo instead, use U/V scale inputs, and do final_scale = 2^(round(log_2(input_scale))) (as an option?)
+    # 421todo try using a custom socket as U/V scale inputs, auto-round on update
+
+    uScale = tree.nodes.new('ShaderNodeMath')
+    uScale.operation = 'ROUND'
+    uScale.location = (-400,100)
+    tree.links.new(inputs_node.outputs['U Scale Exponent'], uScale.inputs[0])
+
+    vScale = tree.nodes.new('ShaderNodeMath')
+    vScale.operation = 'ROUND'
+    vScale.location = (-400,-100)
+    tree.links.new(inputs_node.outputs['V Scale Exponent'], vScale.inputs[0])
 
     separateXYZ = tree.nodes.new('ShaderNodeSeparateXYZ')
-    separateXYZ.location = (-200,300)
+    separateXYZ.location = (-200,250)
     tree.links.new(inputs_node.outputs['UV'], separateXYZ.inputs[0])
 
     uScalePower = tree.nodes.new('ShaderNodeMath')
     uScalePower.operation = 'POWER'
-    uScalePower.location = (-200,150)
+    uScalePower.location = (-200,100)
     uScalePower.inputs[0].default_value = 2
-    tree.links.new(inputs_node.outputs['U Scale Exponent'], uScalePower.inputs[1])
+    tree.links.new(uScale.outputs[0], uScalePower.inputs[1])
 
     vScalePower = tree.nodes.new('ShaderNodeMath')
     vScalePower.operation = 'POWER'
-    vScalePower.location = (-200,-50)
+    vScalePower.location = (-200,-100)
     vScalePower.inputs[0].default_value = 2
-    tree.links.new(inputs_node.outputs['V Scale Exponent'], vScalePower.inputs[1])
+    tree.links.new(vScale.outputs[0], vScalePower.inputs[1])
 
     scaleU = tree.nodes.new('ShaderNodeMath')
     scaleU.operation = 'MULTIPLY'
@@ -524,14 +504,21 @@ def create_node_group_scale_uv(group_name):
 
     return tree
 
-def create_node_group_rgba(group_name):
+def create_node_group_rgba_pipe(group_name):
+    """
+    "Casts" input for use as cycle inputs
+    Inputs: OBJEX_NodeSocket_RGBA_Color 'Color', NodeSocketFloat 'Alpha'
+    Outputs: OBJEX_NodeSocket_CombinerOutput 'RGB', OBJEX_NodeSocket_CombinerOutput 'A'
+    """
     tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
 
     inputs_node = tree.nodes.new('NodeGroupInput')
     inputs_node.location = (-100,50)
     tree.inputs.new('OBJEX_NodeSocket_RGBA_Color', 'Color')
-    # doesn't seem like blender 2.79 provides a way to pick and use rgba directly
-    alpha_input_socket = tree.inputs.new('OBJEX_NodeSocket_RGBA_Alpha', 'Alpha')
+    alpha_input_socket = tree.inputs.new('NodeSocketFloat', 'Alpha')
+    alpha_input_socket.default_value = 1
+    alpha_input_socket.min_value = 0
+    alpha_input_socket.max_value = 1
 
     alpha_3d = tree.nodes.new('ShaderNodeCombineRGB')
     for i in range(3):
@@ -557,7 +544,7 @@ def update_node_groups():
         'OBJEX_Color0': (1, lambda group_name: create_node_group_color_static(group_name, (0,0,0,0), '0')),
         'OBJEX_Color1': (1, lambda group_name: create_node_group_color_static(group_name, (1,1,1,1), '1')),
         'OBJEX_ScaleUV': (1, create_node_group_scale_uv),
-        'OBJEX_rgba': (1, create_node_group_rgba)
+        'OBJEX_rgba_pipe': (1, create_node_group_rgba_pipe),
     }
     # dict mapping old groups to new groups, used later for upgrading
     upgrade = {}
@@ -599,6 +586,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
     
     def execute(self, context):
         material = context.material
+        material.use_transparency = True
         material.use_nodes = True
         update_node_groups()
         node_tree = material.node_tree
@@ -609,7 +597,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         if 'Geometry' not in nodes:
             geometry = nodes.new('ShaderNodeGeometry')
             geometry.name = 'Geometry'
-            geometry.location = (-400, 100)
+            geometry.location = (-400, -100)
         else:
             geometry = nodes['Geometry']
         
@@ -618,7 +606,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             multiTexScale0.node_tree = bpy.data.node_groups['OBJEX_ScaleUV']
             multiTexScale0.name = 'OBJEX_MultiTexScale0' # internal name
             multiTexScale0.label = 'Multitexture Scale 0' # displayed name
-            multiTexScale0.location = (-150, 200)
+            multiTexScale0.location = (-150, -50)
             multiTexScale0.width += 50
         else:
             multiTexScale0 = nodes['OBJEX_MultiTexScale0']
@@ -627,48 +615,62 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             multiTexScale1.node_tree = bpy.data.node_groups['OBJEX_ScaleUV']
             multiTexScale1.name = 'OBJEX_MultiTexScale1'
             multiTexScale1.label = 'Multitexture Scale 1'
-            multiTexScale1.location = (-150, -100)
+            multiTexScale1.location = (-150, -350)
             multiTexScale1.width += 50
         else:
             multiTexScale1 = nodes['OBJEX_MultiTexScale1']
-        
+
+        if 'OBJEX_PrimColorRGB' not in nodes:
+            primColorRGB = nodes.new('ShaderNodeRGB')
+            primColorRGB.name = 'OBJEX_PrimColorRGB'
+            primColorRGB.label = 'Env Color RGB'
+            primColorRGB.location = (100, 450)
+            primColorRGB.outputs[0].default_value = (1,1,1,1)
+        else:
+            primColorRGB = nodes['OBJEX_PrimColorRGB']
+        if 'OBJEX_EnvColorRGB' not in nodes:
+            envColorRGB = nodes.new('ShaderNodeRGB')
+            envColorRGB.name = 'OBJEX_EnvColorRGB'
+            envColorRGB.label = 'Env Color RGB'
+            envColorRGB.location = (100, 250)
+            envColorRGB.outputs[0].default_value = (1,1,1,1)
+        else:
+            envColorRGB = nodes['OBJEX_EnvColorRGB']
+
         if 'OBJEX_Texel0Texture' not in nodes:
             texel0texture = nodes.new('ShaderNodeTexture')
             texel0texture.name = 'OBJEX_Texel0Texture'
             texel0texture.label = 'Texel 0 Texture'
-            texel0texture.location = (100, 300)
+            texel0texture.location = (100, 50)
         else:
             texel0texture = nodes['OBJEX_Texel0Texture']
         if 'OBJEX_Texel1Texture' not in nodes:
             texel1texture = nodes.new('ShaderNodeTexture')
             texel1texture.name = 'OBJEX_Texel1Texture'
             texel1texture.label = 'Texel 1 Texture'
-            texel1texture.location = (100, 0)
+            texel1texture.location = (100, -250)
         else:
             texel1texture = nodes['OBJEX_Texel1Texture']
-        
+
         if 'OBJEX_PrimColor' not in nodes:
             primColor = nodes.new('ShaderNodeGroup')
-            primColor.node_tree = bpy.data.node_groups['OBJEX_rgba']
+            primColor.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
             primColor.name = 'OBJEX_PrimColor'
             primColor.label = 'Prim Color'
             primColor.location = (300, 400)
-            primColor.inputs[0].no_links = True
-            primColor.inputs[1].no_links = True
             primColor.outputs[0].flagColorCycle = 'G_CCMUX_PRIMITIVE'
             primColor.outputs[1].flagColorCycle = 'G_CCMUX_PRIMITIVE_ALPHA'
             primColor.outputs[0].flagAlphaCycle = ''
             primColor.outputs[1].flagAlphaCycle = 'G_ACMUX_PRIMITIVE'
         else:
             primColor = nodes['OBJEX_PrimColor']
+
         if 'OBJEX_EnvColor' not in nodes:
             envColor = nodes.new('ShaderNodeGroup')
-            envColor.node_tree = bpy.data.node_groups['OBJEX_rgba']
+            envColor.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
             envColor.name = 'OBJEX_EnvColor'
             envColor.label = 'Env Color'
             envColor.location = (300, 250)
-            envColor.inputs[0].no_links = True
-            envColor.inputs[1].no_links = True
             envColor.outputs[0].flagColorCycle = 'G_CCMUX_ENVIRONMENT'
             envColor.outputs[1].flagColorCycle = 'G_CCMUX_ENV_ALPHA'
             envColor.outputs[0].flagAlphaCycle = ''
@@ -678,7 +680,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         
         if 'OBJEX_Texel0' not in nodes:
             texel0 = nodes.new('ShaderNodeGroup')
-            texel0.node_tree = bpy.data.node_groups['OBJEX_rgba']
+            texel0.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
             texel0.name = 'OBJEX_Texel0'
             texel0.label = 'Texel 0'
             texel0.location = (300, 100)
@@ -690,7 +692,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             texel0 = nodes['OBJEX_Texel0']
         if 'OBJEX_Texel1' not in nodes:
             texel1 = nodes.new('ShaderNodeGroup')
-            texel1.node_tree = bpy.data.node_groups['OBJEX_rgba']
+            texel1.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
             texel1.name = 'OBJEX_Texel1'
             texel1.label = 'Texel 1'
             texel1.location = (300, -50)
@@ -703,7 +705,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         
         if 'OBJEX_Shade' not in nodes:
             shade = nodes.new('ShaderNodeGroup')
-            shade.node_tree = bpy.data.node_groups['OBJEX_rgba']
+            shade.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
             shade.name = 'OBJEX_Shade'
             shade.label = 'Shade'
             shade.location = (300, -200)
@@ -792,10 +794,9 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             frame = nodes.new('NodeFrame')
             frame.name = 'OBJEX_Frame_CombinerInputs'
             frame.label = 'Combiner Inputs'
-            frame.location = primColor.location + mathutils.Vector((-25,50))
-            frame.width = 25 + primColor.width + 25
-            frame.height = 25 + primColor.location[1] - (color1.location[1] - color1.height) + 25
-        
+        for n in (primColor, envColor, texel0, texel1, shade, color0, color1):
+            n.parent = frame
+
         # texel0
         node_tree.links.new(geometry.outputs['UV'], multiTexScale0.inputs['UV'])
         node_tree.links.new(multiTexScale0.outputs[0], texel0texture.inputs[0])
@@ -806,6 +807,9 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         node_tree.links.new(multiTexScale1.outputs[0], texel1texture.inputs[0])
         node_tree.links.new(texel1texture.outputs[1], texel1.inputs[0])
         node_tree.links.new(texel1texture.outputs[0], texel1.inputs[1])
+        # envColor, primColor RGB
+        node_tree.links.new(primColorRGB.outputs[0], primColor.inputs[0])
+        node_tree.links.new(envColorRGB.outputs[0], envColor.inputs[0])
         # shade
         # vertex colors (do not use by default as it would make shade (0,0,0,0))
         #node_tree.links.new(geometry.outputs['Vertex Color'], shade.inputs[0])
@@ -827,7 +831,9 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         # combiners output
         node_tree.links.new(cc1.outputs[0], output.inputs[0])
         node_tree.links.new(ac1.outputs[0], output.inputs[1])
-        
+
+        material.objex_bonus.is_objex_material = True
+
         return {'FINISHED'}
 
 # properties and non-node UI
@@ -836,6 +842,8 @@ def material_updated_my_int(self, context):
     print('my_int -> %d' % context.material.objex_bonus.my_int)
 
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
+    is_objex_material = bpy.props.BoolProperty(default=False)
+
     my_int = bpy.props.IntProperty(
             name='int32',
             description='integeeeerr',
@@ -879,11 +887,9 @@ classes = (
     OBJEX_NodeSocketInterface_CombinerOutput,
     OBJEX_NodeSocketInterface_CombinerInput,
     OBJEX_NodeSocketInterface_RGBA_Color,
-    OBJEX_NodeSocketInterface_RGBA_Alpha,
     OBJEX_NodeSocket_CombinerOutput,
     OBJEX_NodeSocket_CombinerInput,
     OBJEX_NodeSocket_RGBA_Color,
-    OBJEX_NodeSocket_RGBA_Alpha,
 
     OBJEX_OT_material_init,
     ObjexMaterialProperties,
