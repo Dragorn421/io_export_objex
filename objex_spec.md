@@ -167,9 +167,9 @@ be included in the converted file, whether or not it is
 actually referenced by any materials, and whether or
 not those materials are used
 
-#### `instead`
+#### `texturebank`
 
-`instead filename` (optional)
+`texturebank filename` (optional)
 - source another file for pixel data, still using the image
 specified with `map` for the texture mapping dimensions
 - use cases: texture strips that are not referenced anywhere
