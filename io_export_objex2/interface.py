@@ -623,7 +623,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         if 'OBJEX_PrimColorRGB' not in nodes:
             primColorRGB = nodes.new('ShaderNodeRGB')
             primColorRGB.name = 'OBJEX_PrimColorRGB'
-            primColorRGB.label = 'Env Color RGB'
+            primColorRGB.label = 'Primitive Color RGB'
             primColorRGB.location = (100, 450)
             primColorRGB.outputs[0].default_value = (1,1,1,1)
         else:
@@ -631,7 +631,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         if 'OBJEX_EnvColorRGB' not in nodes:
             envColorRGB = nodes.new('ShaderNodeRGB')
             envColorRGB.name = 'OBJEX_EnvColorRGB'
-            envColorRGB.label = 'Env Color RGB'
+            envColorRGB.label = 'Environment Color RGB'
             envColorRGB.location = (100, 250)
             envColorRGB.outputs[0].default_value = (1,1,1,1)
         else:
@@ -656,7 +656,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             primColor = nodes.new('ShaderNodeGroup')
             primColor.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
             primColor.name = 'OBJEX_PrimColor'
-            primColor.label = 'Prim Color'
+            primColor.label = 'Primitive Color'
             primColor.location = (300, 400)
             primColor.outputs[0].flagColorCycle = 'G_CCMUX_PRIMITIVE'
             primColor.outputs[1].flagColorCycle = 'G_CCMUX_PRIMITIVE_ALPHA'
@@ -669,7 +669,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             envColor = nodes.new('ShaderNodeGroup')
             envColor.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
             envColor.name = 'OBJEX_EnvColor'
-            envColor.label = 'Env Color'
+            envColor.label = 'Environment Color'
             envColor.location = (300, 250)
             envColor.outputs[0].flagColorCycle = 'G_CCMUX_ENVIRONMENT'
             envColor.outputs[1].flagColorCycle = 'G_CCMUX_ENV_ALPHA'
