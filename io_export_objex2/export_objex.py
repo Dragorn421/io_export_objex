@@ -682,8 +682,205 @@ class ObjexWriter():
             progress.leave_substeps()
 
 
+class ObjexMaterialNodeTreeExplorer():
+    def __init__(self, tree):
+        self.tree = tree
+        self.colorCycles = []
+        self.alphaCycles = []
+        self.flagSockets = {}
+
+    def buildFromColorCycle(self, cc):
+        if cc in (cc for cc,flags,prev_alpha_cycle_node in self.colorCycles):
+            print('Looping: already visited color cycle node', cc)
+            return
+        flags = []
+        prev_color_cycle_node = None
+        prev_alpha_cycle_node = None
+        for i in range(4):
+            if not cc.inputs[i].links:
+                flags.append('default_to_0')
+                continue
+            socket = cc.inputs[i].links[0].from_socket
+            if socket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
+                print('What is this socket? not combiner output!', socket)
+            flag = socket.flagColorCycle
+            if not flag:
+                print('Unsupported flag', i, flag, cc)
+            flags.append(flag)
+            if flag == 'G_CCMUX_COMBINED':
+                if prev_color_cycle_node and prev_color_cycle_node != socket.node:
+                    print('Different color cycle nodes used for combine', prev_color_cycle_node, socket.node)
+                prev_color_cycle_node = socket.node
+            elif flag == 'G_CCMUX_COMBINED_ALPHA':
+                if socket.node not in self.alphaCycles:
+                    print('Color cycle is combining alpha from alpha cycle node which was not used in alpha cycles', cc, ac)
+                if prev_alpha_cycle_node and prev_alpha_cycle_node != socket.node:
+                    print('Different alpha cycle nodes used for combine', prev_alpha_cycle_node, socket.node)
+                prev_alpha_cycle_node = socket.node
+            else:
+                storedFlagSocket = self.flagSockets.get(flag)
+                if storedFlagSocket and socket != storedFlagSocket:
+                    print('Flag is used by two different sockets!', flag, storedFlagSocket, socket)
+                self.flagSockets[flag] = socket
+        self.colorCycles.append((cc, flags, prev_alpha_cycle_node))
+        if prev_color_cycle_node:
+            self.buildFromColorCycle(prev_color_cycle_node)
+
+    def buildFromAlphaCycle(self, ac):
+        if ac in (ac for ac,flags in self.alphaCycles):
+            print('Looping: already visited alpha cycle node', ac)
+            return
+        flags = []
+        prev_alpha_cycle_node = None
+        for i in range(4):
+            if not ac.inputs[i].links:
+                flags.append('default_to_0')
+                continue
+            socket = ac.inputs[i].links[0].from_socket
+            if socket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
+                print('What is this socket? not combiner output!', socket)
+            flag = socket.flagAlphaCycle
+            if not flag:
+                print('Unsupported flag', i, flag, ac)
+            flags.append(flag)
+            if flag == 'G_ACMUX_COMBINED':
+                if prev_alpha_cycle_node and prev_alpha_cycle_node != socket.node:
+                    print('Different cycle nodes used for combine', prev_alpha_cycle_node, socket.node)
+                prev_alpha_cycle_node = socket.node
+            else:
+                storedFlagSocket = self.flagSockets.get(flag)
+                if storedFlagSocket and socket != storedFlagSocket:
+                    print('Flag is used by two different sockets!', flag, storedFlagSocket, socket)
+                self.flagSockets[flag] = socket
+        self.alphaCycles.append((ac, flags))
+        if prev_alpha_cycle_node:
+            self.buildFromAlphaCycle(prev_alpha_cycle_node)
+
+    def buildCyclesFromOutput(self, output):
+        # 421todo a lot of checks
+        # build alpha cycles first because color cycle 1 may use alpha cycle 0
+        self.buildFromAlphaCycle(output.inputs[1].links[0].from_node)
+        self.buildFromColorCycle(output.inputs[0].links[0].from_node)
+        # check the cycles make sense
+        self.colorCycles.reverse()
+        self.alphaCycles.reverse()
+        if len(self.colorCycles) != len(self.alphaCycles):
+            print('Not the same amount of color and alpha cycles', len(self.colorCycles), len(self.alphaCycles))
+        flags = []
+        for i in range(len(self.colorCycles)):
+            cc,colorFlags,prev_alpha_cycle_node = self.colorCycles[i]
+            ac,alphaFlags = self.alphaCycles[i]
+            if i == 0 and prev_alpha_cycle_node:
+                print('First color cycle node is combining with alpha cycle', cc, prev_alpha_cycle_node)
+            if i > 0 and prev_alpha_cycle_node and prev_alpha_cycle_node != self.alphaCycles[i-1][0]:
+                print('Color cycle %d combines non-previous alpha cycle' % i, cc, self.alphaCycles[i-1][0], prev_alpha_cycle_node)
+            flags += colorFlags
+            flags += alphaFlags
+        self.combinerFlags = flags
+
+    def build(self):
+        output = None
+        for n in self.tree.nodes:
+            if n.bl_idname == 'ShaderNodeOutput':
+                if output:
+                    print('Several output nodes found', output, n)
+                output = n
+        if not output:
+            print('No Output node found')
+        self.buildCyclesFromOutput(output)
+        self.buildCombinerInputs()
+
+    def buildCombinerInputs(self):
+        inputs = {
+            # color registers
+            'primitiveRGB': (('G_CCMUX_PRIMITIVE',),self.buildColorInputRGB),
+            'primitiveA': (('G_CCMUX_PRIMITIVE_ALPHA','',),self.buildColorInputA),
+            'environmentRGB': (('G_CCMUX_ENVIRONMENT',),self.buildColorInputRGB),
+            'environmentA': (('G_CCMUX_ENV_ALPHA','G_ACMUX_ENVIRONMENT',),self.buildColorInputA),
+            # texels
+            'texel0RGB': (('G_CCMUX_TEXEL0',),self.buildTexelDataFromColorSocket),
+            'texel0A': (('G_CCMUX_TEXEL0_ALPHA','G_ACMUX_TEXEL0',),self.buildTexelDataFromAlphaSocket),
+            'texel1RGB': (('G_CCMUX_TEXEL1',),self.buildTexelDataFromColorSocket),
+            'texel1A': (('G_CCMUX_TEXEL1_ALPHA','G_ACMUX_TEXEL1',),self.buildTexelDataFromAlphaSocket),
+            # vertex colors (or nothing)
+            'shadeRGB': (('G_CCMUX_SHADE',),self.buildShadingDataFromColorSocket),
+            'shadeA': (('G_CCMUX_SHADE_ALPHA','G_ACMUX_SHADE',),self.buildShadingDataFromAlphaSocket),
+        }
+        self.data = {}
+        for k,(flags,socketReader) in inputs.items():
+            sockets = set(self.flagSockets[flag] for flag in flags if flag in self.flagSockets)
+            if len(sockets) > 1:
+                print('Different sockets used by different flags which should refer to the same data', k, sockets)
+            if sockets:
+                socketReader(k, next(iter(sockets)))
+        # FIXME
+        def mergeRGBA(rgb, a):
+            # fixme default to 0 or 1
+            if rgb:
+                if a:
+                    return (rgb[0], rgb[1], rgb[2], a)
+                return (rgb[0], rgb[1], rgb[2], 1)
+            if a:
+                return (1,1,1,a)
+            return (1,1,1,1)
+        def pickFirst(a,b):
+            return a
+        merge = {
+            'primitive': (('primitiveRGB','primitiveA',),mergeRGBA),
+            'environment': (('environmentRGB','environmentA',),mergeRGBA),
+            # FIXME check texel0RGB and texel0A are the same, and other checks
+            'texel0': (('texel0RGB','texel0A',),pickFirst),
+            'texel1': (('texel1RGB','texel1A',),pickFirst),
+            'shade': (('shadeRGB','shadeA',),pickFirst),
+        }
+        data = self.data
+        mergedData = {}
+        # FIXME ugly
+        for k2,(ks,dataMerger) in merge.items():
+            mergedData[k2] = dataMerger(data.get(ks[0], None), data.get(ks[1], None))
+        self.data = mergedData
+        # FIXME uv_layer must be merged from texel01 data
+
+    def buildColorInputRGB(self, k, socket):
+        self.data[k] = socket.default_value # FIXME
+
+    def buildColorInputA(self, k, socket):
+        self.data[k] = socket.default_value[0] # FIXME
+
+    def buildTexelDataFromColorSocket(self, k, socket):
+        # FIXME
+        textureNode = socket.node.inputs[0].links[0].from_node
+        self.data[k] = self.buildTexelDataFromTextureNode(textureNode)
+
+    def buildTexelDataFromAlphaSocket(self, k, socket):
+        # FIXME
+        # use alpha input link instead 
+        textureNode = socket.node.inputs[1].links[0].from_node
+        self.data[k] = self.buildTexelDataFromTextureNode(textureNode)
+
+    def buildTexelDataFromTextureNode(self, textureNode):
+        # FIXME
+        scaleUVnode = textureNode.inputs[0].links[0].from_node
+        return {
+            'texture': textureNode.texture,
+            'uv_scale_u': scaleUVnode.inputs[1].default_value,
+            'uv_scale_v': scaleUVnode.inputs[2].default_value,
+            'uv_layer': scaleUVnode.inputs[0].links[0].from_node.uv_layer,
+        }
+
+    def buildShadingDataFromColorSocket(self, k, socket):
+        # FIXME
+        # todo vcolor or nothing
+        self.data[k] = {}
+
+    def buildShadingDataFromAlphaSocket(self, k, socket):
+        # FIXME
+        # todo vcolor or nothing
+        self.data[k] = {}
+
+# fixme this is going to end up finding uv/vcolor layers from node (or default to active I guess), if several layers, may write the wrong layer in .objex ... should call write_mtl and get uvs/vcolor data this way before writing the .objex?
+# todo .mtl -> .mtlex ?
 def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
-    from mathutils import Color, Vector
 
     source_dir = os.path.dirname(bpy.data.filepath)
     dest_dir = os.path.dirname(filepath)
@@ -693,119 +890,97 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
 
         fw('# Blender MTL File: %r\n' % (os.path.basename(bpy.data.filepath) or "None"))
         fw('# Material Count: %i\n' % len(mtl_dict))
-        
+
         # maps a file path to a texture name, to avoid duplicate newtex declarations
         texture_names = {}
-        # mtl_dict.values() is a list of (material_name, material, face_img)
-        # materials is a list of (material_name, material, texture_name)
-        materials = []
-        
-        # write textures
+
+        def writeTexture(image, name):
+            image_filepath = image.filepath
+            texture_name = texture_names.get(image_filepath)
+            if not texture_name:
+                texture_name = name
+                fw('newtex %s\n' % texture_name)
+                filepath = bpy_extras.io_utils.path_reference(image_filepath, source_dir, dest_dir,
+                                                              path_mode, "", copy_set, image.library)
+                fw('map %s\n' % filepath)
+                texture_names[image_filepath] = texture_name
+                # 421todo pointer, format, palette, priority, forcewrite, forcenowrite, texturebank
+
         for material_name, material, face_img in mtl_dict.values():
-            image = None
-            
-            # Write images!
-            # face_img.filepath may be '' for generated images
-            if face_img and face_img.filepath: # We have an image on the face!
-                image = face_img
-            elif material:  # No face image. if we have a material search for MTex image.
-                image_map = {}
-                # backwards so topmost are highest priority
-                for mtex in reversed(material.texture_slots):
-                    if mtex and mtex.texture and mtex.texture.type == 'IMAGE':
-                        image = mtex.texture.image
-                        if image and (mtex.use_map_color_diffuse and
-                            (mtex.use_map_warp is False) and (mtex.texture_coords != 'REFLECTION')):
-                            """
-                            what about mtex.offset, mtex.scale? see original code
-                            
-                            if mtex.offset != Vector((0.0, 0.0, 0.0)):
-                                options.append('-o %.6f %.6f %.6f' % mtex.offset[:])
-                            if mtex.scale != Vector((1.0, 1.0, 1.0)):
-                                options.append('-s %.6f %.6f %.6f' % mtex.scale[:])
-                            """
-                            break
-                        else:
-                            image = None
-            
-            if image:
-                image_filepath = image.filepath
-                texture_name = texture_names.get(image_filepath)
-                if not texture_name:
-                    texture_name = 'texture_%d' % len(texture_names)
-                    fw('newtex %s\n' % texture_name)
-                    filepath = bpy_extras.io_utils.path_reference(image_filepath, source_dir, dest_dir,
-                                                                  path_mode, "", copy_set, image.library)
-                    fw('map %s\n' % filepath)
-                    texture_names[image_filepath] = texture_name
+            objex_data = material.objex_bonus
+            if objex_data.is_objex_material:
+                if not material.use_nodes:
+                    print('Material is_objex_material but not use_nodes', material)
+                explorer = ObjexMaterialNodeTreeExplorer(material.node_tree)
+                explorer.build()
+                if len(explorer.combinerFlags) != 16:
+                    print('Unexpected combiner flags amount', len(explorer.combinerFlags), explorer.combinerFlags)
+                data = explorer.data
+                if 'texel0' in data:
+                    # todo check texture.type == 'IMAGE'
+                    tex = data['texel0']['texture']
+                    writeTexture(tex.image, tex.name)
+                if 'texel1' in data:
+                    tex = data['texel1']['texture']
+                    writeTexture(tex.image, tex.name)
+                fw('newmtl %s\n' % material.name)
+                if 'texel0' in data:
+                    fw('texel0 %s\n' % data['texel0']['texture'].name)
+                if 'texel1' in data:
+                    fw('texel1 %s\n' % data['texel1']['texture'].name)
+                fw("""gbi      gsSPTexture(qu016(0.999985), qu016(0.999985), 0, G_TX_RENDERTILE, G_ON),
+gbi      gsDPPipeSync(),
+gbi      gsDPSetRenderMode(AA_EN | Z_CMP | Z_UPD | IM_RD | CVG_DST_CLAMP | ZMODE_OPA | ALPHA_CVG_SEL | GBL_c1(G_BL_CLR_FOG, G_BL_A_SHADE, G_BL_CLR_IN, G_BL_1MA), G_RM_AA_ZB_OPA_SURF2),
+""") # 421fixme
+                fw('gbi gsDPSetCombineLERP(%s)\n' % (','.join('%s' for i in range(16)) % tuple(explorer.combinerFlags)))
+                def rgba32(rgba):
+                    return tuple(int(c*255) for c in rgba)
+                if 'primitive' in data:
+                    fw('gbi gsDPSetPrimColor(0,qu08(0.5),%d,%d,%d,%d)\n' % rgba32(data['primitive'])) # 421fixme minlevel, lodfrac
+                if 'environment' in data:
+                    fw('gbi gsDPSetEnvColor(%d,%d,%d,%d)\n' % rgba32(data['environment']))
+                fw("""gbi      gsSPSetGeometryMode(G_LIGHTING),
+gbi      gsSPClearGeometryMode(G_CULL_BACK),
+gbi      gsSPClearGeometryMode(G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR),
+gbivar   cms0     "G_TX_NOMIRROR | G_TX_CLAMP"
+gbivar   cmt0     "G_TX_NOMIRROR | G_TX_CLAMP"
+gbivar   shifts0  0
+gbivar   shiftt0  0
+gbi      _loadtexels
+""") # 421fixme
             else:
-                texture_name = None
-            materials.append((material_name, material, texture_name))
-        
-        for material_name, material, texture_name in materials:
-            fw('newmtl %s\n' % material_name)
-            if texture_name:
-                fw('texel0 %s\n' % texture_name)
-            if material:
-                fw('Kd %.6f %.6f %.6f\n' % (material.diffuse_intensity * material.diffuse_color)[:])
-        
-        """
-        mtl_dict_values = list(mtl_dict.values())
-        mtl_dict_values.sort(key=lambda m: m[0])
-
-        # Write material/image combinations we have used.
-        # Using mtl_dict.values() directly gives un-predictable order.
-        for mtl_mat_name, mat, face_img in mtl_dict_values:
-            # Get the Blender data for the material and the image.
-            # Having an image named None will make a bug, dont do it :)
-
-            fw('\nnewmtl %s\n' % mtl_mat_name)  # Define a new material: matname_imgname
-
-            if mat:
-                # Ambient
-                fw('Kd %.6f %.6f %.6f\n' % (mat.diffuse_intensity * mat.diffuse_color)[:])  # Diffuse
-            else:
-                # Write a dummy material here?
-                fw('Kd 0.8 0.8 0.8\n')
-
-            # Write images!
-            if face_img:  # We have an image on the face!
-                filepath = face_img.filepath
-                if filepath:  # may be '' for generated images
-                    # write relative image path
-                    filepath = bpy_extras.io_utils.path_reference(filepath, source_dir, dest_dir,
-                                                                  path_mode, "", copy_set, face_img.library)
-                    fw('map_Kd %s\n' % filepath)  # Diffuse mapping image
-                    del filepath
-                else:
-                    # so we write the materials image.
-                    face_img = None
-
-            if mat:  # No face image. if we havea material search for MTex image.
-                image_map = {}
-                # backwards so topmost are highest priority
-                for mtex in reversed(mat.texture_slots):
-                    if mtex and mtex.texture and mtex.texture.type == 'IMAGE':
-                        image = mtex.texture.image
-                        if image:
-                            # texface overrides others
-                            if (mtex.use_map_color_diffuse and (face_img is None) and
+                image = None
+                # Write images!
+                # face_img.filepath may be '' for generated images
+                if face_img and face_img.filepath: # We have an image on the face!
+                    image = face_img
+                elif material:  # No face image. if we have a material search for MTex image.
+                    # backwards so topmost are highest priority (421todo ... sure about that?)
+                    for mtex in reversed(material.texture_slots):
+                        if mtex and mtex.texture and mtex.texture.type == 'IMAGE':
+                            image = mtex.texture.image
+                            if image and (mtex.use_map_color_diffuse and
                                 (mtex.use_map_warp is False) and (mtex.texture_coords != 'REFLECTION')):
-                                image_map["map_Kd"] = (mtex, image)
+                                """
+                                what about mtex.offset, mtex.scale? see original code
+                                
+                                if mtex.offset != Vector((0.0, 0.0, 0.0)):
+                                    options.append('-o %.6f %.6f %.6f' % mtex.offset[:])
+                                if mtex.scale != Vector((1.0, 1.0, 1.0)):
+                                    options.append('-s %.6f %.6f %.6f' % mtex.scale[:])
+                                """
+                                break
+                            else:
+                                image = None
 
-                for key, (mtex, image) in sorted(image_map.items()):
-                    filepath = bpy_extras.io_utils.path_reference(image.filepath, source_dir, dest_dir,
-                                                                  path_mode, "", copy_set, image.library)
-                    options = []
-                    if mtex.offset != Vector((0.0, 0.0, 0.0)):
-                        options.append('-o %.6f %.6f %.6f' % mtex.offset[:])
-                    if mtex.scale != Vector((1.0, 1.0, 1.0)):
-                        options.append('-s %.6f %.6f %.6f' % mtex.scale[:])
-                    if options:
-                        fw('%s %s %s\n' % (key, " ".join(options), repr(filepath)[1:-1]))
-                    else:
-                        fw('%s %s\n' % (key, repr(filepath)[1:-1]))
-        """
+                if image:
+                    texture_name = 'texture_%d' % len(texture_names)
+                    writeTexture(image, texture_name)
+                else:
+                    texture_name = None
+                fw('newmtl %s\n' % material_name)
+                if texture_name:
+                    fw('texel0 %s\n' % texture_name)
 
 
 """
