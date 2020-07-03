@@ -867,6 +867,10 @@ class ObjexMaterialNodeTreeExplorer():
             'texture': textureNode.texture,
             'uv_scale_u': scaleUVnode.inputs[1].default_value,
             'uv_scale_v': scaleUVnode.inputs[2].default_value,
+            'uv_wrap_u': scaleUVnode.inputs[3].default_value,
+            'uv_wrap_v': scaleUVnode.inputs[4].default_value,
+            'uv_mirror_u': scaleUVnode.inputs[5].default_value,
+            'uv_mirror_v': scaleUVnode.inputs[6].default_value,
             'uv_layer': scaleUVnode.inputs[0].links[0].from_node.uv_layer,
         }
 
@@ -956,17 +960,17 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                 fw("""gbi      gsSPSetGeometryMode(G_LIGHTING),
 gbi      gsSPClearGeometryMode(G_CULL_BACK),
 gbi      gsSPClearGeometryMode(G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR),
-gbivar   cms0     "G_TX_NOMIRROR | G_TX_CLAMP"
-gbivar   cmt0     "G_TX_NOMIRROR | G_TX_CLAMP"
 """) # 421fixme
-                if texel0data:
-                    fw('gbivar shifts0 %d\n' % texel0data['uv_scale_u'])
-                    fw('gbivar shiftt0 %d\n' % texel0data['uv_scale_v'])
-                if texel1data:
-                    fw('gbivar shifts1 %d\n' % texel1data['uv_scale_u'])
-                    fw('gbivar shiftt1 %d\n' % texel1data['uv_scale_v'])
+                def getUVflags(wrap, mirror):
+                    return ('G_TX_WRAP' if wrap else 'G_TX_CLAMP', 'G_TX_MIRROR' if mirror else 'G_TX_NOMIRROR')
+                for i,texelData in (('0',texel0data),('1',texel1data)):
+                    if texelData:
+                        fw('gbivar cms%s "%s"\n' % (i, ' | '.join(getUVflags(texelData['uv_wrap_u'], texelData['uv_mirror_u']))))
+                        fw('gbivar cmt%s "%s"\n' % (i, ' | '.join(getUVflags(texelData['uv_wrap_v'], texelData['uv_mirror_v']))))
+                        fw('gbivar shifts%s %d\n' % (i, texelData['uv_scale_u']))
+                        fw('gbivar shiftt%s %d\n' % (i, texelData['uv_scale_v']))
                 if texel0data or texel1data:
-                    fw('gbi _loadtexels')
+                    fw('gbi _loadtexels\n')
             else:
                 image = None
                 # Write images!
