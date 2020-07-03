@@ -824,7 +824,7 @@ class ObjexMaterialNodeTreeExplorer():
                 return (1,1,1,a)
             return (1,1,1,1)
         def pickFirst(a,b):
-            return a
+            return b if a is None else a
         merge = {
             'primitive': (('primitiveRGB','primitiveA',),mergeRGBA),
             'environment': (('environmentRGB','environmentA',),mergeRGBA),
@@ -837,7 +837,9 @@ class ObjexMaterialNodeTreeExplorer():
         mergedData = {}
         # FIXME ugly
         for k2,(ks,dataMerger) in merge.items():
-            mergedData[k2] = dataMerger(data.get(ks[0], None), data.get(ks[1], None))
+            v = dataMerger(data.get(ks[0], None), data.get(ks[1], None))
+            if v is not None:
+                mergedData[k2] = v
         self.data = mergedData
         # FIXME uv_layer must be merged from texel01 data
 
