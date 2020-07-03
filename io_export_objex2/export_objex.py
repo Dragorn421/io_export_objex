@@ -914,24 +914,36 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                 explorer = ObjexMaterialNodeTreeExplorer(material.node_tree)
                 explorer.build()
                 if len(explorer.combinerFlags) != 16:
-                    print('Unexpected combiner flags amount', len(explorer.combinerFlags), explorer.combinerFlags)
+                    print('Unexpected combiner flags amount (are both cycles used?)', len(explorer.combinerFlags), explorer.combinerFlags)
                 data = explorer.data
+                texel0data = texel1data = None
                 if 'texel0' in data:
+                    texel0data = data['texel0']
                     # todo check texture.type == 'IMAGE'
-                    tex = data['texel0']['texture']
+                    tex = texel0data['texture']
                     writeTexture(tex.image, tex.name)
                 if 'texel1' in data:
-                    tex = data['texel1']['texture']
+                    texel1data = data['texel1']
+                    tex = texel1data['texture']
                     writeTexture(tex.image, tex.name)
                 fw('newmtl %s\n' % material.name)
-                if 'texel0' in data:
-                    fw('texel0 %s\n' % data['texel0']['texture'].name)
-                if 'texel1' in data:
-                    fw('texel1 %s\n' % data['texel1']['texture'].name)
-                fw("""gbi      gsSPTexture(qu016(0.999985), qu016(0.999985), 0, G_TX_RENDERTILE, G_ON),
-gbi      gsDPPipeSync(),
-gbi      gsDPSetRenderMode(AA_EN | Z_CMP | Z_UPD | IM_RD | CVG_DST_CLAMP | ZMODE_OPA | ALPHA_CVG_SEL | GBL_c1(G_BL_CLR_FOG, G_BL_A_SHADE, G_BL_CLR_IN, G_BL_1MA), G_RM_AA_ZB_OPA_SURF2),
-""") # 421fixme
+                if texel0data:
+                    fw('texel0 %s\n' % texel0data['texture'].name)
+                if texel1data:
+                    fw('texel1 %s\n' % texel1data['texture'].name)
+                fw('gbi gsSPTexture(qu016(0.999985), qu016(0.999985), 0, G_TX_RENDERTILE, G_ON)\n')
+                fw('gbi gsDPPipeSync()\n')
+                # fixme do not hardcode flags, and what about blender settings, and G_RM_AA_ZB_OPA_SURF2 ?
+                otherModeLowerHalfFlags = ['AA_EN', 'Z_CMP', 'Z_UPD', 'IM_RD', 'CVG_DST_CLAMP', 'ZMODE_OPA', 'ALPHA_CVG_SEL']
+                fw('gbi gsDPSetRenderMode(%s | GBL_c1(G_BL_CLR_FOG, G_BL_A_SHADE, G_BL_CLR_IN, G_BL_1MA), G_RM_AA_ZB_OPA_SURF2)\n' % (
+                    '|'.join(otherModeLowerHalfFlags)
+                ))
+                """
+                (P * A + M - B) / (A + B)
+                (G_BL_CLR_FOG * G_BL_A_SHADE + G_BL_CLR_IN - G_BL_1MA) / (G_BL_A_SHADE + G_BL_1MA)
+                (fogColor * shadeAlpha + pixelColor - pixelAlpha) / (shadeAlpha + pixelAlpha)
+                ???
+                """
                 fw('gbi gsDPSetCombineLERP(%s)\n' % (','.join('%s' for i in range(16)) % tuple(explorer.combinerFlags)))
                 def rgba32(rgba):
                     return tuple(int(c*255) for c in rgba)
@@ -944,10 +956,15 @@ gbi      gsSPClearGeometryMode(G_CULL_BACK),
 gbi      gsSPClearGeometryMode(G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR),
 gbivar   cms0     "G_TX_NOMIRROR | G_TX_CLAMP"
 gbivar   cmt0     "G_TX_NOMIRROR | G_TX_CLAMP"
-gbivar   shifts0  0
-gbivar   shiftt0  0
-gbi      _loadtexels
 """) # 421fixme
+                if texel0data:
+                    fw('gbivar shifts0 %d\n' % texel0data['uv_scale_u'])
+                    fw('gbivar shiftt0 %d\n' % texel0data['uv_scale_v'])
+                if texel1data:
+                    fw('gbivar shifts1 %d\n' % texel1data['uv_scale_u'])
+                    fw('gbivar shiftt1 %d\n' % texel1data['uv_scale_v'])
+                if texel0data or texel1data:
+                    fw('gbi _loadtexels')
             else:
                 image = None
                 # Write images!
