@@ -877,12 +877,12 @@ class ObjexMaterialNodeTreeExplorer():
     def buildShadingDataFromColorSocket(self, k, socket):
         # FIXME
         # todo vcolor or nothing
-        self.data[k] = {}
+        self.data[k] = {'type':'normals'}
 
     def buildShadingDataFromAlphaSocket(self, k, socket):
         # FIXME
         # todo vcolor or nothing
-        self.data[k] = {}
+        self.data[k] = {'type':'normals'}
 
 # fixme this is going to end up finding uv/vcolor layers from node (or default to active I guess), if several layers, may write the wrong layer in .objex ... should call write_mtl and get uvs/vcolor data this way before writing the .objex?
 # todo .mtl -> .mtlex ?
@@ -979,10 +979,28 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                     fw('gbi gsDPSetPrimColor(0,qu08(0.5),%d,%d,%d,%d)\n' % rgba32(data['primitive'])) # 421fixme minlevel, lodfrac
                 if 'environment' in data:
                     fw('gbi gsDPSetEnvColor(%d,%d,%d,%d)\n' % rgba32(data['environment']))
-                fw("""gbi      gsSPSetGeometryMode(G_LIGHTING),
-gbi      gsSPClearGeometryMode(G_CULL_BACK),
-gbi      gsSPClearGeometryMode(G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR),
-""") # 421fixme
+                geometryModeFlagsClear = []
+                geometryModeFlagsSet = []
+                if 'shade' in data:
+                    shadeData = data['shade']
+                    (geometryModeFlagsSet
+                        if shadeData['type'] == 'normals'
+                        else geometryModeFlagsClear
+                    ).append('G_LIGHTING')
+                (geometryModeFlagsSet
+                    if objex_data.backface_culling
+                    else geometryModeFlagsClear
+                ).append('G_CULL_BACK')
+                (geometryModeFlagsSet
+                    if objex_data.use_texgen
+                    else geometryModeFlagsClear
+                ).extend(('G_TEXTURE_GEN','G_TEXTURE_GEN_LINEAR'))
+                if len(geometryModeFlagsClear) == 0:
+                    geometryModeFlagsClear = ('0',)
+                if len(geometryModeFlagsSet) == 0:
+                    geometryModeFlagsSet = ('0',)
+                # todo make sure setting geometry mode in one call is not an issue
+                fw('gbi gsSPGeometryMode(%s,%s)\n' % ('|'.join(geometryModeFlagsClear),'|'.join(geometryModeFlagsSet)))
                 def getUVflags(wrap, mirror):
                     return ('G_TX_WRAP' if wrap else 'G_TX_CLAMP', 'G_TX_MIRROR' if mirror else 'G_TX_NOMIRROR')
                 for i,texelData in (('0',texel0data),('1',texel1data)):

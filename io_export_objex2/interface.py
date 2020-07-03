@@ -897,17 +897,16 @@ def material_updated_my_int(self, context):
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
 
-    my_int = bpy.props.IntProperty(
-            name='int32',
-            description='integeeeerr',
-            update=material_updated_my_int
+    backface_culling = bpy.props.BoolProperty(
+            name='Cull backfaces',
+            description='Culls the back face of geometry',
+            default=True
         )
-    my_color = bpy.props.FloatVectorProperty(  
-            name='object_color',
-            subtype='COLOR',
-            default=(1.0, 1.0, 1.0),
-            min=0.0, max=1.0,
-            description='color picker'
+    use_texgen = bpy.props.BoolProperty(
+            name='Texgen',
+            description='Generates texture coordinates at run time depending on the view',
+            default=False
+        )
 
     scaleS = bpy.props.FloatProperty(
             name='"U" scale',
@@ -938,6 +937,8 @@ class OBJEX_PT_material(bpy.types.Panel):
         data = material.objex_bonus
         # 421todo maybe not show the init button if init has already been done
         self.layout.operator('OBJEX_OT_material_init')
+        self.layout.prop(data, 'backface_culling')
+        self.layout.prop(data, 'use_texgen')
         self.layout.prop(data, 'scaleS')
         self.layout.prop(data, 'scaleT')
 
