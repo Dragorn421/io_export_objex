@@ -908,6 +908,18 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             default=(1.0, 1.0, 1.0),
             min=0.0, max=1.0,
             description='color picker'
+
+    scaleS = bpy.props.FloatProperty(
+            name='"U" scale',
+            description='Not fully understood, "as if" it scaled U in UVs?',
+            min=0, max=1, step=0.01, precision=6,
+            default=1
+        )
+    scaleT = bpy.props.FloatProperty(
+            name='"V" scale',
+            description='Not fully understood, "as if" it scaled V in UVs?',
+            min=0, max=1, step=0.01, precision=6,
+            default=1
         )
 
 class OBJEX_PT_material(bpy.types.Panel):
@@ -922,14 +934,12 @@ class OBJEX_PT_material(bpy.types.Panel):
         return material is not None
     
     def draw(self, context):
-        self.layout.label(text='Hello World')
         material = context.material
         data = material.objex_bonus
         # 421todo maybe not show the init button if init has already been done
         self.layout.operator('OBJEX_OT_material_init')
-        self.layout.prop(data, 'my_int')
-        self.layout.prop(data, 'my_color')
-        self.layout.label(text='HELLLLLLLOOOOO')
+        self.layout.prop(data, 'scaleS')
+        self.layout.prop(data, 'scaleT')
 
 # textures
 

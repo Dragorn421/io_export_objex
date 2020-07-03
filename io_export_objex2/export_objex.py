@@ -957,7 +957,9 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                     fw('texel0 %s\n' % texel0data['texture'].name)
                 if texel1data:
                     fw('texel1 %s\n' % texel1data['texture'].name)
-                fw('gbi gsSPTexture(qu016(0.999985), qu016(0.999985), 0, G_TX_RENDERTILE, G_ON)\n')
+                scaleS = max(0, min(0xFFFF/0x10000, objex_data.scaleS))
+                scaleT = max(0, min(0xFFFF/0x10000, objex_data.scaleT))
+                fw('gbi gsSPTexture(qu016(%f), qu016(%f), 0, G_TX_RENDERTILE, G_ON)\n' % (scaleS, scaleT))
                 fw('gbi gsDPPipeSync()\n')
                 # fixme do not hardcode flags, and what about blender settings, and G_RM_AA_ZB_OPA_SURF2 ?
                 otherModeLowerHalfFlags = ['AA_EN', 'Z_CMP', 'Z_UPD', 'IM_RD', 'CVG_DST_CLAMP', 'ZMODE_OPA', 'ALPHA_CVG_SEL']
@@ -985,8 +987,8 @@ gbi      gsSPClearGeometryMode(G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR),
                     return ('G_TX_WRAP' if wrap else 'G_TX_CLAMP', 'G_TX_MIRROR' if mirror else 'G_TX_NOMIRROR')
                 for i,texelData in (('0',texel0data),('1',texel1data)):
                     if texelData:
-                        fw('gbivar cms%s "%s"\n' % (i, ' | '.join(getUVflags(texelData['uv_wrap_u'], texelData['uv_mirror_u']))))
-                        fw('gbivar cmt%s "%s"\n' % (i, ' | '.join(getUVflags(texelData['uv_wrap_v'], texelData['uv_mirror_v']))))
+                        fw('gbivar cms%s "%s"\n' % (i, '|'.join(getUVflags(texelData['uv_wrap_u'], texelData['uv_mirror_u']))))
+                        fw('gbivar cmt%s "%s"\n' % (i, '|'.join(getUVflags(texelData['uv_wrap_v'], texelData['uv_mirror_v']))))
                         fw('gbivar shifts%s %d\n' % (i, texelData['uv_scale_u']))
                         fw('gbivar shiftt%s %d\n' % (i, texelData['uv_scale_v']))
                 if texel0data or texel1data:
