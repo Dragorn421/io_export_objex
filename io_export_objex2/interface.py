@@ -433,7 +433,7 @@ def create_node_group_color_static(group_name, colorValue, colorValueName):
 
     return tree
 
-def create_node_group_scale_uv(group_name):
+def create_node_group_uv_pipe(group_name):
     tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
     
     def draw_if(self, context, layout, node, text):
@@ -453,26 +453,69 @@ def create_node_group_scale_uv(group_name):
     tree.inputs.new('NodeSocketFloat', 'V Scale Exponent')
     # 421todo instead, use U/V scale inputs, and do final_scale = 2^(round(log_2(input_scale))) (as an option?)
     # 421todo try using a custom socket as U/V scale inputs, auto-round on update
+    # 421todo same for Wrap U/V booleans, create OBJEX_NodeSocket_Bool and make it update the hidden float socket
+    tree.inputs.new('NodeSocketFloat', 'Wrap U (0/1)').default_value = 1
+    tree.inputs.new('NodeSocketFloat', 'Wrap V (0/1)').default_value = 1
+    tree.inputs.new('NodeSocketFloat', 'Mirror U (0/1)').default_value = 0
+    tree.inputs.new('NodeSocketFloat', 'Mirror V (0/1)').default_value = 0
 
-    uScale = tree.nodes.new('ShaderNodeMath')
-    uScale.operation = 'ROUND'
-    uScale.location = (-400,100)
-    tree.links.new(inputs_node.outputs['U Scale Exponent'], uScale.inputs[0])
+    separateXYZ = tree.nodes.new('ShaderNodeSeparateXYZ')
+    separateXYZ.location = (-200,100)
+    tree.links.new(inputs_node.outputs['UV'], separateXYZ.inputs[0])
 
+    def addMathNode(operation, location, in0=None, in1=None):
+        n = tree.nodes.new('ShaderNodeMath')
+        n.operation = operation
+        n.location = location
+        for i in (0,1):
+            input = (in0,in1)[i]
+            if input is not None:
+                if isinstance(input, (int,float)):
+                    n.inputs[i].default_value = input
+                else:
+                    tree.links.new(input, n.inputs[i])
+        return n
+
+    final = {}
+    for uv, i, y in (('U',0,400),('V',1,-600)):
+        # looking at the nodes in blender is probably better than trying to understand the code here
+        uScale = addMathNode('ROUND', (-400,400+y), inputs_node.outputs['%s Scale Exponent' % uv])
+        uScalePower = addMathNode('POWER', (-200,400+y), 2, uScale.outputs[0])
+        scaleU = addMathNode('MULTIPLY', (0,400+y), separateXYZ.outputs[i], uScalePower.outputs[0])
+        # mirror
+        notMirroredBool = addMathNode('SUBTRACT', (200,600+y), 1, inputs_node.outputs['Mirror %s (0/1)' % uv])
+        identity = addMathNode('MULTIPLY', (400,400+y), scaleU.outputs[0], notMirroredBool.outputs[0])
+        reversed = addMathNode('MULTIPLY', (200,200+y), scaleU.outputs[0], -1)
+        add1 = addMathNode('ADD', (200,0+y), scaleU.outputs[0], 1)
+        mod4_1 = addMathNode('MODULO', (400,0+y), add1.outputs[0], 4)
+        add4 = addMathNode('ADD', (600,0+y), mod4_1.outputs[0], 4)
+        mod4_2 = addMathNode('MODULO', (800,0+y), add4.outputs[0], 4)
+        notMirroredPartBool = addMathNode('LESS_THAN', (1000,0+y), mod4_2.outputs[0], 2)
+        mirroredPartNo = addMathNode('MULTIPLY', (1200,400+y), scaleU.outputs[0], notMirroredPartBool.outputs[0])
+        mirroredPartBool = addMathNode('SUBTRACT', (1200,0+y), 1, notMirroredPartBool.outputs[0])
+        mirroredPartYes = addMathNode('MULTIPLY', (1400,200+y), reversed.outputs[0], mirroredPartBool.outputs[0])
+        withMirror = addMathNode('ADD', (1600,300+y), mirroredPartYes.outputs[0], mirroredPartNo.outputs[0])
+        mirrored = addMathNode('MULTIPLY', (1800,400+y), withMirror.outputs[0], inputs_node.outputs['Mirror %s (0/1)' % uv])
+        mirroredFinal = addMathNode('ADD', (2000,300+y), identity.outputs[0], mirrored.outputs[0])
+        # wrapped (identity)
+        wrappedU = addMathNode('MULTIPLY', (2200,400+y), mirroredFinal.outputs[0], inputs_node.outputs['Wrap %s (0/1)' % uv])
+        # clamped (in [-1;1])
+        upperClampedU = addMathNode('MINIMUM', (2300,200+y), mirroredFinal.outputs[0], 1)
+        upperLowerClampedU = addMathNode('MAXIMUM', (2500,200+y), upperClampedU.outputs[0], -1) # fixme -1 looks correct? confirm
+        notWrapU = addMathNode('SUBTRACT', (2400,0+y), 1, inputs_node.outputs['Wrap %s (0/1)' % uv])
+        clampedU = addMathNode('MULTIPLY', (2700,200+y), upperLowerClampedU.outputs[0], notWrapU.outputs[0])
+        #
+        finalU = addMathNode('ADD', (2900,300+y), wrappedU.outputs[0], clampedU.outputs[0])
+        final[uv] = finalU
+    finalU = final['U']
+    finalV = final['V']
+
+    # v outdated
+    """
     vScale = tree.nodes.new('ShaderNodeMath')
     vScale.operation = 'ROUND'
     vScale.location = (-400,-100)
     tree.links.new(inputs_node.outputs['V Scale Exponent'], vScale.inputs[0])
-
-    separateXYZ = tree.nodes.new('ShaderNodeSeparateXYZ')
-    separateXYZ.location = (-200,250)
-    tree.links.new(inputs_node.outputs['UV'], separateXYZ.inputs[0])
-
-    uScalePower = tree.nodes.new('ShaderNodeMath')
-    uScalePower.operation = 'POWER'
-    uScalePower.location = (-200,100)
-    uScalePower.inputs[0].default_value = 2
-    tree.links.new(uScale.outputs[0], uScalePower.inputs[1])
 
     vScalePower = tree.nodes.new('ShaderNodeMath')
     vScalePower.operation = 'POWER'
@@ -480,27 +523,24 @@ def create_node_group_scale_uv(group_name):
     vScalePower.inputs[0].default_value = 2
     tree.links.new(vScale.outputs[0], vScalePower.inputs[1])
 
-    scaleU = tree.nodes.new('ShaderNodeMath')
-    scaleU.operation = 'MULTIPLY'
-    scaleU.location = (0,200)
-    tree.links.new(separateXYZ.outputs[0], scaleU.inputs[0])
-    tree.links.new(uScalePower.outputs[0], scaleU.inputs[1])
-
     scaleV = tree.nodes.new('ShaderNodeMath')
     scaleV.operation = 'MULTIPLY'
     scaleV.location = (0,0)
     tree.links.new(separateXYZ.outputs[1], scaleV.inputs[0])
     tree.links.new(vScalePower.outputs[0], scaleV.inputs[1])
+    """
+
+    # out
 
     combineXYZ = tree.nodes.new('ShaderNodeCombineXYZ')
-    combineXYZ.location = (200,100)
-    tree.links.new(scaleU.outputs[0], combineXYZ.inputs[0])
-    tree.links.new(scaleV.outputs[0], combineXYZ.inputs[1])
+    combineXYZ.location = (3100,100)
+    tree.links.new(finalU.outputs[0], combineXYZ.inputs[0])
+    tree.links.new(finalV.outputs[0], combineXYZ.inputs[1])
 
     outputs_node = tree.nodes.new('NodeGroupOutput')
-    outputs_node.location = (400,100)
-    tree.outputs.new('NodeSocketVector', 'Scaled UV')
-    tree.links.new(combineXYZ.outputs[0], outputs_node.inputs['Scaled UV'])
+    outputs_node.location = (3300,100)
+    tree.outputs.new('NodeSocketVector', 'UV')
+    tree.links.new(combineXYZ.outputs[0], outputs_node.inputs['UV'])
 
     return tree
 
@@ -543,7 +583,7 @@ def update_node_groups():
         'OBJEX_Cycle': (1, create_node_group_cycle),
         'OBJEX_Color0': (1, lambda group_name: create_node_group_color_static(group_name, (0,0,0,0), '0')),
         'OBJEX_Color1': (1, lambda group_name: create_node_group_color_static(group_name, (1,1,1,1), '1')),
-        'OBJEX_ScaleUV': (1, create_node_group_scale_uv),
+        'OBJEX_UV_pipe': (1, create_node_group_uv_pipe),
         'OBJEX_rgba_pipe': (1, create_node_group_rgba_pipe),
     }
     # dict mapping old groups to new groups, used later for upgrading
@@ -603,7 +643,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         
         if 'OBJEX_MultiTexScale0' not in nodes:
             multiTexScale0 = nodes.new('ShaderNodeGroup')
-            multiTexScale0.node_tree = bpy.data.node_groups['OBJEX_ScaleUV']
+            multiTexScale0.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
             multiTexScale0.name = 'OBJEX_MultiTexScale0' # internal name
             multiTexScale0.label = 'Multitexture Scale 0' # displayed name
             multiTexScale0.location = (-150, -50)
@@ -612,7 +652,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             multiTexScale0 = nodes['OBJEX_MultiTexScale0']
         if 'OBJEX_MultiTexScale1' not in nodes:
             multiTexScale1 = nodes.new('ShaderNodeGroup')
-            multiTexScale1.node_tree = bpy.data.node_groups['OBJEX_ScaleUV']
+            multiTexScale1.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
             multiTexScale1.name = 'OBJEX_MultiTexScale1'
             multiTexScale1.label = 'Multitexture Scale 1'
             multiTexScale1.location = (-150, -350)
