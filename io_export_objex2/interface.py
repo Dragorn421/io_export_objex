@@ -32,6 +32,22 @@ add input socket to a specific node instance #bpy.data.materials['Material'].nod
 
 """
 
+def propOffset(layout, data, key, propName):
+    offsetStr = getattr(data, key)
+    bad_offset = None
+    # also allows an empty string
+    if not re.match(r'^(?:(?:0x)?[0-9a-fA-F]|)+$', offsetStr):
+        bad_offset = 'not_hex'
+    if re.match(r'^[0-9]+$', offsetStr):
+        bad_offset = 'warn_decimal'
+    layout.prop(data, key, icon=('ERROR' if bad_offset else 'NONE'))
+    if bad_offset == 'not_hex':
+        layout.label(text='%s must be hexadecimal' % propName)
+    elif bad_offset == 'warn_decimal':
+        layout.label(text='%s looks like base 10' % propName)
+        layout.label(text='It will be read in base 16')
+        layout.label(text='Use 0x prefix to be explicit')
+
 # armature
 
 def armature_export_actions_change(self, context):
@@ -153,10 +169,7 @@ class OBJEX_PT_armature(bpy.types.Panel):
             self.layout.prop(data, 'pbody')
         # segment
         box = self.layout.box()
-        valid_segment = re.match(r'^(?:(?:0x)?[0-9a-fA-F]|)+$', data.segment)
-        box.prop(data, 'segment', icon=('NONE' if valid_segment else 'ERROR'))
-        if not valid_segment:
-            box.label(text='Segment must be hexadecimal')
+        propOffset(box, data, 'segment', 'Segment')
         box.prop(data, 'segment_local')
 
 #
@@ -918,6 +931,84 @@ class OBJEX_PT_material(bpy.types.Panel):
         self.layout.prop(data, 'my_color')
         self.layout.label(text='HELLLLLLLOOOOO')
 
+# textures
+
+class ObjexTextureProperties(bpy.types.PropertyGroup):
+    format = bpy.props.EnumProperty(
+            items=[
+                # number identifiers are 0xFS with F~G_IM_FMT_ and S~G_IM_SIZ_
+                ('I4','I4','Greyscale shared with alpha, 16 values (AAAA)',0x40),
+                ('I8','I8','Greyscale shared with alpha, 256 values (AAAA AAAA)',0x41),
+                ('IA4','IA4','Greyscale 8 values and alpha on/off (CCCA)',0x30),
+                ('IA8','IA8','Distinct greyscale and alpha, 16 values each (CCCC AAAA)',0x31),
+                ('IA16','IA16','Distinct greyscale and alpha, 256 values each (CCCC CCCC AAAA AAAA)',0x32),
+                ('RGBA16','RGBA16','32 values per color red/green/blue, and alpha on/off (RRRR RGGG GGBB BBBA)',0x02),
+                ('RGBA32','RGBA32','256 values per color red/green/blue and alpha (RRRR RRRR GGGG GGGG BBBB BBBB AAAA AAAA)',0x03),
+                ('CI4','CI4','Paletted in 16 colors',0x20),
+                ('CI8','CI8','Paletted in 256 colors',0x21),
+                ('AUTO','Automatic','Do not specify a format',0xFF),
+            ],
+            name='Format',
+            description='What format to use when writing the texture',
+            default='AUTO'
+        )
+    palette = bpy.props.IntProperty(
+            name='Palette',
+            description='Palette slot to use (0 for automatic)\nSeveral paletted textures (CI format) may use the same palette slot to save space',
+            min=0,
+            soft_max=255, # todo ?
+            default=0
+        )
+    pointer = bpy.props.StringProperty(
+            name='Pointer',
+            description='The address that should be used when referencing this texture',
+            default=''
+        )
+    priority = bpy.props.FloatProperty(
+            name='Priority',
+            description='Textures with higher priority are written first',
+            default=0
+        )
+    force_write = bpy.props.EnumProperty(
+            items=[
+                ('FORCE_WRITE','Always','Force the texture to be written',1),
+                ('DO_NOT_WRITE','Never','Force the texture to NOT be written',2),
+                ('UNSPECIFIED','If used','Texture will be written if it is used',3),
+            ],
+            name='Write',
+            description='Explicitly state to write or to not write the image',
+            default='UNSPECIFIED'
+        )
+    texture_bank = bpy.props.StringProperty(
+            name='Bank',
+            description='Image data to write instead of this texture, useful for dynamic textures (eyes, windows)',
+            subtype='FILE_PATH',
+            default=''
+        )
+
+class OBJEX_PT_texture(bpy.types.Panel):
+    bl_label = 'Objex'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'texture'
+
+    @classmethod
+    def poll(self, context):
+        texture = context.texture
+        return texture is not None
+
+    def draw(self, context):
+        texture = context.texture
+        data = texture.objex_bonus
+        self.layout.prop(data, 'format')
+        if data.format[:2] == 'CI':
+            self.layout.prop(data, 'palette')
+        propOffset(self.layout, data, 'pointer', 'Pointer')
+        self.layout.prop(data, 'priority')
+        self.layout.prop(data, 'force_write')
+        self.layout.prop(data, 'texture_bank')
+
+
 classes = (
     ObjexArmatureExportActionsItem,
     ObjexArmatureProperties,
@@ -933,7 +1024,10 @@ classes = (
 
     OBJEX_OT_material_init,
     ObjexMaterialProperties,
-    OBJEX_PT_material
+    OBJEX_PT_material,
+
+    ObjexTextureProperties,
+    OBJEX_PT_texture,
 )
 
 def register_interface():
@@ -946,6 +1040,7 @@ def register_interface():
             raise
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
     bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
+    bpy.types.Texture.objex_bonus = bpy.props.PointerProperty(type=ObjexTextureProperties)
 
 def unregister_interface():
     del bpy.types.Armature.objex_bonus
