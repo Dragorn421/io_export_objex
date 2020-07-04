@@ -1078,7 +1078,8 @@ count  P              A              M              B            comment
                 
                 (fogColor * shadeAlpha + pixelColor * (1 - pixelAlpha)) * pixelAlpha + frameBufferColor * frameBufferAlpha
                 """
-                fw('gbi gsDPSetCombineLERP(%s)\n' % (', '.join('%s' for i in range(16)) % tuple(explorer.combinerFlags)))
+                # todo better G_?CMUX_ prefix stripping
+                fw('gbi gsDPSetCombineLERP(%s)\n' % (', '.join(flag[len('G_?CMUX_'):] for flag in explorer.combinerFlags)))
                 def rgba32(rgba):
                     return tuple(int(c*255) for c in rgba)
                 if 'primitive' in data:
