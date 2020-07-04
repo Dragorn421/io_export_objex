@@ -696,6 +696,8 @@ class ObjexMaterialNodeTreeExplorer():
         self.colorCycles = []
         self.alphaCycles = []
         self.flagSockets = {}
+        self.defaulFlagColorCycle = 'G_CCMUX_0'
+        self.defaulFlagAlphaCycle = 'G_ACMUX_0'
 
     def buildFromColorCycle(self, cc):
         if cc in (cc for cc,flags,prev_alpha_cycle_node in self.colorCycles):
@@ -706,7 +708,7 @@ class ObjexMaterialNodeTreeExplorer():
         prev_alpha_cycle_node = None
         for i in range(4):
             if not cc.inputs[i].links:
-                flags.append('default_to_0')
+                flags.append(self.defaulFlagColorCycle)
                 continue
             socket = cc.inputs[i].links[0].from_socket
             if socket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
@@ -742,7 +744,7 @@ class ObjexMaterialNodeTreeExplorer():
         prev_alpha_cycle_node = None
         for i in range(4):
             if not ac.inputs[i].links:
-                flags.append('default_to_0')
+                flags.append(self.defaulFlagAlphaCycle)
                 continue
             socket = ac.inputs[i].links[0].from_socket
             if socket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
