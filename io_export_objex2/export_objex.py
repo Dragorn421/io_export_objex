@@ -1098,6 +1098,7 @@ count  P              A              M              B            comment
                 """
                 # todo better G_?CMUX_ prefix stripping
                 fw('gbi gsDPSetCombineLERP(%s)\n' % (', '.join(flag[len('G_?CMUX_'):] for flag in explorer.combinerFlags)))
+                fw('gbi gsDPSetTileSize(G_TX_RENDERTILE, 0, 0, qu102(_texel0width-1), qu102(_texel0height-1))\n') # 421fixme ?
                 def rgba32(rgba):
                     return tuple(int(c*255) for c in rgba)
                 if 'primitive' in data:
