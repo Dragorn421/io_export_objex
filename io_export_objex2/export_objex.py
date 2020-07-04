@@ -25,6 +25,7 @@ if 'bpy' in locals():
 		importlib.reload(export_objex_anim)
 
 import os
+import time
 
 import bpy
 import mathutils
@@ -121,7 +122,10 @@ class ObjexWriter():
         
         fw('# Blender v%s Objex File: %r\n' % (bpy.app.version_string, os.path.basename(bpy.data.filepath)))
         fw('# www.blender.org\n')
-        
+
+        self.export_id_line = 'exportid %f\n' % time.time()
+        fw(self.export_id_line)
+
         # Tell the obj file what material/skeleton/animation file to use.
         if self.options['EXPORT_MTL']:
             self.filepath_mtl = os.path.splitext(self.filepath)[0] + ".mtlex"
@@ -651,7 +655,9 @@ class ObjexWriter():
 
                 # Now we have all our materials, save them
                 if self.options['EXPORT_MTL']:
-                    write_mtl(scene, self.filepath_mtl, self.options['PATH_MODE'], copy_set, self.mtl_dict)
+                    def append_header_mtl(fw_mtl):
+                        fw_mtl(self.export_id_line)
+                    write_mtl(scene, self.filepath_mtl, append_header_mtl, self.options['PATH_MODE'], copy_set, self.mtl_dict)
                 
                 subprogress1.step("Finished exporting materials, now exporting skeletons/animations")
 
@@ -663,10 +669,12 @@ class ObjexWriter():
                     try:
                         skelfile = open(self.filepath_skel, "w", encoding="utf8", newline="\n")
                         skelfile_write = skelfile.write
+                        skelfile_write(self.export_id_line)
                         if self.options['EXPORT_ANIM']:
                             print(' ... and animations')
                             animfile = open(self.filepath_anim, "w", encoding="utf8", newline="\n")
                             animfile_write = animfile.write
+                            animfile_write(self.export_id_line)
                         else:
                             animfile_write = None
                         export_objex_anim.write_armatures(skelfile_write, animfile_write, scene, self.options['GLOBAL_MATRIX'], self.armatures)
@@ -885,8 +893,7 @@ class ObjexMaterialNodeTreeExplorer():
         self.data[k] = {'type':'normals'}
 
 # fixme this is going to end up finding uv/vcolor layers from node (or default to active I guess), if several layers, may write the wrong layer in .objex ... should call write_mtl and get uvs/vcolor data this way before writing the .objex?
-# todo .mtl -> .mtlex ?
-def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
+def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
 
     source_dir = os.path.dirname(bpy.data.filepath)
     dest_dir = os.path.dirname(filepath)
@@ -896,6 +903,9 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
 
         fw('# Blender MTL File: %r\n' % (os.path.basename(bpy.data.filepath) or "None"))
         fw('# Material Count: %i\n' % len(mtl_dict))
+
+        # used for writing exportid
+        append_header(fw)
 
         # maps a file path to a texture name, to avoid duplicate newtex declarations
         texture_names = {}
