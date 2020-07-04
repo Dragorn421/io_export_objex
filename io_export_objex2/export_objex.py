@@ -1045,10 +1045,11 @@ count  P              A              M              B            comment
                     blendCycle1flags = (getattr(objex_data, 'rendermode_blending_cycle1_custom_%s' % v) for v in ('P','A','M','B'))
                 else:
                     blendCycle1flags = presets[rm_bl_c1]
-                fw('gbi gsSPSetOtherModeLo(G_MDSFT_RENDERMODE,G_MDSIZ_RENDERMODE,%s|GBL_c1(%s)|GBL_c2(%s))\n' % (
-                    '|'.join(otherModeLowerHalfFlags),
-                    ','.join(blendCycle0flags),
-                    ','.join(blendCycle1flags),
+                fw('gbi gsSPSetOtherModeLo(G_MDSFT_RENDERMODE, G_MDSIZ_RENDERMODE, %s | GBL_c1(%s) | GBL_c2(%s))\n' % (
+                    # ' | ' instead of '|' is required by zzconvert because "Just laziness on my part. :skawoUHHUH:"
+                    ' | '.join(otherModeLowerHalfFlags),
+                    ', '.join(blendCycle0flags),
+                    ', '.join(blendCycle1flags),
                 ))
                 """
                 (P * A + M - B) / (A + B)
@@ -1077,13 +1078,13 @@ count  P              A              M              B            comment
                 
                 (fogColor * shadeAlpha + pixelColor * (1 - pixelAlpha)) * pixelAlpha + frameBufferColor * frameBufferAlpha
                 """
-                fw('gbi gsDPSetCombineLERP(%s)\n' % (','.join('%s' for i in range(16)) % tuple(explorer.combinerFlags)))
+                fw('gbi gsDPSetCombineLERP(%s)\n' % (', '.join('%s' for i in range(16)) % tuple(explorer.combinerFlags)))
                 def rgba32(rgba):
                     return tuple(int(c*255) for c in rgba)
                 if 'primitive' in data:
-                    fw('gbi gsDPSetPrimColor(0,qu08(0.5),%d,%d,%d,%d)\n' % rgba32(data['primitive'])) # 421fixme minlevel, lodfrac
+                    fw('gbi gsDPSetPrimColor(0, qu08(0.5), %d, %d, %d, %d)\n' % rgba32(data['primitive'])) # 421fixme minlevel, lodfrac
                 if 'environment' in data:
-                    fw('gbi gsDPSetEnvColor(%d,%d,%d,%d)\n' % rgba32(data['environment']))
+                    fw('gbi gsDPSetEnvColor(%d, %d, %d, %d)\n' % rgba32(data['environment']))
                 # 421todo more geometry mode flags
                 geometryModeFlagsClear = []
                 geometryModeFlagsSet = []
@@ -1106,13 +1107,13 @@ count  P              A              M              B            comment
                 if len(geometryModeFlagsSet) == 0:
                     geometryModeFlagsSet = ('0',)
                 # todo make sure setting geometry mode in one call is not an issue
-                fw('gbi gsSPGeometryMode(%s,%s)\n' % ('|'.join(geometryModeFlagsClear),'|'.join(geometryModeFlagsSet)))
+                fw('gbi gsSPGeometryMode(%s, %s)\n' % (' | '.join(geometryModeFlagsClear),' | '.join(geometryModeFlagsSet)))
                 def getUVflags(wrap, mirror):
                     return ('G_TX_WRAP' if wrap else 'G_TX_CLAMP', 'G_TX_MIRROR' if mirror else 'G_TX_NOMIRROR')
                 for i,texelData in (('0',texel0data),('1',texel1data)):
                     if texelData:
-                        fw('gbivar cms%s "%s"\n' % (i, '|'.join(getUVflags(texelData['uv_wrap_u'], texelData['uv_mirror_u']))))
-                        fw('gbivar cmt%s "%s"\n' % (i, '|'.join(getUVflags(texelData['uv_wrap_v'], texelData['uv_mirror_v']))))
+                        fw('gbivar cms%s "%s"\n' % (i, ' | '.join(getUVflags(texelData['uv_wrap_u'], texelData['uv_mirror_u']))))
+                        fw('gbivar cmt%s "%s"\n' % (i, ' | '.join(getUVflags(texelData['uv_wrap_v'], texelData['uv_mirror_v']))))
                         fw('gbivar shifts%s %d\n' % (i, texelData['uv_scale_u']))
                         fw('gbivar shiftt%s %d\n' % (i, texelData['uv_scale_v']))
                 if texel0data or texel1data:
