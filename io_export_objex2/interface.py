@@ -364,19 +364,73 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
             value = stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle])
             if flag not in CST.COMBINER_FLAGS_SUPPORT[cycle][name]:
                 warnMsg = 'Only for %s, not %s' % (','.join(var for var,flags in CST.COMBINER_FLAGS_SUPPORT[cycle].items() if flag in flags), name)
+        input_flags_prop_name = 'input_flags_%s_%s' % (cycle, name)
+        col = layout.column()
         if warnMsg:
             col = layout.column()
-            col.label(text='%s = %s' % (name, value), icon='ERROR')
             col.label(text=warnMsg, icon='ERROR')
-        else:
-            layout.label(text='%s = %s' % (name, value))
-        # 421todo add a dropdown list with available flags
+        col.label(text='%s = %s' % (name, value))
+        col.prop(self, input_flags_prop_name, text='')
 
     def draw_color(self, context, node):
         if node.bl_idname == 'NodeGroupInput':
             return CST.COLOR_OK
         flag, warnMsg = self.linkToFlag()
         return CST.COLOR_BAD if warnMsg else CST.COLOR_OK
+
+"""
+OBJEX_NodeSocket_CombinerInput.input_flag = bpy.props.EnumProperty(
+    items=[
+        (flag, stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[CST.CYCLE_COLOR]), flag)
+            for flag in CST.COMBINER_FLAGS_SUPPORT[CST.CYCLE_COLOR]['A']
+            # 421todo can't implement these without using cycle number:
+            if flag not in ('G_CCMUX_COMBINED','G_CCMUX_COMBINED_ALPHA','G_ACMUX_COMBINED')
+    ],
+    name='bleuh',
+    description='desc bleuh',
+    default=CST.COMBINER_FLAGS_0[CST.CYCLE_COLOR]
+)
+"""
+def input_flag_list_choose_get(variable):
+    def input_flag_list_choose(self, context):
+        input_flags_prop_name = 'input_flags_%s_%s' % (self.node['cycle'], variable)
+        flag = getattr(self, input_flags_prop_name)
+        if flag == '_':
+            return
+        tree = self.id_data
+        matching_socket = None
+        for n in tree.nodes:
+            for s in n.outputs:
+                if s.bl_idname == 'OBJEX_NodeSocket_CombinerOutput':
+                    if flag == (s.flagColorCycle if self.node['cycle'] == CST.CYCLE_COLOR else s.flagAlphaCycle):
+                        if matching_socket:
+                            print('Found several sockets for flag', flag, matching_socket, s)
+                        matching_socket = s
+        if not matching_socket:
+            print('Did not find any socket for flag', flag)
+        while self.links:
+            tree.links.remove(self.links[0])
+        tree.links.new(matching_socket, self)
+        setattr(self, input_flags_prop_name, '_')
+    return input_flag_list_choose
+for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
+    for variable in ('A','B','C','D'):
+        setattr(
+            OBJEX_NodeSocket_CombinerInput,
+            'input_flags_%s_%s' % (cycle, variable),
+            bpy.props.EnumProperty(
+                items=[
+                    (flag, stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle]), flag)
+                        for flag in CST.COMBINER_FLAGS_SUPPORT[cycle][variable]
+                        # 421todo can't implement these without using cycle number:
+                        if flag not in ('G_CCMUX_COMBINED','G_CCMUX_COMBINED_ALPHA','G_ACMUX_COMBINED')
+                ] + [('_','...','')],
+                name='%s' % variable,
+                default='_',
+                update=input_flag_list_choose_get(variable)
+            )
+        )
+del input_flag_list_choose_get
 
 class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket):
     default_value = bpy.props.FloatVectorProperty(
@@ -854,7 +908,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             cc0.node_tree = bpy.data.node_groups['OBJEX_Cycle']
             cc0.name = 'OBJEX_ColorCycle0'
             cc0.label = 'Color Cycle 0'
-            cc0.location = (500, 200)
+            cc0.location = (500, 250)
             cc0.width = 200
             cc0.outputs[0].flagColorCycle = 'G_CCMUX_COMBINED'
             cc0['cycle'] = CST.CYCLE_COLOR
@@ -865,7 +919,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             cc1.node_tree = bpy.data.node_groups['OBJEX_Cycle']
             cc1.name = 'OBJEX_ColorCycle1'
             cc1.label = 'Color Cycle 1'
-            cc1.location = (750, 200)
+            cc1.location = (750, 250)
             cc1.width = 200
             cc1['cycle'] = CST.CYCLE_COLOR
         else:
@@ -876,7 +930,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             ac0.node_tree = bpy.data.node_groups['OBJEX_Cycle']
             ac0.name = 'OBJEX_AlphaCycle0'
             ac0.label = 'Alpha Cycle 0'
-            ac0.location = (500, 0)
+            ac0.location = (500, -50)
             ac0.width = 200
             ac0.outputs[0].flagColorCycle = 'G_CCMUX_COMBINED_ALPHA'
             ac0.outputs[0].flagAlphaCycle = 'G_ACMUX_COMBINED'
@@ -888,7 +942,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             ac1.node_tree = bpy.data.node_groups['OBJEX_Cycle']
             ac1.name = 'OBJEX_AlphaCycle1'
             ac1.label = 'Alpha Cycle 1'
-            ac1.location = (750, 0)
+            ac1.location = (750, -50)
             ac1.width = 200
             ac1['cycle'] = CST.CYCLE_ALPHA
         else:
@@ -932,6 +986,8 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         node_tree.links.new(color1.outputs[0], shade.inputs[1])
         # cycle 0: (TEXEL0 - 0) * PRIM  + 0
         node_tree.links.new(texel0.outputs[0], cc0.inputs['A'])
+        # an alternative to the above line:
+        #cc0.inputs['A'].input_flags_C_A = 'G_CCMUX_TEXEL0'
         node_tree.links.new(primColor.outputs[0], cc0.inputs['C'])
         node_tree.links.new(texel0.outputs[1], ac0.inputs['A'])
         node_tree.links.new(primColor.outputs[1], ac0.inputs['C'])
