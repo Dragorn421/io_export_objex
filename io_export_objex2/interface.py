@@ -364,6 +364,7 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
             col.label(text=warnMsg, icon='ERROR')
         else:
             layout.label(text='%s = %s' % (name, value))
+        # 421todo add a dropdown list with available flags
 
     def draw_color(self, context, node):
         if node.bl_idname == 'NodeGroupInput':
@@ -639,7 +640,9 @@ class OBJEX_OT_material_init(bpy.types.Operator):
     
     def execute(self, context):
         material = context.material
-        material.use_transparency = True
+        # let the user choose, as use_transparency is used when
+        # exporting to distinguish opaque and translucent geometry
+        #material.use_transparency = True
         material.use_nodes = True
         update_node_groups()
         node_tree = material.node_tree
@@ -902,6 +905,54 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Culls the back face of geometry',
             default=True
         )
+    rendermode_zmode = bpy.props.EnumProperty(
+            items=[
+                ('OPA','Opaque','Opaque surfaces (OPA)',1),
+                ('INTER','Interpenetrating','Interpenetrating surfaces',2),
+                ('XLU','Translucent','Translucent surfaces (XLU)',3),
+                ('DECA','Decal','Decal surfaces (eg paths)',4),
+                ('AUTO','Auto','Default to Translucent (XLU) if material uses transparency, or Opaque (OPA) otherwise',5),
+            ],
+            name='zmode',
+            description='Not well understood, has to do with rendering order',
+            default='AUTO'
+        )
+    rendermode_forceblending = bpy.props.EnumProperty(
+            items=[
+                ('YES','Always','Force blending',1),
+                ('NO','Never','Do not force blending',2),
+                ('AUTO','Auto','Force blending if the material uses transparency',3),
+            ],
+            name='Force blending',
+            description='Not well understood, related to transparency and rendering order',
+            default='AUTO'
+        )
+    rendermode_blending_cycle0 = bpy.props.EnumProperty(
+            items=[
+                ('FOG_PRIM','Fog RGBA','Blend with fog color and alpha (G_RM_FOG_PRIM_A)',1),  # G_BL_CLR_FOG   G_BL_A_FOG     G_BL_CLR_IN    G_BL_1MA
+                ('FOG_SHADE','Fog RGB, shade A','Blend with fog color and shade alpha (shade from combiner cycles) (G_RM_FOG_SHADE_A)',2),  # G_BL_CLR_FOG   G_BL_A_SHADE   G_BL_CLR_IN    G_BL_1MA
+                ('PASS','Pass','Let the input pixel color through unaltered (G_RM_PASS...)',3), # G_BL_CLR_IN    G_BL_0         G_BL_CLR_IN    G_BL_1
+                ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',4), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
+                ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',5), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
+                ('AUTO','Auto','Use "Pass" if material uses transparency and "Fog RGB, shade A" otherwise',6),
+                ('CUSTOM','Custom','Define a custom blending cycle',7),
+            ],
+            name='First blending cycle',
+            description='First cycle\nHow to blend the pixels being rendered with the frame buffer\nResponsible for at least transparency effects and fog',
+            default='AUTO'
+        )
+    rendermode_blending_cycle1 = bpy.props.EnumProperty(
+            items=[
+                ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',1), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
+                ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',2), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
+                ('AUTO','Auto','XLU-like if material uses transparency, OPA-like otherwise',3),
+                ('CUSTOM','Custom','Define a custom blending cycle',4),
+            ],
+            name='Second blending cycle',
+            description='Second cycle\nHow to blend the pixels being rendered with the frame buffer\nResponsible for at least transparency effects and fog',
+            default='AUTO'
+        )
+
     use_texgen = bpy.props.BoolProperty(
             name='Texgen',
             description='Generates texture coordinates at run time depending on the view',
@@ -921,6 +972,21 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             default=1
         )
 
+# add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B
+for c in (0,1):
+    for v,choices,d in (
+    # variable   choices                                                     default
+        ('P', ('G_BL_CLR_IN','G_BL_CLR_MEM','G_BL_CLR_BL','G_BL_CLR_FOG'), 'G_BL_CLR_IN'),
+        ('A', ('G_BL_A_IN','G_BL_A_FOG','G_BL_A_SHADE','G_BL_0'),          'G_BL_A_IN'),
+        ('M', ('G_BL_CLR_IN','G_BL_CLR_MEM','G_BL_CLR_BL','G_BL_CLR_FOG'), 'G_BL_CLR_MEM'),
+        ('B', ('G_BL_1MA','G_BL_A_MEM','G_BL_1','G_BL_0'),                 'G_BL_1MA')
+    ):
+        setattr(ObjexMaterialProperties, 'rendermode_blending_cycle%d_custom_%s' % (c,v), bpy.props.EnumProperty(
+            items=[(choices[i],choices[i],'',i+1) for i in range(4)],
+            name='%s' % v,
+            default=d
+        ))
+
 class OBJEX_PT_material(bpy.types.Panel):
     bl_label = 'Objex'
     bl_space_type = 'PROPERTIES'
@@ -938,6 +1004,18 @@ class OBJEX_PT_material(bpy.types.Panel):
         # 421todo maybe not show the init button if init has already been done
         self.layout.operator('OBJEX_OT_material_init')
         self.layout.prop(data, 'backface_culling')
+        box = self.layout.box()
+        box.label(text='Render mode')
+        box.prop(data, 'rendermode_zmode')
+        box.prop(data, 'rendermode_forceblending')
+        box.prop(data, 'rendermode_blending_cycle0')
+        if data.rendermode_blending_cycle0 == 'CUSTOM':
+            for v in ('P','A','M','B'):
+                box.prop(data, 'rendermode_blending_cycle0_custom_%s' % v)
+        box.prop(data, 'rendermode_blending_cycle1')
+        if data.rendermode_blending_cycle1 == 'CUSTOM':
+            for v in ('P','A','M','B'):
+                box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
         self.layout.prop(data, 'use_texgen')
         self.layout.prop(data, 'scaleS')
         self.layout.prop(data, 'scaleT')
@@ -957,7 +1035,7 @@ class ObjexTextureProperties(bpy.types.PropertyGroup):
                 ('RGBA32','RGBA32','256 values per color red/green/blue and alpha (RRRR RRRR GGGG GGGG BBBB BBBB AAAA AAAA)',0x03),
                 ('CI4','CI4','Paletted in 16 colors',0x20),
                 ('CI8','CI8','Paletted in 256 colors',0x21),
-                ('AUTO','Automatic','Do not specify a format',0xFF),
+                ('AUTO','Auto','Do not specify a format',0xFF),
             ],
             name='Format',
             description='What format to use when writing the texture',

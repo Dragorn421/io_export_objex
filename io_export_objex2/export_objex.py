@@ -962,15 +962,87 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                 fw('gbi gsSPTexture(qu016(%f), qu016(%f), 0, G_TX_RENDERTILE, G_ON)\n' % (scaleS, scaleT))
                 fw('gbi gsDPPipeSync()\n')
                 # fixme do not hardcode flags, and what about blender settings, and G_RM_AA_ZB_OPA_SURF2 ?
-                otherModeLowerHalfFlags = ['AA_EN', 'Z_CMP', 'Z_UPD', 'IM_RD', 'CVG_DST_CLAMP', 'ZMODE_OPA', 'ALPHA_CVG_SEL']
-                fw('gbi gsDPSetRenderMode(%s | GBL_c1(G_BL_CLR_FOG, G_BL_A_SHADE, G_BL_CLR_IN, G_BL_1MA), G_RM_AA_ZB_OPA_SURF2)\n' % (
-                    '|'.join(otherModeLowerHalfFlags)
+                otherModeLowerHalfFlags = [
+                    'AA_EN', # anti-aliasing ?
+                    'Z_CMP', # use zbuffer
+                    'Z_UPD', # update zbuffer
+                    'IM_RD', # ?
+                    'CVG_DST_CLAMP', # ?
+                    'ALPHA_CVG_SEL', # ?
+                ]
+                if objex_data.rendermode_zmode == 'AUTO':
+                    otherModeLowerHalfFlags.append('ZMODE_XLU' if material.use_transparency else 'ZMODE_OPA')
+                else:
+                    otherModeLowerHalfFlags.append('ZMODE_%s' % objex_data.rendermode_zmode)
+                if (objex_data.rendermode_forceblending == 'YES'
+                    or (objex_data.rendermode_forceblending == 'AUTO'
+                        and material.use_transparency)
+                ):
+                    otherModeLowerHalfFlags.append('FORCE_BL')
+                """
+from gbi.h :
+count  P              A              M              B            comment
+2      0              0              0              0            "NOOP"
+1      G_BL_CLR_FOG   G_BL_A_FOG     G_BL_CLR_IN    G_BL_1MA     only defined for cycle 1 in G_RM_FOG_PRIM_A
+1      G_BL_CLR_FOG   G_BL_A_SHADE   G_BL_CLR_IN    G_BL_1MA     only defined for cycle 1 in G_RM_FOG_SHADE_A
+11     G_BL_CLR_IN    G_BL_0         G_BL_CLR_IN    G_BL_1       defined for cycle 1 by G_RM_PASS, used for both cycles
+2      G_BL_CLR_IN    G_BL_0         G_BL_CLR_BL    G_BL_A_MEM   by G_RM_VISCVG, G_RM_VISCVG2
+2      G_BL_CLR_IN    G_BL_A_FOG     G_BL_CLR_MEM   G_BL_1       by G_RM_ADD, G_RM_ADD2
+46     G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA     all XLU use this
+30     G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM   most OPA use this
+                """
+                rm_bl_c0 = objex_data.rendermode_blending_cycle0
+                rm_bl_c1 = objex_data.rendermode_blending_cycle1
+                if rm_bl_c0 == 'AUTO':
+                    rm_bl_c0 = 'PASS' if material.use_transparency else 'FOG_SHADE'
+                if rm_bl_c1 == 'AUTO':
+                    rm_bl_c1 = 'XLU' if material.use_transparency else 'OPA'
+                presets = {
+                    'FOG_PRIM': ('G_BL_CLR_FOG','G_BL_A_FOG',  'G_BL_CLR_IN', 'G_BL_1MA'),
+                    'FOG_SHADE':('G_BL_CLR_FOG','G_BL_A_SHADE','G_BL_CLR_IN', 'G_BL_1MA'),
+                    'PASS':     ('G_BL_CLR_IN', 'G_BL_0',      'G_BL_CLR_IN', 'G_BL_1'),
+                    'OPA':      ('G_BL_CLR_IN', 'G_BL_A_IN',   'G_BL_CLR_MEM','G_BL_A_MEM'),
+                    'XLU':      ('G_BL_CLR_IN', 'G_BL_A_IN',   'G_BL_CLR_MEM','G_BL_1MA'),
+                }
+                if rm_bl_c0 == 'CUSTOM':
+                    blendCycle0flags = (getattr(objex_data, 'rendermode_blending_cycle0_custom_%s' % v) for v in ('P','A','M','B'))
+                else:
+                    blendCycle0flags = presets[rm_bl_c0]
+                if rm_bl_c1 == 'CUSTOM':
+                    blendCycle1flags = (getattr(objex_data, 'rendermode_blending_cycle1_custom_%s' % v) for v in ('P','A','M','B'))
+                else:
+                    blendCycle1flags = presets[rm_bl_c1]
+                fw('gbi gsSPSetOtherModeLo(G_MDSFT_RENDERMODE,G_MDSIZ_RENDERMODE,%s|GBL_c1(%s)|GBL_c2(%s))\n' % (
+                    '|'.join(otherModeLowerHalfFlags),
+                    ','.join(blendCycle0flags),
+                    ','.join(blendCycle1flags),
                 ))
                 """
                 (P * A + M - B) / (A + B)
+                
+                GBL_c1(G_BL_CLR_FOG, G_BL_A_SHADE, G_BL_CLR_IN, G_BL_1MA) :
                 (G_BL_CLR_FOG * G_BL_A_SHADE + G_BL_CLR_IN - G_BL_1MA) / (G_BL_A_SHADE + G_BL_1MA)
-                (fogColor * shadeAlpha + pixelColor - pixelAlpha) / (shadeAlpha + pixelAlpha)
+                (fogColor * shadeAlpha + pixelColor - (1-pixelAlpha)) / (shadeAlpha + (1-pixelAlpha))
                 ???
+                
+                GBL_c2(G_BL_CLR_IN,G_BL_A_IN,G_BL_CLR_MEM,G_BL_A_MEM) :
+                (G_BL_CLR_IN * G_BL_A_IN + G_BL_CLR_MEM - G_BL_A_MEM) / (G_BL_A_IN + G_BL_A_MEM)
+                (firstCycleNumerator * pixelAlpha + frameBufferColor - frameBufferAlpha) / (pixelAlpha + frameBufferAlpha)
+                
+                and G_RM_AA_ZB_OPA_SURF2 is a preset for the same kind of stuff
+                
+                
+                according to angrylion:
+                
+                (P * (A / 8) + M * (B / 8 + 1)) / 32 (0-255 integer range)
+                for simplicity, assume P * A + M * B (0-1 range)
+                G_BL_CLR_FOG * G_BL_A_SHADE + G_BL_CLR_IN * G_BL_1MA
+                fogColor * shadeAlpha + pixelColor * (1 - pixelAlpha)
+                
+                G_BL_CLR_IN * G_BL_A_IN + G_BL_CLR_MEM * G_BL_A_MEM
+                firstCycle * pixelAlpha + frameBufferColor * frameBufferAlpha
+                
+                (fogColor * shadeAlpha + pixelColor * (1 - pixelAlpha)) * pixelAlpha + frameBufferColor * frameBufferAlpha
                 """
                 fw('gbi gsDPSetCombineLERP(%s)\n' % (','.join('%s' for i in range(16)) % tuple(explorer.combinerFlags)))
                 def rgba32(rgba):
@@ -979,6 +1051,7 @@ def write_mtl(scene, filepath, path_mode, copy_set, mtl_dict):
                     fw('gbi gsDPSetPrimColor(0,qu08(0.5),%d,%d,%d,%d)\n' % rgba32(data['primitive'])) # 421fixme minlevel, lodfrac
                 if 'environment' in data:
                     fw('gbi gsDPSetEnvColor(%d,%d,%d,%d)\n' % rgba32(data['environment']))
+                # 421todo more geometry mode flags
                 geometryModeFlagsClear = []
                 geometryModeFlagsSet = []
                 if 'shade' in data:
