@@ -977,8 +977,11 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
                     elif tod.force_write == 'DO_NOT_WRITE':
                         fw('forcenowrite\n')
                     if tod.texture_bank:
-                        # could use path relative to .mtl but .mtl files are short-lived anyway
-                        fw('texturebank %s\n' % bpy.path.abspath(tod.texture_bank))
+                        fw('texturebank %s\n'
+                            % bpy_extras.io_utils.path_reference(
+                                tod.texture_bank, source_dir, dest_dir,
+                                path_mode, '', copy_set
+                        ))
 
         for material_name, material, face_img in mtl_dict.values():
             objex_data = material.objex_bonus
