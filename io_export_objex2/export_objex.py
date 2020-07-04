@@ -124,7 +124,7 @@ class ObjexWriter():
         
         # Tell the obj file what material/skeleton/animation file to use.
         if self.options['EXPORT_MTL']:
-            self.filepath_mtl = os.path.splitext(self.filepath)[0] + ".mtl"
+            self.filepath_mtl = os.path.splitext(self.filepath)[0] + ".mtlex"
             # filepath can contain non utf8 chars, use repr
             fw('mtllib %s\n' % repr(os.path.basename(self.filepath_mtl))[1:-1])
         
