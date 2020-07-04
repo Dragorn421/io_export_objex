@@ -804,7 +804,7 @@ class ObjexMaterialNodeTreeExplorer():
         inputs = {
             # color registers
             'primitiveRGB': (('G_CCMUX_PRIMITIVE',),self.buildColorInputRGB),
-            'primitiveA': (('G_CCMUX_PRIMITIVE_ALPHA','',),self.buildColorInputA),
+            'primitiveA': (('G_CCMUX_PRIMITIVE_ALPHA','G_ACMUX_PRIMITIVE',),self.buildColorInputA),
             'environmentRGB': (('G_CCMUX_ENVIRONMENT',),self.buildColorInputRGB),
             'environmentA': (('G_CCMUX_ENV_ALPHA','G_ACMUX_ENVIRONMENT',),self.buildColorInputA),
             # texels
@@ -817,6 +817,7 @@ class ObjexMaterialNodeTreeExplorer():
             'shadeA': (('G_CCMUX_SHADE_ALPHA','G_ACMUX_SHADE',),self.buildShadingDataFromAlphaSocket),
         }
         self.data = {}
+        print('per-flag used sockets', self.flagSockets)
         for k,(flags,socketReader) in inputs.items():
             sockets = set(self.flagSockets[flag] for flag in flags if flag in self.flagSockets)
             if len(sockets) > 1:
@@ -869,10 +870,23 @@ class ObjexMaterialNodeTreeExplorer():
         # FIXME uv_layer must be merged from texel01 data
 
     def buildColorInputRGB(self, k, socket):
-        self.data[k] = socket.default_value # FIXME
+        # OBJEX_NodeSocket_RGBA_Color <- OBJEX_NodeSocket_CombinerInput in node group OBJEX_rgba_pipe
+        socket = socket.node.inputs[0]
+        # should be linked to a ShaderNodeRGB node
+        if socket.links:
+            socket = socket.links[0].from_socket
+            if socket.node.bl_idname != 'ShaderNodeRGB':
+                print(k, 'socket is not linked to ShaderNodeRGB, instead', socket.node)
+        else:
+            print(k, 'socket is not linked (it should, to a ShaderNodeRGB)', socket)
+        self.data[k] = socket.default_value
 
     def buildColorInputA(self, k, socket):
-        self.data[k] = socket.default_value[0] # FIXME
+        # NodeSocketFloat <- OBJEX_NodeSocket_CombinerInput in node group OBJEX_rgba_pipe
+        socket = socket.node.inputs[1]
+        if socket.links:
+            print(k, 'alpha socket shouldnt be linked', socket)
+        self.data[k] = socket.default_value
 
     def buildTexelDataFromColorSocket(self, k, socket):
         # FIXME
