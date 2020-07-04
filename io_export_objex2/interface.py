@@ -294,6 +294,12 @@ class OBJEX_NodeSocketInterface_RGBA_Color(bpy.types.NodeSocketInterface):
     def draw_color(self, context):
         return CST.COLOR_RGBA_COLOR
 
+class OBJEX_NodeSocketInterface_Dummy():
+    def draw(self, context, layout):
+        pass
+    def draw_color(self, context):
+        return CST.COLOR_NONE
+
 # NodeSocket
 
 class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
@@ -392,6 +398,17 @@ class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket):
     def text(self, txt):
         return txt
 
+class OBJEX_NodeSocket_BoolProperty():
+    def update_prop(self, context):
+        self.node.inputs[self.target_socket_name].default_value = 1 if self.default_value else 0
+    default_value = bpy.props.BoolProperty(update=update_prop)
+
+    def draw(self, context, layout, node, text):
+        layout.prop(self, 'default_value', text=text)
+
+    def draw_color(self, context, node):
+        return CST.COLOR_NONE
+
 # node groups creation
 
 def create_node_group_cycle(group_name):
@@ -467,11 +484,15 @@ def create_node_group_uv_pipe(group_name):
     tree.inputs.new('NodeSocketFloat', 'V Scale Exponent')
     # 421todo instead, use U/V scale inputs, and do final_scale = 2^(round(log_2(input_scale))) (as an option?)
     # 421todo try using a custom socket as U/V scale inputs, auto-round on update
-    # 421todo same for Wrap U/V booleans, create OBJEX_NodeSocket_Bool and make it update the hidden float socket
-    tree.inputs.new('NodeSocketFloat', 'Wrap U (0/1)').default_value = 1
-    tree.inputs.new('NodeSocketFloat', 'Wrap V (0/1)').default_value = 1
-    tree.inputs.new('NodeSocketFloat', 'Mirror U (0/1)').default_value = 0
-    tree.inputs.new('NodeSocketFloat', 'Mirror V (0/1)').default_value = 0
+    # 421todo same for Wrap U/V booleans, create OBJEX_NodeSocket_BoolProperty and make it update the hidden float socket
+    tree.inputs.new('OBJEX_NodeSocket_UVpipe_WrapU', 'Wrap U')
+    tree.inputs.new('OBJEX_NodeSocket_UVpipe_WrapV', 'Wrap V')
+    tree.inputs.new('OBJEX_NodeSocket_UVpipe_MirrorU', 'Mirror U')
+    tree.inputs.new('OBJEX_NodeSocket_UVpipe_MirrorV', 'Mirror V')
+    tree.inputs.new('NodeSocketFloat', 'Wrap U (0/1)')
+    tree.inputs.new('NodeSocketFloat', 'Wrap V (0/1)')
+    tree.inputs.new('NodeSocketFloat', 'Mirror U (0/1)')
+    tree.inputs.new('NodeSocketFloat', 'Mirror V (0/1)')
     # pixels along U/V used for better clamping, to clamp the last pixel in the tile
     # before the clamp part instead of clamping at the limit, where color is
     # merged with the wrapping UV
@@ -663,32 +684,53 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         nodes = node_tree.nodes
         
         nodes.clear() # 421fixme do not inconditionally rebuild
-        
+        """
+        421todo different "rebuild" modes:
+        reset (nodes.clear())
+        fill (add missing nodes)
+        hide sockets (eg "Wrap U (0/1)")
+        re-apply dimensions/positions
+        ...?
+        (this only means splitting this operator in parts, or adding more parameters to it)
+        """
+
         if 'Geometry' not in nodes:
             geometry = nodes.new('ShaderNodeGeometry')
             geometry.name = 'Geometry'
             geometry.location = (-400, -100)
         else:
             geometry = nodes['Geometry']
-        
-        if 'OBJEX_MultiTexScale0' not in nodes:
-            multiTexScale0 = nodes.new('ShaderNodeGroup')
-            multiTexScale0.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
-            multiTexScale0.name = 'OBJEX_MultiTexScale0' # internal name
-            multiTexScale0.label = 'Multitexture Scale 0' # displayed name
-            multiTexScale0.location = (-150, -50)
-            multiTexScale0.width += 50
+
+        if 'OBJEX_TransformUV0' not in nodes:
+            uvTransform0 = nodes.new('ShaderNodeGroup')
+            uvTransform0.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
+            uvTransform0.name = 'OBJEX_TransformUV0' # internal name
+            uvTransform0.label = 'UV transform 0' # displayed name
+            uvTransform0.location = (-150, 50)
+            uvTransform0.width += 50
+            # set default values in most common usage, but it is also
+            # required to update the default value of "Wrap/Mirror U/V (0/1)"
+            # sockets which are used for the actual UV transform
+            for uv in ('U','V'):
+                for transform, default_value in (('Wrap',True),('Mirror',False)):
+                    uvTransform0.inputs['%s %s' % (transform,uv)].default_value = default_value
+                    uvTransform0.inputs['%s %s (0/1)' % (transform,uv)].hide = True
         else:
-            multiTexScale0 = nodes['OBJEX_MultiTexScale0']
-        if 'OBJEX_MultiTexScale1' not in nodes:
-            multiTexScale1 = nodes.new('ShaderNodeGroup')
-            multiTexScale1.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
-            multiTexScale1.name = 'OBJEX_MultiTexScale1'
-            multiTexScale1.label = 'Multitexture Scale 1'
-            multiTexScale1.location = (-150, -350)
-            multiTexScale1.width += 50
+            uvTransform0 = nodes['OBJEX_TransformUV0']
+        if 'OBJEX_TransformUV1' not in nodes:
+            uvTransform1 = nodes.new('ShaderNodeGroup')
+            uvTransform1.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
+            uvTransform1.name = 'OBJEX_TransformUV1'
+            uvTransform1.label = 'UV transform 1'
+            uvTransform1.location = (-150, -250)
+            uvTransform1.width += 50
+            # set default_value: same as above
+            for uv in ('U','V'):
+                for transform, default_value in (('Wrap',True),('Mirror',False)):
+                    uvTransform1.inputs['%s %s' % (transform,uv)].default_value = default_value
+                    uvTransform1.inputs['%s %s (0/1)' % (transform,uv)].hide = True
         else:
-            multiTexScale1 = nodes['OBJEX_MultiTexScale1']
+            uvTransform1 = nodes['OBJEX_TransformUV1']
 
         if 'OBJEX_PrimColorRGB' not in nodes:
             primColorRGB = nodes.new('ShaderNodeRGB')
@@ -868,13 +910,13 @@ class OBJEX_OT_material_init(bpy.types.Operator):
             n.parent = frame
 
         # texel0
-        node_tree.links.new(geometry.outputs['UV'], multiTexScale0.inputs['UV'])
-        node_tree.links.new(multiTexScale0.outputs[0], texel0texture.inputs[0])
+        node_tree.links.new(geometry.outputs['UV'], uvTransform0.inputs['UV'])
+        node_tree.links.new(uvTransform0.outputs[0], texel0texture.inputs[0])
         node_tree.links.new(texel0texture.outputs[1], texel0.inputs[0])
         node_tree.links.new(texel0texture.outputs[0], texel0.inputs[1])
         # texel1
-        node_tree.links.new(geometry.outputs['UV'], multiTexScale1.inputs['UV'])
-        node_tree.links.new(multiTexScale1.outputs[0], texel1texture.inputs[0])
+        node_tree.links.new(geometry.outputs['UV'], uvTransform1.inputs['UV'])
+        node_tree.links.new(uvTransform1.outputs[0], texel1texture.inputs[0])
         node_tree.links.new(texel1texture.outputs[1], texel1.inputs[0])
         node_tree.links.new(texel1texture.outputs[0], texel1.inputs[1])
         # envColor, primColor RGB
@@ -1141,6 +1183,41 @@ def register_interface():
             print('Error registering', clazz)
             traceback.print_exc()
             raise
+    """
+    OBJEX_NodeSocketInterface_UVpipe_WrapU = type(
+        'OBJEX_NodeSocketInterface_UVpipe_WrapU',
+        (bpy.types.NodeSocketInterface,OBJEX_NodeSocketInterface_Dummy),
+        dict()
+    )
+    OBJEX_NodeSocketInterface_UVpipe_WrapU.bl_socket_idname = 'OBJEX_NodeSocket_UVpipe_WrapU'
+    OBJEX_NodeSocket_UVpipe_WrapU = type(
+        'OBJEX_NodeSocket_UVpipe_WrapU',
+        (bpy.types.NodeSocket,OBJEX_NodeSocket_BoolProperty),
+        {'target_socket_name':'Wrap U (0/1)'}
+    )
+    bpy.utils.register_class(OBJEX_NodeSocketInterface_UVpipe_WrapU)
+    bpy.utils.register_class(OBJEX_NodeSocket_UVpipe_WrapU)
+    """
+    for class_name_suffix, target_socket_name in (
+        ('UVpipe_WrapU', 'Wrap U (0/1)'),
+        ('UVpipe_WrapV', 'Wrap V (0/1)'),
+        ('UVpipe_MirrorU', 'Mirror U (0/1)'),
+        ('UVpipe_MirrorV', 'Mirror V (0/1)'),
+    ):
+        socket_interface_class = type(
+            'OBJEX_NodeSocketInterface_%s' % class_name_suffix,
+            (bpy.types.NodeSocketInterface, OBJEX_NodeSocketInterface_Dummy),
+            dict()
+        )
+        socket_class_name = 'OBJEX_NodeSocket_%s' % class_name_suffix
+        socket_interface_class.bl_socket_idname = socket_class_name
+        socket_class = type(
+            socket_class_name,
+            (bpy.types.NodeSocket, OBJEX_NodeSocket_BoolProperty),
+            {'target_socket_name': target_socket_name}
+        )
+        bpy.utils.register_class(socket_interface_class)
+        bpy.utils.register_class(socket_class)
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
     bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
     bpy.types.Texture.objex_bonus = bpy.props.PointerProperty(type=ObjexTextureProperties)
