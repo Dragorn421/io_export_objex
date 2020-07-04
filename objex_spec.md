@@ -21,6 +21,21 @@ tell the user to upgrade their Blender script
 - if `major` version is not `2`, zzconvert will
 suggest upgrading zzconvert
 
+#### `exportid`
+
+`exportid string` (e.g. `exportid gee it sure is boring around here`)
+- this is mandatory (zzconvert complains otherwise)
+- the `objex` file and all files included via `mtllib`,
+`animlib`, and `skellib` must contain one
+- the `exportid` of all linked files must match
+- to get the most out of this, `exportid` is a string
+representation of the time at which the blender export
+script was run (this helps to identify when something has
+gone wrong during the export process, such as a file not
+being updated properly due to write permissions or
+plugin errors)
+- `exportid` must be used before the `*lib` directives
+
 #### `useskel`
 
 `useskel name` has been introduced for specifying
