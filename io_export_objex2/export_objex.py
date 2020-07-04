@@ -822,34 +822,49 @@ class ObjexMaterialNodeTreeExplorer():
             if len(sockets) > 1:
                 print('Different sockets used by different flags which should refer to the same data', k, sockets)
             if sockets:
-                socketReader(k, next(iter(sockets)))
+                socket = next(iter(sockets))
+                print('getting %s from' % k, socket)
+                socketReader(k, socket)
         # FIXME
         def mergeRGBA(rgb, a):
-            # fixme default to 0 or 1
-            if rgb:
-                if a:
-                    return (rgb[0], rgb[1], rgb[2], a)
-                return (rgb[0], rgb[1], rgb[2], 1)
-            if a:
-                return (1,1,1,a)
-            return (1,1,1,1)
-        def pickFirst(a,b):
-            return b if a is None else a
+            return (rgb[0], rgb[1], rgb[2], a)
+        def mergeRGBA1(rgb):
+            return (rgb[0], rgb[1], rgb[2], 1)
+        def mergeRGBA2(a):
+            return (1,1,1,a)
+        def mergeSame(d1, d2):
+            if d1 != d2:
+                raise ValueError('Merging mismatching data\nd1 = %r\nd2 = %r' % (d1,d2))
+            return d1
+        id = lambda x:x
         merge = {
-            'primitive': (('primitiveRGB','primitiveA',),mergeRGBA),
-            'environment': (('environmentRGB','environmentA',),mergeRGBA),
+            'primitive': (('primitiveRGB','primitiveA',),mergeRGBA,mergeRGBA1,mergeRGBA2),
+            'environment': (('environmentRGB','environmentA',),mergeRGBA,mergeRGBA1,mergeRGBA2),
             # FIXME check texel0RGB and texel0A are the same, and other checks
-            'texel0': (('texel0RGB','texel0A',),pickFirst),
-            'texel1': (('texel1RGB','texel1A',),pickFirst),
-            'shade': (('shadeRGB','shadeA',),pickFirst),
+            'texel0': (('texel0RGB','texel0A',),mergeSame,id,id),
+            'texel1': (('texel1RGB','texel1A',),mergeSame,id,id),
+            'shade': (('shadeRGB','shadeA',),mergeSame,id,id),
         }
         data = self.data
+        print('data before merge', data)
         mergedData = {}
         # FIXME ugly
-        for k2,(ks,dataMerger) in merge.items():
-            v = dataMerger(data.get(ks[0], None), data.get(ks[1], None))
-            if v is not None:
-                mergedData[k2] = v
+        for k2,(ks,dataMerger,dataMerger1,dataMerger2) in merge.items():
+            if ks[0] in data:
+                if ks[1] in data:
+                    try:
+                        print('Merging %s, %s into %s' % (ks[0], ks[1], k2))
+                        print(data[ks[0]])
+                        print(data[ks[1]])
+                        mergedData[k2] = dataMerger(data[ks[0]], data[ks[1]])
+                    except ValueError as e:
+                        print('Could not merge %s, %s into %s' % (ks[0], ks[1], k2))
+                        print(e)
+                else:
+                    mergedData[k2] = dataMerger1(data[ks[0]])
+            else:
+                if ks[1] in data:
+                    mergedData[k2] = dataMerger2(data[ks[1]])
         self.data = mergedData
         # FIXME uv_layer must be merged from texel01 data
 
@@ -886,13 +901,19 @@ class ObjexMaterialNodeTreeExplorer():
 
     def buildShadingDataFromColorSocket(self, k, socket):
         # FIXME
-        # todo vcolor or nothing
-        self.data[k] = {'type':'normals'}
+        n = socket.node.inputs[0].links[0].from_node
+        if n.bl_idname == 'ShaderNodeGeometry':
+            self.data[k] = {'type':'vertex_colors','vertex_color_layer':n.color_layer}
+        else:
+            self.data[k] = {'type':'normals'}
 
     def buildShadingDataFromAlphaSocket(self, k, socket):
         # FIXME
-        # todo vcolor or nothing
-        self.data[k] = {'type':'normals'}
+        n = socket.node.inputs[1].links[0].from_node
+        if n.bl_idname == 'ShaderNodeGeometry':
+            self.data[k] = {'type':'vertex_colors','vertex_color_layer':n.color_layer}
+        else:
+            self.data[k] = {'type':'normals'}
 
 # fixme this is going to end up finding uv/vcolor layers from node (or default to active I guess), if several layers, may write the wrong layer in .objex ... should call write_mtl and get uvs/vcolor data this way before writing the .objex?
 def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
