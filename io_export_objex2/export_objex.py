@@ -966,7 +966,8 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
                             tod.pointer
                         ))
                     if tod.format != 'AUTO':
-                        fw('format %s\n' % tod.format)
+                        # zzconvert requires lower case format name
+                        fw('format %s\n' % tod.format.lower())
                         if tod.format[:2] == 'CI' and tod.palette != 0:
                             fw('palette %d\n' % tod.palette)
                     if tod.priority != 0:
