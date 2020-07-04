@@ -472,6 +472,17 @@ def create_node_group_uv_pipe(group_name):
     tree.inputs.new('NodeSocketFloat', 'Wrap V (0/1)').default_value = 1
     tree.inputs.new('NodeSocketFloat', 'Mirror U (0/1)').default_value = 0
     tree.inputs.new('NodeSocketFloat', 'Mirror V (0/1)').default_value = 0
+    # pixels along U/V used for better clamping, to clamp the last pixel in the tile
+    # before the clamp part instead of clamping at the limit, where color is
+    # merged with the wrapping UV
+    # (this is only what I am guessing is happening)
+    pixelsU = tree.inputs.new('NodeSocketFloat', 'Pixels along U')
+    pixelsU.min_value = 1
+    inf = float('inf')
+    pixelsU.default_value = +inf
+    pixelsV = tree.inputs.new('NodeSocketFloat', 'Pixels along V')
+    pixelsV.min_value = 1
+    pixelsV.default_value = +inf
 
     separateXYZ = tree.nodes.new('ShaderNodeSeparateXYZ')
     separateXYZ.location = (-200,100)
@@ -493,33 +504,36 @@ def create_node_group_uv_pipe(group_name):
     final = {}
     for uv, i, y in (('U',0,400),('V',1,-600)):
         # looking at the nodes in blender is probably better than trying to understand the code here
-        uScale = addMathNode('ROUND', (-400,400+y), inputs_node.outputs['%s Scale Exponent' % uv])
-        uScalePower = addMathNode('POWER', (-200,400+y), 2, uScale.outputs[0])
-        scaleU = addMathNode('MULTIPLY', (0,400+y), separateXYZ.outputs[i], uScalePower.outputs[0])
+        roundedExp = addMathNode('ROUND', (-400,400+y), inputs_node.outputs['%s Scale Exponent' % uv])
+        scalePow = addMathNode('POWER', (-200,400+y), 2, roundedExp.outputs[0])
+        scale = addMathNode('MULTIPLY', (0,400+y), separateXYZ.outputs[i], scalePow.outputs[0])
         # mirror
         notMirroredBool = addMathNode('SUBTRACT', (200,600+y), 1, inputs_node.outputs['Mirror %s (0/1)' % uv])
-        identity = addMathNode('MULTIPLY', (400,400+y), scaleU.outputs[0], notMirroredBool.outputs[0])
-        reversed = addMathNode('MULTIPLY', (200,200+y), scaleU.outputs[0], -1)
-        add1 = addMathNode('ADD', (200,0+y), scaleU.outputs[0], 1)
+        identity = addMathNode('MULTIPLY', (400,400+y), scale.outputs[0], notMirroredBool.outputs[0])
+        reversed = addMathNode('MULTIPLY', (200,200+y), scale.outputs[0], -1)
+        add1 = addMathNode('ADD', (200,0+y), scale.outputs[0], 1)
         mod4_1 = addMathNode('MODULO', (400,0+y), add1.outputs[0], 4)
         add4 = addMathNode('ADD', (600,0+y), mod4_1.outputs[0], 4)
         mod4_2 = addMathNode('MODULO', (800,0+y), add4.outputs[0], 4)
         notMirroredPartBool = addMathNode('LESS_THAN', (1000,0+y), mod4_2.outputs[0], 2)
-        mirroredPartNo = addMathNode('MULTIPLY', (1200,400+y), scaleU.outputs[0], notMirroredPartBool.outputs[0])
+        mirroredPartNo = addMathNode('MULTIPLY', (1200,400+y), scale.outputs[0], notMirroredPartBool.outputs[0])
         mirroredPartBool = addMathNode('SUBTRACT', (1200,0+y), 1, notMirroredPartBool.outputs[0])
         mirroredPartYes = addMathNode('MULTIPLY', (1400,200+y), reversed.outputs[0], mirroredPartBool.outputs[0])
         withMirror = addMathNode('ADD', (1600,300+y), mirroredPartYes.outputs[0], mirroredPartNo.outputs[0])
         mirrored = addMathNode('MULTIPLY', (1800,400+y), withMirror.outputs[0], inputs_node.outputs['Mirror %s (0/1)' % uv])
         mirroredFinal = addMathNode('ADD', (2000,300+y), identity.outputs[0], mirrored.outputs[0])
         # wrapped (identity)
-        wrappedU = addMathNode('MULTIPLY', (2200,400+y), mirroredFinal.outputs[0], inputs_node.outputs['Wrap %s (0/1)' % uv])
+        wrapped = addMathNode('MULTIPLY', (2200,400+y), mirroredFinal.outputs[0], inputs_node.outputs['Wrap %s (0/1)' % uv])
         # clamped (in [-1;1])
-        upperClampedU = addMathNode('MINIMUM', (2300,200+y), mirroredFinal.outputs[0], 1)
-        upperLowerClampedU = addMathNode('MAXIMUM', (2500,200+y), upperClampedU.outputs[0], -1) # fixme -1 looks correct? confirm
-        notWrapU = addMathNode('SUBTRACT', (2400,0+y), 1, inputs_node.outputs['Wrap %s (0/1)' % uv])
-        clampedU = addMathNode('MULTIPLY', (2700,200+y), upperLowerClampedU.outputs[0], notWrapU.outputs[0])
+        pixelSizeUVspace  = addMathNode('DIVIDE', (1800,100+y), 1, inputs_node.outputs['Pixels along %s' % uv])
+        upperBound = addMathNode('SUBTRACT', (2000,0+y), 1, pixelSizeUVspace.outputs[0])
+        lowerBound = addMathNode('ADD', (2000,-300+y), -1, pixelSizeUVspace.outputs[0])
+        upperClamped = addMathNode('MINIMUM', (2300,200+y), mirroredFinal.outputs[0], upperBound.outputs[0])
+        upperLowerClamped = addMathNode('MAXIMUM', (2500,200+y), upperClamped.outputs[0], lowerBound.outputs[0])
+        notWrap = addMathNode('SUBTRACT', (2400,0+y), 1, inputs_node.outputs['Wrap %s (0/1)' % uv])
+        clamped = addMathNode('MULTIPLY', (2700,200+y), upperLowerClamped.outputs[0], notWrap.outputs[0])
         #
-        finalU = addMathNode('ADD', (2900,300+y), wrappedU.outputs[0], clampedU.outputs[0])
+        finalU = addMathNode('ADD', (2900,300+y), wrapped.outputs[0], clamped.outputs[0])
         final[uv] = finalU
     finalU = final['U']
     finalV = final['V']
