@@ -1133,10 +1133,17 @@ class OBJEX_PT_material(bpy.types.Panel):
         self.layout.prop(data, 'use_texgen')
         self.layout.prop(data, 'scaleS')
         self.layout.prop(data, 'scaleT')
+        if data.is_objex_material:
+            for textureNode in (n for n in material.node_tree.nodes if n.bl_idname == 'ShaderNodeTexture' and n.texture):
+                box = self.layout.box()
+                image = textureNode.texture.image
+                box.label(text=image.filepath if image.filepath else 'Image without filepath?')
+                box.prop(textureNode.texture, 'image')
+                image.objex_bonus.draw(image, box)
 
-# textures
+# images
 
-class ObjexTextureProperties(bpy.types.PropertyGroup):
+class ObjexImageProperties(bpy.types.PropertyGroup):
     format = bpy.props.EnumProperty(
             items=[
                 # number identifiers are 0xFS with F~G_IM_FMT_ and S~G_IM_SIZ_
@@ -1189,27 +1196,16 @@ class ObjexTextureProperties(bpy.types.PropertyGroup):
             default=''
         )
 
-class OBJEX_PT_texture(bpy.types.Panel):
-    bl_label = 'Objex'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'texture'
+    def draw(self, image, layout):
+        data = self
 
-    @classmethod
-    def poll(self, context):
-        texture = context.texture
-        return texture is not None
-
-    def draw(self, context):
-        texture = context.texture
-        data = texture.objex_bonus
-        self.layout.prop(data, 'format')
+        layout.prop(data, 'format')
         if data.format[:2] == 'CI':
-            self.layout.prop(data, 'palette')
-        propOffset(self.layout, data, 'pointer', 'Pointer')
-        self.layout.prop(data, 'priority')
-        self.layout.prop(data, 'force_write')
-        self.layout.prop(data, 'texture_bank')
+            layout.prop(data, 'palette')
+        propOffset(layout, data, 'pointer', 'Pointer')
+        layout.prop(data, 'priority')
+        layout.prop(data, 'force_write')
+        layout.prop(data, 'texture_bank')
 
 
 classes = (
@@ -1229,8 +1225,7 @@ classes = (
     ObjexMaterialProperties,
     OBJEX_PT_material,
 
-    ObjexTextureProperties,
-    OBJEX_PT_texture,
+    ObjexImageProperties,
 )
 
 def register_interface():
@@ -1278,11 +1273,12 @@ def register_interface():
         bpy.utils.register_class(socket_class)
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
     bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
-    bpy.types.Texture.objex_bonus = bpy.props.PointerProperty(type=ObjexTextureProperties)
+    bpy.types.Image.objex_bonus = bpy.props.PointerProperty(type=ObjexImageProperties)
 
 def unregister_interface():
     del bpy.types.Armature.objex_bonus
     del bpy.types.Material.objex_bonus
+    del bpy.types.Image.objex_bonus
     for clazz in reversed(classes):
         try:
             bpy.utils.unregister_class(clazz)
