@@ -960,6 +960,7 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
         append_header(fw)
 
         # maps a file path to a texture name, to avoid duplicate newtex declarations
+        # 421fixme is this still expected behavior?
         texture_names = {}
 
         def writeTexture(image, name, texture=None):
@@ -999,8 +1000,8 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
                         ))
 
         for material_name, material, face_img in mtl_dict.values():
-            objex_data = material.objex_bonus
-            if objex_data.is_objex_material:
+            objex_data = material.objex_bonus if material else None
+            if objex_data and objex_data.is_objex_material:
                 if not material.use_nodes:
                     log.error('Material {!r} is_objex_material but not use_nodes (was "Use Nodes" unchecked after adding objex nodes to it?)', material)
                 explorer = ObjexMaterialNodeTreeExplorer(material.node_tree)
