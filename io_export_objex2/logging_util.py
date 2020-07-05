@@ -16,8 +16,11 @@ def getLogger(name):
         def LogRecord_getMessageNewStyleFormatting():
             self = record
             msg = str(self.msg)
-            if self.args:
-                msg = msg.format(*self.args)
+            args = self.args
+            if args:
+                if not isinstance(args, tuple):
+                    args = (args,)
+                msg = msg.format(*args)
             return msg
         record.getMessage = LogRecord_getMessageNewStyleFormatting
         return record
