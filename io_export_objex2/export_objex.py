@@ -130,6 +130,9 @@ class ObjexWriter():
         self.export_id_line = 'exportid %f\n' % time.time()
         fw(self.export_id_line)
 
+        scene = self.context.scene
+        fw('softinfo animation_framerate %g\n' % (scene.render.fps / scene.render.fps_base))
+
         # Tell the obj file what material/skeleton/animation file to use.
         if self.options['EXPORT_MTL']:
             self.filepath_mtl = os.path.splitext(self.filepath)[0] + ".mtlex"
