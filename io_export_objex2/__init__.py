@@ -58,11 +58,14 @@ if 'bpy' in locals():
 		importlib.reload(export_objex)
 	if 'interface' in locals():
 		importlib.reload(interface)
+	if 'logging_util' in locals():
+		importlib.reload(logging_util)
 
 
 import bpy
 from bpy.props import (
         BoolProperty,
+        IntProperty,
         FloatProperty,
         StringProperty,
         EnumProperty,
@@ -75,8 +78,12 @@ from bpy_extras.io_utils import (
         axis_conversion,
         )
 
+import os
+import progress_report
+
 from . import export_objex
 from . import interface
+from . import logging_util
 
 IOOBJOrientationHelper = orientation_helper_factory('IOOBJOrientationHelper', axis_forward='-Z', axis_up='Y')
 
@@ -188,6 +195,44 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             default=1.0,
             )
 
+    # logging
+    logging_level_console = IntProperty(
+            name='Log level',
+            description=(
+                'Affects logging in the system console.\n'
+                'The lower, the more logs.\n'
+                '%s'
+            ) % logging_util.debug_levels_str,
+            default=logging_util.default_level_console,
+            min=logging_util.minimum_level,
+            max=logging_util.maximum_level,
+            )
+    logging_level_report = IntProperty(
+            name='Report level',
+            description=(
+                'What logs to report to Blender.\n'
+                'When the import is done, warnings and errors, if any, are shown in the UI.\n'
+                'The lower, the more logs.\n'
+                '%s'
+            ) % logging_util.debug_levels_str,
+            default=logging_util.default_level_report,
+            min=logging_util.minimum_level,
+            max=logging_util.maximum_level,
+            )
+    logging_file_enable = BoolProperty(
+            name='Log to file',
+            description='Log everything (all levels) to a file',
+            default=True, # 421todo better write logs by default during testing
+            )
+    logging_file_path = StringProperty(
+            name='Log file path',
+            description=(
+                'The file to write logs to.\n'
+                'Path can be relative (to export location) or absolute.'
+            ),
+            default='objex_export_log.txt',
+            )
+
     path_mode = path_reference_mode
 
     check_extension = True
@@ -199,6 +244,10 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
                                             'global_scale',
                                             'check_existing',
                                             'filter_glob',
+                                            'logging_level_console',
+                                            'logging_level_report',
+                                            'logging_file_enable',
+                                            'logging_file_path',
                                             ))
 
         global_matrix = (Matrix.Scale(self.global_scale, 4) *
@@ -207,7 +256,46 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
                                          ).to_4x4())
         
         keywords['global_matrix'] = global_matrix
-        return export_objex.save(context, **keywords)
+
+        try:
+            log = logging_util.getLogger('OBJEX_OT_export')
+            logging_util.setConsoleLevel(self.logging_level_console)
+            if self.logging_file_enable:
+                logfile_path = self.logging_file_path
+                if not os.path.isabs(logfile_path):
+                    export_dir, _ = os.path.split(self.filepath)
+                    logfile_path = '%s/%s' % (export_dir, logfile_path)
+                log.info('Writing logs to %s' % logfile_path)
+                logging_util.setLogFile(logfile_path)
+            logging_util.setLogOperator(self, self.logging_level_report)
+            def progress_report_print(*args, **kwargs):
+                """
+                Typical print() arguments called from progress_report:
+                
+                args = ('Progress:   1.85%\r',)
+                kwargs = {'end': ''}
+                
+                args = ('    (  0.1298 sec |   0.1198 sec) Objex Export Finished\nProgress: 100.00%\r',)
+                kwargs = {'end': ''}
+                
+                args = ('\n',)
+                kwargs = {}
+                """
+                # ignore kwargs['flush'] and kwargs['file']
+                message = '%s%s' % (kwargs.get('sep', ' ').join(args), kwargs.get('end','\n'))
+                for line in message.split('\n'):
+                    if not line:
+                        print() # \n
+                    elif line[-1] == '\r':
+                        print(line, end='')
+                    else:
+                        log.info(line)
+            progress_report.print = progress_report_print
+
+            return export_objex.save(context, **keywords)
+        finally:
+            progress_report.print = print
+            logging_util.resetLoggingSettings()
 
 
 def menu_func_export(self, context):
@@ -220,6 +308,8 @@ classes = (
 
 
 def register():
+    logging_util.registerLogging('objex')
+
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -235,6 +325,8 @@ def unregister():
 
     for cls in classes:
         bpy.utils.unregister_class(cls)
+
+    logging_util.unregisterLogging()
 
 
 if __name__ == '__main__':

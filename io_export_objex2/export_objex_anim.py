@@ -4,7 +4,11 @@ import mathutils
 import re
 import ast
 
+from .logging_util import getLogger
+
+
 def write_skeleton(file_write_skel, global_matrix, armature, bones_ordered):
+    log = getLogger('anim')
     fw = file_write_skel
     # 421todo
     # extra is optional
@@ -40,7 +44,7 @@ def write_skeleton(file_write_skel, global_matrix, armature, bones_ordered):
             # 421fixme better warnings, 
             if pos != mathutils.Vector((0,0,0)):
                 # 421todo instead of warn, automatically solve the problem (add a bone from (0,0,0) ?)
-                print('Warning: root bone does not start at armature origin, in-game results may vary')
+                log.warning('root bone {} does not start at armature origin, in-game results may vary', bone.name)
         pos = global_matrix * pos
         fw('%s+ %s %.6f %.6f %.6f\n' % (' ' * indent, bone.name, pos.x, pos.y, pos.z))
         indent += 1
@@ -51,6 +55,7 @@ def write_skeleton(file_write_skel, global_matrix, armature, bones_ordered):
     fw('\n')
 
 def order_bones(armature):
+    log = getLogger('anim')
     """
     find root bone in armature
     list bones in hierarchy order, preserving the armature order
@@ -63,20 +68,20 @@ def order_bones(armature):
         # 421todo skip bones assigned to no vertex if they're root
         # 421todo do not skip non-root bones if parent isnt skipped
         if not bone.use_deform:
-            print('Skipping non-deform bone %s' % bone.name)
+            log.info('Skipping non-deform bone {} (intended for eg IK bones)', bone.name)
             skipped_bones.append(bone)
             continue
-        # make sure there is only one root bone
         bone_parents = bone.parent_recursive
         for skipped_bone in skipped_bones:
             # 421todo does "in" work with bone objects?
             if skipped_bone in bone_parents:
-                print('Error: bone %s has bone %s that was skipped as parent' % (bone.name, skipped_bone.name))
+                log.error('bone {} has bone {} in its parents, but that bone was skipped', bone.name, skipped_bone.name)
+        # make sure there is only one root bone
         root_parent_bone = bone_parents[-1] if bone_parents else bone
         if root_bone and root_parent_bone.name != root_bone.name:
             # 421todo
-            print('bone_parents=%r root_bone=%r root_parent_bone=%r' % (bone_parents,root_bone,root_parent_bone))
-            print('Error: armature %s has multiple root bones, at least %s and %s' % (armature.name, root_bone.name, root_parent_bone.name))
+            log.debug('bone_parents={!r} root_bone={!r} root_parent_bone={!r}', bone_parents, root_bone, root_parent_bone)
+            log.error('armature {} has multiple root bones, at least {} and {}', armature.name, root_bone.name, root_parent_bone.name)
         root_bone = root_parent_bone
         
         # preserve ordering from armature
@@ -90,6 +95,7 @@ def order_bones(armature):
     return root_bone, bones_ordered
 
 def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, armatures):
+    log = getLogger('anim')
 
     # user_ variables store parameters (potentially) used by the script and to be restored later
     user_frame_current = scene.frame_current
@@ -99,7 +105,7 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
     scene_fps = scene.render.fps / scene.render.fps_base
     if scene_fps != 20:
         # 421todo better error/warning reporting
-        print('Warning: animations are being viewed at %.1f fps, but will be used at 20 fps' % scene_fps)
+        log.warning('animations are being viewed at {:.1f} fps (change this in render settings), but will be used at 20 fps', scene_fps)
     
     for armature, armature_actions in armatures:
         if armature.animation_data:
@@ -109,7 +115,7 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
         
         if not bones_ordered:
             # 421todo abort?
-            print('Error: armature %s has no bones' % armature.name)
+            log.error('armature {} has no bones', armature.name)
         
         if file_write_skel:
             write_skeleton(file_write_skel, global_matrix, armature, bones_ordered)
@@ -134,6 +140,7 @@ def write_animations(file_write_anim, scene, global_matrix, armature, root_bone,
     fw('\n')
 
 def write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, action, frame_start, frame_count):
+    log = getLogger('anim')
     global_matrix3 = global_matrix.to_3x3()
     global_matrix3_inv = global_matrix3.inverted()
     
@@ -152,12 +159,12 @@ def write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, a
     # 421todo some of these warnings may be useless
     # 421todo figure out how to automatically solve the issues
     if armature.location != mathutils.Vector((0,0,0)):
-        print('Warning: origin of armature %s %r is not world origin (0,0,0), in-game results may vary' % (armature.name, armature.location))
+        log.warning('origin of armature {} {!r} is not world origin (0,0,0), in-game results may vary', armature.name, armature.location)
     for child in armature.children:
         if child.location != armature.location:
-            print('Warning: origins of object %s %r and parent armature %s %r mismatch, in-game results may vary' % (child.name, child.location, armature.name, armature.location))
+            log.warning('origins of object {} {!r} and parent armature {} {!r} mismatch, in-game results may vary', child.name, child.location, armature.name, armature.location)
         if child.location != mathutils.Vector((0,0,0)):
-            print('Warning: origin of object %s %r (parent armature %s) is not world origin (0,0,0), in-game results may vary' % (child.name, child.location, armature.name))
+            log.warning('origin of object {} {!r} (parent armature {}) is not world origin (0,0,0), in-game results may vary', child.name, child.location, armature.name)
     
     for frame_current_offset in range(frame_count):
         frame_current = frame_start + frame_current_offset

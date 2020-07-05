@@ -1,7 +1,8 @@
 import bpy
 import mathutils
 import re
-import traceback
+
+from .logging_util import getLogger
 
 """
 useful reference for UI
@@ -393,6 +394,7 @@ OBJEX_NodeSocket_CombinerInput.input_flag = bpy.props.EnumProperty(
 """
 def input_flag_list_choose_get(variable):
     def input_flag_list_choose(self, context):
+        log = getLogger('interface')
         input_flags_prop_name = 'input_flags_%s_%s' % (self.node['cycle'], variable)
         flag = getattr(self, input_flags_prop_name)
         if flag == '_':
@@ -404,10 +406,10 @@ def input_flag_list_choose_get(variable):
                 if s.bl_idname == 'OBJEX_NodeSocket_CombinerOutput':
                     if flag == (s.flagColorCycle if self.node['cycle'] == CST.CYCLE_COLOR else s.flagAlphaCycle):
                         if matching_socket:
-                            print('Found several sockets for flag', flag, matching_socket, s)
+                            log.error('Found several sockets for flag {}: {!r} {!r}', flag, matching_socket, s)
                         matching_socket = s
         if not matching_socket:
-            print('Did not find any socket for flag', flag)
+            log.error('Did not find any socket for flag {}', flag)
         while self.links:
             tree.links.remove(self.links[0])
         tree.links.new(matching_socket, self)
@@ -1007,7 +1009,7 @@ class OBJEX_OT_material_init(bpy.types.Operator):
 # properties and non-node UI
 
 def material_updated_my_int(self, context):
-    print('my_int -> %d' % context.material.objex_bonus.my_int)
+    log.info('my_int -> {:d}', context.material.objex_bonus.my_int)
 
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
@@ -1232,12 +1234,12 @@ classes = (
 )
 
 def register_interface():
+    log = getLogger('interface')
     for clazz in classes:
         try:
             bpy.utils.register_class(clazz)
         except:
-            print('Error registering', clazz)
-            traceback.print_exc()
+            log.exception('Failed to register {!r}', clazz)
             raise
     """
     OBJEX_NodeSocketInterface_UVpipe_WrapU = type(
@@ -1285,5 +1287,4 @@ def unregister_interface():
         try:
             bpy.utils.unregister_class(clazz)
         except:
-            print('Error unregistering', clazz)
-            traceback.print_exc()
+            log.exception('Failed to unregister {!r}', clazz)

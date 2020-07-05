@@ -36,6 +36,7 @@ from progress_report import ProgressReport, ProgressReportSubstep
 import json
 
 from . import export_objex_anim
+from .logging_util import getLogger
 
 
 # 421todo this is the best easiest method I found, is it robust enough?
@@ -105,6 +106,7 @@ class ObjexWriter():
     }
     
     def __init__(self, context):
+        self.log = getLogger('ObjexWriter')
         self.context = context
         self.objects = []
         self.options = ObjexWriter.default_options.copy()
@@ -225,6 +227,7 @@ class ObjexWriter():
         return loops_to_vertex_colors, vc_unique_count
     
     def write_object(self, progress, ob, ob_mat):
+        log = self.log
         fw = self.fw_objex
         scene = self.context.scene
         
@@ -292,7 +295,7 @@ class ObjexWriter():
             -> 2 checkboxes? first "always apply object transform when writing mesh data of an animated mesh" (default unchecked) if unchecked 2nd appears "apply object transform to animations instead" (default checked)
             """
             if self.options['EXPORT_ANIM'] and ob.find_armature():
-                print('Writing mesh data for %s in object space as it seems animated' % ob.name)
+                log.info('Writing mesh data for {} in object space as it seems animated', ob.name)
                 me.transform(self.options['GLOBAL_MATRIX'])
             else:
                 me.transform(self.options['GLOBAL_MATRIX'] * ob_mat)
@@ -585,6 +588,7 @@ class ObjexWriter():
         It loops through objects, writing each to .objex (with the write_object method), and collecting materials/armatures/animations as it goes.
         Once the .objex is finished being written, write_mtl is called to write the .mtl and same thing with write_anim which writes .anim and itself calls .skel which writes .skel
         """
+        log = self.log
         self.filepath = filepath
         with ProgressReport(self.context.window_manager) as progress:
             scene = self.context.scene
@@ -631,13 +635,13 @@ class ObjexWriter():
                         obs = [(ob_main, ob_main.matrix_world)]
                         if ob_main.dupli_type != 'NONE':
                             # XXX
-                            print('creating dupli_list on', ob_main.name)
+                            log.info('creating dupli_list on {}', ob_main.name)
                             ob_main.dupli_list_create(scene)
 
                             obs += [(dob.object, dob.matrix) for dob in ob_main.dupli_list]
 
-                            # XXX debug print
-                            print(ob_main.name, 'has', len(obs) - 1, 'dupli children')
+                            # XXX
+                            log.debug('{} has {:d} dupli children', ob_main.name, len(obs) - 1)
 
                         subprogress1.enter_substeps(len(obs))
                         for ob, ob_mat in obs:
@@ -663,7 +667,7 @@ class ObjexWriter():
 
                 # save gathered skeletons and animations
                 if self.options['EXPORT_SKEL']:
-                    print('now exporting skeletons')
+                    log.info('now exporting skeletons')
                     skelfile = None
                     animfile = None
                     try:
@@ -671,7 +675,7 @@ class ObjexWriter():
                         skelfile_write = skelfile.write
                         skelfile_write(self.export_id_line)
                         if self.options['EXPORT_ANIM']:
-                            print(' ... and animations')
+                            log.info(' ... and animations')
                             animfile = open(self.filepath_anim, "w", encoding="utf8", newline="\n")
                             animfile_write = animfile.write
                             animfile_write(self.export_id_line)
@@ -692,6 +696,7 @@ class ObjexWriter():
 
 class ObjexMaterialNodeTreeExplorer():
     def __init__(self, tree):
+        self.log = getLogger('ObjexMaterialNodeTreeExplorer')
         self.tree = tree
         self.colorCycles = []
         self.alphaCycles = []
@@ -700,8 +705,9 @@ class ObjexMaterialNodeTreeExplorer():
         self.defaulFlagAlphaCycle = 'G_ACMUX_0'
 
     def buildFromColorCycle(self, cc):
+        log = self.log
         if cc in (cc for cc,flags,prev_alpha_cycle_node in self.colorCycles):
-            print('Looping: already visited color cycle node', cc)
+            log.error('Looping: already visited color cycle node {!r}', cc)
             return
         flags = []
         prev_color_cycle_node = None
@@ -712,33 +718,34 @@ class ObjexMaterialNodeTreeExplorer():
                 continue
             socket = cc.inputs[i].links[0].from_socket
             if socket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
-                print('What is this socket? not combiner output!', socket)
+                log.error('What is this socket? not combiner output! {!r}', socket)
             flag = socket.flagColorCycle
             if not flag:
-                print('Unsupported flag', i, flag, cc)
+                log.error('Unsupported flag {} for input {} of {!r}', flag, 'ABCD'[i], cc)
             flags.append(flag)
             if flag == 'G_CCMUX_COMBINED':
                 if prev_color_cycle_node and prev_color_cycle_node != socket.node:
-                    print('Different color cycle nodes used for combine', prev_color_cycle_node, socket.node)
+                    log.error('Different color cycle nodes used for combine {!r} {!r}', prev_color_cycle_node, socket.node)
                 prev_color_cycle_node = socket.node
             elif flag == 'G_CCMUX_COMBINED_ALPHA':
                 if socket.node not in self.alphaCycles:
-                    print('Color cycle is combining alpha from alpha cycle node which was not used in alpha cycles', cc, ac)
+                    log.error('Color cycle {!r} is combining alpha from alpha cycle node {!r} which was not used in alpha cycles', cc, ac)
                 if prev_alpha_cycle_node and prev_alpha_cycle_node != socket.node:
-                    print('Different alpha cycle nodes used for combine', prev_alpha_cycle_node, socket.node)
+                    log.error('Different alpha cycle nodes used for combine {!r} {!r}', prev_alpha_cycle_node, socket.node)
                 prev_alpha_cycle_node = socket.node
             else:
                 storedFlagSocket = self.flagSockets.get(flag)
                 if storedFlagSocket and socket != storedFlagSocket:
-                    print('Flag is used by two different sockets!', flag, storedFlagSocket, socket)
+                    log.error('Flag {} is used by two different sockets {!r} {!r}', flag, storedFlagSocket, socket)
                 self.flagSockets[flag] = socket
         self.colorCycles.append((cc, flags, prev_alpha_cycle_node))
         if prev_color_cycle_node:
             self.buildFromColorCycle(prev_color_cycle_node)
 
     def buildFromAlphaCycle(self, ac):
+        log = self.log
         if ac in (ac for ac,flags in self.alphaCycles):
-            print('Looping: already visited alpha cycle node', ac)
+            log.error('Looping: already visited alpha cycle node {!r}', ac)
             return
         flags = []
         prev_alpha_cycle_node = None
@@ -748,25 +755,26 @@ class ObjexMaterialNodeTreeExplorer():
                 continue
             socket = ac.inputs[i].links[0].from_socket
             if socket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
-                print('What is this socket? not combiner output!', socket)
+                log.error('What is this socket? not combiner output! {!r}', socket)
             flag = socket.flagAlphaCycle
             if not flag:
-                print('Unsupported flag', i, flag, ac)
+                log.error('Unsupported flag {} for input {} of {!r}', flag, 'ABCD'[i], ac)
             flags.append(flag)
             if flag == 'G_ACMUX_COMBINED':
                 if prev_alpha_cycle_node and prev_alpha_cycle_node != socket.node:
-                    print('Different cycle nodes used for combine', prev_alpha_cycle_node, socket.node)
+                    log.error('Different cycle nodes used for combine {!r} {!r}', prev_alpha_cycle_node, socket.node)
                 prev_alpha_cycle_node = socket.node
             else:
                 storedFlagSocket = self.flagSockets.get(flag)
                 if storedFlagSocket and socket != storedFlagSocket:
-                    print('Flag is used by two different sockets!', flag, storedFlagSocket, socket)
+                    log.error('Flag {} is used by two different sockets {!r} {!r}', flag, storedFlagSocket, socket)
                 self.flagSockets[flag] = socket
         self.alphaCycles.append((ac, flags))
         if prev_alpha_cycle_node:
             self.buildFromAlphaCycle(prev_alpha_cycle_node)
 
     def buildCyclesFromOutput(self, output):
+        log = self.log
         # 421todo a lot of checks
         # build alpha cycles first because color cycle 1 may use alpha cycle 0
         self.buildFromAlphaCycle(output.inputs[1].links[0].from_node)
@@ -775,32 +783,34 @@ class ObjexMaterialNodeTreeExplorer():
         self.colorCycles.reverse()
         self.alphaCycles.reverse()
         if len(self.colorCycles) != len(self.alphaCycles):
-            print('Not the same amount of color and alpha cycles', len(self.colorCycles), len(self.alphaCycles))
+            log.error('Not the same amount of color ({:d}) and alpha ({:d}) cycles', len(self.colorCycles), len(self.alphaCycles))
         flags = []
         for i in range(len(self.colorCycles)):
             cc,colorFlags,prev_alpha_cycle_node = self.colorCycles[i]
             ac,alphaFlags = self.alphaCycles[i]
             if i == 0 and prev_alpha_cycle_node:
-                print('First color cycle node is combining with alpha cycle', cc, prev_alpha_cycle_node)
+                log.error('First color cycle node {!r} is combining with alpha cycle {!r} (but the first cycle cannot use combine)', cc, prev_alpha_cycle_node)
             if i > 0 and prev_alpha_cycle_node and prev_alpha_cycle_node != self.alphaCycles[i-1][0]:
-                print('Color cycle %d combines non-previous alpha cycle' % i, cc, self.alphaCycles[i-1][0], prev_alpha_cycle_node)
+                log.error('Color cycle {:d} {!r} combines non-previous alpha cycle {!r} instead of previous alpha cycle (based on order) {!r}', i, cc, self.alphaCycles[i-1][0], prev_alpha_cycle_node)
             flags += colorFlags
             flags += alphaFlags
         self.combinerFlags = flags
 
     def build(self):
+        log = self.log
         output = None
         for n in self.tree.nodes:
             if n.bl_idname == 'ShaderNodeOutput':
                 if output:
-                    print('Several output nodes found', output, n)
+                    log.error('Several output nodes found {!r} {!r}', output, n)
                 output = n
         if not output:
-            print('No Output node found')
+            log.error('No Output node found')
         self.buildCyclesFromOutput(output)
         self.buildCombinerInputs()
 
     def buildCombinerInputs(self):
+        log = self.log
         inputs = {
             # color registers
             'primitiveRGB': (('G_CCMUX_PRIMITIVE',),self.buildColorInputRGB),
@@ -817,14 +827,14 @@ class ObjexMaterialNodeTreeExplorer():
             'shadeA': (('G_CCMUX_SHADE_ALPHA','G_ACMUX_SHADE',),self.buildShadingDataFromAlphaSocket),
         }
         self.data = {}
-        print('per-flag used sockets', self.flagSockets)
+        log.debug('per-flag used sockets: {!r}', self.flagSockets)
         for k,(flags,socketReader) in inputs.items():
             sockets = set(self.flagSockets[flag] for flag in flags if flag in self.flagSockets)
             if len(sockets) > 1:
-                print('Different sockets used by different flags which should refer to the same data', k, sockets)
+                log.error('Different sockets {!r} are used by different flags {!r} but these flags should refer to the same data {}', sockets, flags, k)
             if sockets:
                 socket = next(iter(sockets))
-                print('getting %s from' % k, socket)
+                log.debug('getting {} from {!r}', k, socket)
                 socketReader(k, socket)
         # FIXME
         def mergeRGBA(rgb, a):
@@ -835,7 +845,7 @@ class ObjexMaterialNodeTreeExplorer():
             return (1,1,1,a)
         def mergeSame(d1, d2):
             if d1 != d2:
-                raise ValueError('Merging mismatching data\nd1 = %r\nd2 = %r' % (d1,d2))
+                raise ValueError('Merging mismatching data\nd1 = {!r}\nd2 = {!r}'.format(d1,d2))
             return d1
         id = lambda x:x
         merge = {
@@ -847,20 +857,17 @@ class ObjexMaterialNodeTreeExplorer():
             'shade': (('shadeRGB','shadeA',),mergeSame,id,id),
         }
         data = self.data
-        print('data before merge', data)
+        log.debug('data before merge: {!r}', data)
         mergedData = {}
         # FIXME ugly
         for k2,(ks,dataMerger,dataMerger1,dataMerger2) in merge.items():
             if ks[0] in data:
                 if ks[1] in data:
                     try:
-                        print('Merging %s, %s into %s' % (ks[0], ks[1], k2))
-                        print(data[ks[0]])
-                        print(data[ks[1]])
                         mergedData[k2] = dataMerger(data[ks[0]], data[ks[1]])
+                        log.debug('Merged {} {!r} and {} {!r} into {} {!r}', ks[0], data[ks[0]], ks[1], data[ks[1]], k2, mergedData[k2])
                     except ValueError as e:
-                        print('Could not merge %s, %s into %s' % (ks[0], ks[1], k2))
-                        print(e)
+                        log.exception('Could not merge {} {!r} and {} {!r} into {}', ks[0], data[ks[0]], ks[1], data[ks[1]], k2)
                 else:
                     mergedData[k2] = dataMerger1(data[ks[0]])
             else:
@@ -870,22 +877,24 @@ class ObjexMaterialNodeTreeExplorer():
         # FIXME uv_layer must be merged from texel01 data
 
     def buildColorInputRGB(self, k, socket):
+        log = self.log
         # OBJEX_NodeSocket_RGBA_Color <- OBJEX_NodeSocket_CombinerInput in node group OBJEX_rgba_pipe
         socket = socket.node.inputs[0]
         # should be linked to a ShaderNodeRGB node
         if socket.links:
             socket = socket.links[0].from_socket
             if socket.node.bl_idname != 'ShaderNodeRGB':
-                print(k, 'socket is not linked to ShaderNodeRGB, instead', socket.node)
+                log.error('(data key: {}) socket {!r} is not linked to a ShaderNodeRGB node, instead it is linked to {!r} ({})', k, socket, socket.node, socket.node.bl_idname)
         else:
-            print(k, 'socket is not linked (it should, to a ShaderNodeRGB)', socket)
+            log.error('(data key: {}) socket {!r} is not linked (it should, to a ShaderNodeRGB node)', k, socket)
         self.data[k] = socket.default_value
 
     def buildColorInputA(self, k, socket):
+        log = self.log
         # NodeSocketFloat <- OBJEX_NodeSocket_CombinerInput in node group OBJEX_rgba_pipe
         socket = socket.node.inputs[1]
         if socket.links:
-            print(k, 'alpha socket shouldnt be linked', socket)
+            log.error('(data key: {}) alpha socket {!r} should not be linked', k, socket)
         self.data[k] = socket.default_value
 
     def buildTexelDataFromColorSocket(self, k, socket):
@@ -931,6 +940,7 @@ class ObjexMaterialNodeTreeExplorer():
 
 # fixme this is going to end up finding uv/vcolor layers from node (or default to active I guess), if several layers, may write the wrong layer in .objex ... should call write_mtl and get uvs/vcolor data this way before writing the .objex?
 def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
+    log = getLogger('export_objex')
 
     source_dir = os.path.dirname(bpy.data.filepath)
     dest_dir = os.path.dirname(filepath)
@@ -987,11 +997,11 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
             objex_data = material.objex_bonus
             if objex_data.is_objex_material:
                 if not material.use_nodes:
-                    print('Material is_objex_material but not use_nodes', material)
+                    log.error('Material {!r} is_objex_material but not use_nodes (was "Use Nodes" unchecked after adding objex nodes to it?)', material)
                 explorer = ObjexMaterialNodeTreeExplorer(material.node_tree)
                 explorer.build()
                 if len(explorer.combinerFlags) != 16:
-                    print('Unexpected combiner flags amount (are both cycles used?)', len(explorer.combinerFlags), explorer.combinerFlags)
+                    log.error('Unexpected combiner flags amount {:d} (are both cycles used?), flags: {!r}', len(explorer.combinerFlags), explorer.combinerFlags)
                 data = explorer.data
                 texel0data = texel1data = None
                 if 'texel0' in data:
