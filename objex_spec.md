@@ -36,6 +36,17 @@ being updated properly due to write permissions or
 plugin errors)
 - `exportid` must be used before the `*lib` directives
 
+#### `softinfo`
+
+`softinfo one_tag string`
+- store info about the software used or the file
+from which the objex was exported
+- currently only `animation_framerate` is supported;
+this is the preview framerate that is set in blender;
+if the `string` part is not `20`, zzconvert writes a
+warning that the converted animations may run at a
+different speed in-game than expected
+
 #### `useskel`
 
 `useskel name` has been introduced for specifying
