@@ -963,7 +963,7 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
         # 421fixme is this still expected behavior?
         texture_names = {}
 
-        def writeTexture(image, name, texture=None):
+        def writeTexture(image, name):
             image_filepath = image.filepath
             texture_name = texture_names.get(image_filepath)
             if not texture_name:
@@ -973,31 +973,30 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
                                                               path_mode, "", copy_set, image.library)
                 fw('map %s\n' % filepath)
                 texture_names[image_filepath] = texture_name
-                if texture:
-                    # texture objex data
-                    tod = texture.objex_bonus
-                    if tod.pointer:
-                        fw('pointer %s%s\n' % (
-                            '' if tod.pointer.startswith('0x') else '0x',
-                            tod.pointer
-                        ))
-                    if tod.format != 'AUTO':
-                        # zzconvert requires lower case format name
-                        fw('format %s\n' % tod.format.lower())
-                        if tod.format[:2] == 'CI' and tod.palette != 0:
-                            fw('palette %d\n' % tod.palette)
-                    if tod.priority != 0:
-                        fw('priority %f\n' % tod.priority)
-                    if tod.force_write == 'FORCE_WRITE':
-                        fw('forcewrite\n')
-                    elif tod.force_write == 'DO_NOT_WRITE':
-                        fw('forcenowrite\n')
-                    if tod.texture_bank:
-                        fw('texturebank %s\n'
-                            % bpy_extras.io_utils.path_reference(
-                                tod.texture_bank, source_dir, dest_dir,
-                                path_mode, '', copy_set
-                        ))
+                # texture objex data
+                tod = image.objex_bonus
+                if tod.pointer:
+                    fw('pointer %s%s\n' % (
+                        '' if tod.pointer.startswith('0x') else '0x',
+                        tod.pointer
+                    ))
+                if tod.format != 'AUTO':
+                    # zzconvert requires lower case format name
+                    fw('format %s\n' % tod.format.lower())
+                    if tod.format[:2] == 'CI' and tod.palette != 0:
+                        fw('palette %d\n' % tod.palette)
+                if tod.priority != 0:
+                    fw('priority %f\n' % tod.priority)
+                if tod.force_write == 'FORCE_WRITE':
+                    fw('forcewrite\n')
+                elif tod.force_write == 'DO_NOT_WRITE':
+                    fw('forcenowrite\n')
+                if tod.texture_bank:
+                    fw('texturebank %s\n'
+                        % bpy_extras.io_utils.path_reference(
+                            tod.texture_bank, source_dir, dest_dir,
+                            path_mode, '', copy_set
+                    ))
 
         for material_name, material, face_img in mtl_dict.values():
             objex_data = material.objex_bonus if material else None
@@ -1014,11 +1013,11 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
                     texel0data = data['texel0']
                     # todo check texture.type == 'IMAGE'
                     tex = texel0data['texture']
-                    writeTexture(tex.image, tex.name, tex)
+                    writeTexture(tex.image, tex.name)
                 if 'texel1' in data:
                     texel1data = data['texel1']
                     tex = texel1data['texture']
-                    writeTexture(tex.image, tex.name, tex)
+                    writeTexture(tex.image, tex.name)
                 fw('newmtl %s\n' % material.name)
                 if texel0data:
                     fw('texel0 %s\n' % texel0data['texture'].name)
