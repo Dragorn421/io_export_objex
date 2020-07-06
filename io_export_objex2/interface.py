@@ -1174,7 +1174,7 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
             description='The address that should be used when referencing this texture',
             default=''
         )
-    priority = bpy.props.FloatProperty(
+    priority = bpy.props.IntProperty(
             name='Priority',
             description='Textures with higher priority are written first',
             default=0
