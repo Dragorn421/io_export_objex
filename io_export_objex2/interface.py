@@ -1024,7 +1024,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
                 ('OPA','Opaque','Opaque surfaces (OPA)',1),
                 ('INTER','Interpenetrating','Interpenetrating surfaces',2),
                 ('XLU','Translucent','Translucent surfaces (XLU)',3),
-                ('DECA','Decal','Decal surfaces (eg paths)',4),
+                ('DEC','Decal','Decal surfaces (eg paths)',4),
                 ('AUTO','Auto','Default to Translucent (XLU) if material uses transparency, or Opaque (OPA) otherwise',5),
             ],
             name='zmode',
