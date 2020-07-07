@@ -183,6 +183,17 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             default=export_objex.ObjexWriter.default_options['EXPORT_POLYGROUPS'],
             )
 
+    export_packed_images = BoolProperty(
+            name='Export packed images',
+            description='Save packed images outside the blend file',
+            default=export_objex.ObjexWriter.default_options['EXPORT_PACKED_IMAGES'],
+            )
+    export_packed_images_dir = StringProperty(
+            name='Export packed images directory',
+            description='Where to save packed images',
+            default=export_objex.ObjexWriter.default_options['EXPORT_PACKED_IMAGES_DIR'],
+            )
+
     keep_vertex_order = BoolProperty(
             name='Keep Vertex Order',
             description='',

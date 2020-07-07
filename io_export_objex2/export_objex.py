@@ -101,6 +101,8 @@ class ObjexWriter():
         'APPLY_MODIFIERS_RENDER': False,
         'KEEP_VERTEX_ORDER': False,
         'EXPORT_POLYGROUPS': False,
+        'EXPORT_PACKED_IMAGES': False,
+        'EXPORT_PACKED_IMAGES_DIR': '//objex_textures',
         'GLOBAL_MATRIX': None,
         'PATH_MODE': 'AUTO'
     }
@@ -666,7 +668,7 @@ class ObjexWriter():
                 if self.options['EXPORT_MTL']:
                     def append_header_mtl(fw_mtl):
                         fw_mtl(self.export_id_line)
-                    write_mtl(scene, self.filepath_mtl, append_header_mtl, self.options['PATH_MODE'], copy_set, self.mtl_dict)
+                    write_mtl(scene, self.filepath_mtl, append_header_mtl, self.options, copy_set, self.mtl_dict)
                 
                 subprogress1.step("Finished exporting materials, now exporting skeletons/animations")
 
@@ -944,11 +946,14 @@ class ObjexMaterialNodeTreeExplorer():
             self.data[k] = {'type':'normals'}
 
 # fixme this is going to end up finding uv/vcolor layers from node (or default to active I guess), if several layers, may write the wrong layer in .objex ... should call write_mtl and get uvs/vcolor data this way before writing the .objex?
-def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
+def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
     log = getLogger('export_objex')
 
     source_dir = os.path.dirname(bpy.data.filepath)
     dest_dir = os.path.dirname(filepath)
+    path_mode = options['PATH_MODE']
+    export_packed_images = options['EXPORT_PACKED_IMAGES']
+    export_packed_images_dir = options['EXPORT_PACKED_IMAGES_DIR']
 
     with open(filepath, "w", encoding="utf8", newline="\n") as f:
         fw = f.write
@@ -969,6 +974,15 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
             if not texture_name:
                 texture_name = name
                 fw('newtex %s\n' % texture_name)
+                if image.packed_files:
+                    if export_packed_images:
+                        # save externally a packed image
+                        image_filepath = '%s/%s' % (export_packed_images_dir, texture_name)
+                        image_filepath = bpy.path.abspath(image_filepath)
+                        log.info('Saving packed image {!r} to {}', image, image_filepath)
+                        image.save_render(image_filepath)
+                    else:
+                        log.warning('Image {!r} is packed, assuming it exists at {}', image, image_filepath)
                 filepath = bpy_extras.io_utils.path_reference(image_filepath, source_dir, dest_dir,
                                                               path_mode, "", copy_set, image.library)
                 fw('map %s\n' % filepath)
@@ -1221,6 +1235,8 @@ def save(context,
          use_mesh_modifiers_render=None,
          keep_vertex_order=None,
          use_vertex_groups=None,
+         export_packed_images=None,
+         export_packed_images_dir=None,
          use_selection=None,
          global_matrix=None,
          path_mode=None
@@ -1243,6 +1259,8 @@ def save(context,
         'APPLY_MODIFIERS_RENDER':use_mesh_modifiers_render,
         'KEEP_VERTEX_ORDER':keep_vertex_order,
         'EXPORT_POLYGROUPS':use_vertex_groups,
+        'EXPORT_PACKED_IMAGES':export_packed_images,
+        'EXPORT_PACKED_IMAGES_DIR':export_packed_images_dir,
         'GLOBAL_MATRIX':global_matrix,
         'PATH_MODE':path_mode
     })
