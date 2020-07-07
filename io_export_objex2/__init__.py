@@ -257,8 +257,8 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
         
         keywords['global_matrix'] = global_matrix
 
+        log = logging_util.getLogger('OBJEX_OT_export')
         try:
-            log = logging_util.getLogger('OBJEX_OT_export')
             logging_util.setConsoleLevel(self.logging_level_console)
             if self.logging_file_enable:
                 logfile_path = self.logging_file_path
@@ -293,6 +293,9 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             progress_report.print = progress_report_print
 
             return export_objex.save(context, **keywords)
+        except:
+            log.exception('Uncaught exception')
+            raise
         finally:
             progress_report.print = print
             logging_util.resetLoggingSettings()
