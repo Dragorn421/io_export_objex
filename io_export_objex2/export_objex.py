@@ -1044,7 +1044,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     texel1data = data['texel1']
                     tex = texel1data['texture']
                     texel1data['texture_name'] = writeTexture(tex.image, tex.name)
-                fw('newmtl %s\n' % material.name)
+                fw('newmtl %s\n' % material_name)
                 if texel0data:
                     fw('texel0 %s\n' % texel0data['texture_name'])
                 if texel1data:
