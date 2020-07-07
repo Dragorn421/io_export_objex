@@ -973,6 +973,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             texture_name = texture_names.get(image_filepath)
             if not texture_name:
                 texture_name = name
+                texture_names[image_filepath] = texture_name
                 fw('newtex %s\n' % texture_name)
                 if image.packed_files:
                     if export_packed_images:
@@ -986,7 +987,6 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 filepath = bpy_extras.io_utils.path_reference(image_filepath, source_dir, dest_dir,
                                                               path_mode, "", copy_set, image.library)
                 fw('map %s\n' % filepath)
-                texture_names[image_filepath] = texture_name
                 # texture objex data
                 tod = image.objex_bonus
                 if tod.pointer:
