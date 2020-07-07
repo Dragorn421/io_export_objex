@@ -1025,6 +1025,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             return texture_name
 
         for material_name, material, face_img in mtl_dict.values():
+            log.trace('Writing material_name={!r} material={!r} face_img={!r}', material_name, material, face_img)
             objex_data = material.objex_bonus if material else None
             if objex_data and objex_data.is_objex_material:
                 if not material.use_nodes:
