@@ -997,6 +997,11 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
                             tod.texture_bank, source_dir, dest_dir,
                             path_mode, '', copy_set
                     ))
+            else:
+                log.trace('Skipped writing texture {} using file {}', texture_name, image_filepath)
+            # texture_name is input name if new texture,
+            # or the name used for writing the image path
+            return texture_name
 
         for material_name, material, face_img in mtl_dict.values():
             objex_data = material.objex_bonus if material else None
@@ -1013,16 +1018,16 @@ def write_mtl(scene, filepath, append_header, path_mode, copy_set, mtl_dict):
                     texel0data = data['texel0']
                     # todo check texture.type == 'IMAGE'
                     tex = texel0data['texture']
-                    writeTexture(tex.image, tex.name)
+                    texel0data['texture_name'] = writeTexture(tex.image, tex.name)
                 if 'texel1' in data:
                     texel1data = data['texel1']
                     tex = texel1data['texture']
-                    writeTexture(tex.image, tex.name)
+                    texel1data['texture_name'] = writeTexture(tex.image, tex.name)
                 fw('newmtl %s\n' % material.name)
                 if texel0data:
-                    fw('texel0 %s\n' % texel0data['texture'].name)
+                    fw('texel0 %s\n' % texel0data['texture_name'])
                 if texel1data:
-                    fw('texel1 %s\n' % texel1data['texture'].name)
+                    fw('texel1 %s\n' % texel1data['texture_name'])
                 scaleS = max(0, min(0xFFFF/0x10000, objex_data.scaleS))
                 scaleT = max(0, min(0xFFFF/0x10000, objex_data.scaleT))
                 fw('gbi gsSPTexture(qu016(%f), qu016(%f), 0, G_TX_RENDERTILE, G_ON)\n' % (scaleS, scaleT))
@@ -1184,7 +1189,7 @@ count  P              A              M              B            comment
 
                 if image:
                     texture_name = 'texture_%d' % len(texture_names)
-                    writeTexture(image, texture_name)
+                    texture_name = writeTexture(image, texture_name)
                 else:
                     texture_name = None
                 fw('newmtl %s\n' % material_name)
