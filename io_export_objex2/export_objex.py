@@ -973,6 +973,13 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             texture_name = texture_names.get(image_filepath)
             if not texture_name:
                 texture_name = name
+                # make sure texture_name is not already used
+                i = 0
+                while texture_name in texture_names.values():
+                    i += 1
+                    texture_name = '%s_%d' % (name, i)
+                if i != 0:
+                    log.debug('Texture name {} was already used, using {} instead', name, texture_name)
                 texture_names[image_filepath] = texture_name
                 fw('newtex %s\n' % texture_name)
                 if image.packed_files:
