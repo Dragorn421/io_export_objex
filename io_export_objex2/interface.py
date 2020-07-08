@@ -1019,6 +1019,18 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Culls the back face of geometry',
             default=True
         )
+    write_primitive_color = bpy.props.BoolProperty(
+            name='Set prim color',
+            description='Set the primitive color in the generated display list (macro gsDPSetPrimColor).\n'
+                        'Disabling this can for example allow to set a dynamic primitive color from code or from another display list',
+            default=True
+        )
+    write_environment_color = bpy.props.BoolProperty(
+            name='Set env color',
+            description='Same as "Set prim color" for the environment color (macro gsDPSetEnvColor)',
+            default=True
+        )
+
     rendermode_zmode = bpy.props.EnumProperty(
             items=[
                 ('OPA','Opaque','Opaque surfaces (OPA)',1),
@@ -1118,6 +1130,8 @@ class OBJEX_PT_material(bpy.types.Panel):
         # 421todo maybe not show the init button if init has already been done
         self.layout.operator('OBJEX_OT_material_init')
         self.layout.prop(data, 'backface_culling')
+        self.layout.prop(data, 'write_primitive_color')
+        self.layout.prop(data, 'write_environment_color')
         box = self.layout.box()
         box.label(text='Render mode')
         box.prop(data, 'rendermode_zmode')

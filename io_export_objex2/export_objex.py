@@ -1147,9 +1147,9 @@ count  P              A              M              B            comment
                     ) # 421fixme ?
                 def rgba32(rgba):
                     return tuple(int(c*255) for c in rgba)
-                if 'primitive' in data:
+                if 'primitive' in data and objex_data.write_primitive_color:
                     fw('gbi gsDPSetPrimColor(0, qu08(0.5), %d, %d, %d, %d)\n' % rgba32(data['primitive'])) # 421fixme minlevel, lodfrac
-                if 'environment' in data:
+                if 'environment' in data and objex_data.write_environment_color:
                     fw('gbi gsDPSetEnvColor(%d, %d, %d, %d)\n' % rgba32(data['environment']))
                 # 421todo more geometry mode flags
                 geometryModeFlagsClear = []
