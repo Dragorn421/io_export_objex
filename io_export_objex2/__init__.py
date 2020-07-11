@@ -168,11 +168,6 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             description='Convert all faces to triangles',
             default=export_objex.ObjexWriter.default_options['TRIANGULATE'],
             )
-    use_vertex_groups = BoolProperty(
-            name='Polygroups',
-            description='',
-            default=export_objex.ObjexWriter.default_options['EXPORT_POLYGROUPS'],
-            )
 
     export_packed_images = BoolProperty(
             name='Export packed images',

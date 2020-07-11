@@ -59,26 +59,6 @@ def roundVect3d(v, digits):
 def roundVect2d(v, digits):
     return round(v[0], digits), round(v[1], digits)
 
-def findFaceMainVertexGroup(face, vWeightMap):
-    """
-    Searches the vertexDict to see what groups is assigned to a given face.
-    We use a frequency system in order to sort out the name because a given vetex can
-    belong to two or more groups at the same time. To find the right name for the face
-    we list all the possible vertex group names with their frequency and then sort by
-    frequency in descend order. The top element is the one shared by the highest number
-    of vertices is the face's group
-    """
-    weightDict = {}
-    for vert_index in face.vertices:
-        vWeights = vWeightMap[vert_index]
-        for vGroupName, weight in vWeights:
-            weightDict[vGroupName] = weightDict.get(vGroupName, 0.0) + weight
-
-    if weightDict:
-        return max((weight, vGroupName) for vGroupName, weight in weightDict.items())[1]
-    else:
-        return '(null)'
-
 class ObjexWriter():
     default_options = {
         'TRIANGULATE': True,
@@ -95,7 +75,6 @@ class ObjexWriter():
         'APPLY_MODIFIERS': True,
         'APPLY_MODIFIERS_RENDER': False,
         'KEEP_VERTEX_ORDER': False,
-        'EXPORT_POLYGROUPS': False,
         'EXPORT_PACKED_IMAGES': False,
         'EXPORT_PACKED_IMAGES_DIR': '//objex_textures',
         'GLOBAL_MATRIX': None,
@@ -391,9 +370,7 @@ class ObjexWriter():
 
             subprogress2.step()
 
-            # XXX
-            has_polygroups = self.options['EXPORT_POLYGROUPS']
-            if has_polygroups or self.options['EXPORT_WEIGHTS']:
+            if self.options['EXPORT_WEIGHTS']:
                 # Retrieve the list of vertex groups
                 vertGroupNames = ob.vertex_groups.keys()
                 vertex_groups = None
@@ -402,8 +379,6 @@ class ObjexWriter():
                     vertex_groups = [[] for _i in range(len(vertices))]
                     for v_idx, v_ls in enumerate(vertex_groups):
                         v_ls[:] = [(vertGroupNames[g.group], g.weight) for g in vertices[v_idx].groups]
-                else:
-                    has_polygroups = False
                 del vertGroupNames
 
             # Vert
@@ -474,7 +449,6 @@ class ObjexWriter():
 
             # those context_* variables are used to keep track of the last g/usemtl/s directive written, according to options
             # Set the default mat to no material and no image.
-            context_vertex_group = '' # g written if EXPORT_POLYGROUPS (has_polygroups)
             context_material_name = context_texture_name = 0  # Can never be this, so we will label a new material the first chance we get. used for usemtl directives if EXPORT_MTL
             context_smooth = None  # Will either be true or false,  set bad to force initialization switch. with EXPORT_SMOOTH_GROUPS or EXPORT_SMOOTH_GROUPS_BITFLAGS, has effects on writing the s directive
 
@@ -488,14 +462,6 @@ class ObjexWriter():
                     tface = uv_texture[f_index]
                     f_image = tface.image
 
-                # Write the vertex group
-                if has_polygroups:
-                    # find what vertext group the face belongs to
-                    vgroup_of_face = findFaceMainVertexGroup(f, vertex_groups)
-                    if vgroup_of_face != context_vertex_group:
-                        context_vertex_group = vgroup_of_face
-                        fw('g %s\n' % vgroup_of_face)
-                    del vgroup_of_face
 
                 # make current context
                 current_material_name = material_names[f_mat]
@@ -739,7 +705,6 @@ def save(context,
         'APPLY_MODIFIERS':use_mesh_modifiers,
         'APPLY_MODIFIERS_RENDER':use_mesh_modifiers_render,
         'KEEP_VERTEX_ORDER':keep_vertex_order,
-        'EXPORT_POLYGROUPS':use_vertex_groups,
         'EXPORT_PACKED_IMAGES':export_packed_images,
         'EXPORT_PACKED_IMAGES_DIR':export_packed_images_dir,
         'GLOBAL_MATRIX':global_matrix,
