@@ -1163,6 +1163,22 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             default='AUTO'
         )
 
+    standalone = bpy.props.BoolProperty(
+            name='Standalone',
+            description='Write the display list for this material once, and use 0xDE G_DL commands to branch to it every use',
+            default=False
+        )
+    empty = bpy.props.BoolProperty(
+            name='Empty',
+            description='Do not write any geometry using this material',
+            default=False
+        )
+    force_write = bpy.props.BoolProperty(
+            name='Force write',
+            description='Write this material even if it is not used',
+            default=False
+        )
+
     use_texgen = bpy.props.BoolProperty(
             name='Texgen',
             description='Generates texture coordinates at run time depending on the view',
@@ -1236,6 +1252,9 @@ class OBJEX_PT_material(bpy.types.Panel):
         if data.rendermode_blending_cycle1 == 'CUSTOM':
             for v in ('P','A','M','B'):
                 box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
+        self.layout.prop(data, 'standalone')
+        self.layout.prop(data, 'empty')
+        self.layout.prop(data, 'force_write')
         self.layout.prop(data, 'use_texgen')
         self.layout.prop(data, 'scaleS')
         self.layout.prop(data, 'scaleT')

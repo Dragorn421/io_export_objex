@@ -1055,6 +1055,14 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     tex = texel1data['texture']
                     texel1data['texture_name'] = writeTexture(tex.image, tex.name)
                 fw('newmtl %s\n' % material_name)
+                # 421todo attrib, collision/colliders
+                if objex_data.standalone:
+                    fw('standalone\n')
+                # zzconvert detects "empty." on its own, making it explicit here doesn't hurt
+                if objex_data.empty or material_name.startswith('empty.'):
+                    fw('empty\n')
+                if objex_data.force_write:
+                    fw('forcewrite\n')
                 if texel0data:
                     fw('texel0 %s\n' % texel0data['texture_name'])
                 if texel1data:
