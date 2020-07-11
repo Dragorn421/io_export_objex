@@ -1056,19 +1056,33 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 scaleT = max(0, min(0xFFFF/0x10000, objex_data.scaleT))
                 fw('gbi gsSPTexture(qu016(%f), qu016(%f), 0, G_TX_RENDERTILE, G_ON)\n' % (scaleS, scaleT))
                 fw('gbi gsDPPipeSync()\n')
-                # fixme do not hardcode flags, and what about blender settings, and G_RM_AA_ZB_OPA_SURF2 ?
-                otherModeLowerHalfFlags = [
-                    'AA_EN', # anti-aliasing ?
-                    'Z_CMP', # use zbuffer
-                    'Z_UPD', # update zbuffer
-                    'IM_RD', # ?
-                    'CVG_DST_CLAMP', # ?
-                    'ALPHA_CVG_SEL', # ?
-                ]
+                # blender settings flags
+                otherModeLowerHalfFlags = []
+                if objex_data.rendermode_blender_flag_AA_EN:
+                    otherModeLowerHalfFlags.append('AA_EN')
+                if objex_data.rendermode_blender_flag_Z_CMP:
+                    otherModeLowerHalfFlags.append('Z_CMP')
+                if objex_data.rendermode_blender_flag_Z_UPD:
+                    otherModeLowerHalfFlags.append('Z_UPD')
+                if objex_data.rendermode_blender_flag_IM_RD:
+                    otherModeLowerHalfFlags.append('IM_RD')
+                if objex_data.rendermode_blender_flag_CLR_ON_CVG:
+                    otherModeLowerHalfFlags.append('CLR_ON_CVG')
+                if objex_data.rendermode_blender_flag_CVG_DST_ == 'AUTO':
+                    otherModeLowerHalfFlags.append('CVG_DST_CLAMP')
+                else:
+                    otherModeLowerHalfFlags.append(objex_data.rendermode_blender_flag_CVG_DST_)
                 if objex_data.rendermode_zmode == 'AUTO':
                     otherModeLowerHalfFlags.append('ZMODE_XLU' if material.use_transparency else 'ZMODE_OPA')
                 else:
                     otherModeLowerHalfFlags.append('ZMODE_%s' % objex_data.rendermode_zmode)
+                if (objex_data.rendermode_blender_flag_CVG_X_ALPHA == 'YES'
+                    or (objex_data.rendermode_blender_flag_CVG_X_ALPHA == 'AUTO'
+                        and material.use_transparency)
+                ):
+                    otherModeLowerHalfFlags.append('CVG_X_ALPHA')
+                if objex_data.rendermode_blender_flag_ALPHA_CVG_SEL:
+                    otherModeLowerHalfFlags.append('ALPHA_CVG_SEL')
                 if (objex_data.rendermode_forceblending == 'YES'
                     or (objex_data.rendermode_forceblending == 'AUTO'
                         and material.use_transparency)

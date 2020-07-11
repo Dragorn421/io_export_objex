@@ -1031,6 +1031,43 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             default=True
         )
 
+    rendermode_blender_flag_AA_EN = bpy.props.BoolProperty(
+            name='AA_EN',
+            description='AA_EN\n' 'Enable anti-aliasing?',
+            default=True
+        )
+    rendermode_blender_flag_Z_CMP = bpy.props.BoolProperty(
+            name='Z_CMP',
+            description='Z_CMP\n' 'Use Z buffer',
+            default=True
+        )
+    rendermode_blender_flag_Z_UPD = bpy.props.BoolProperty(
+            name='Z_UPD',
+            description='Z_UPD\n' 'Update Z buffer',
+            default=True
+        )
+    rendermode_blender_flag_IM_RD = bpy.props.BoolProperty(
+            name='IM_RD',
+            description='IM_RD\n' '? see CloudModding wiki',
+            default=True
+        )
+    rendermode_blender_flag_CLR_ON_CVG = bpy.props.BoolProperty(
+            name='CLR_ON_CVG',
+            description='CLR_ON_CVG\n' '? see CloudModding wiki',
+            default=False
+        )
+    rendermode_blender_flag_CVG_DST_ = bpy.props.EnumProperty(
+            items=[
+                ('CVG_DST_CLAMP','CLAMP','CVG_DST_CLAMP',1),
+                ('CVG_DST_WRAP','WRAP','CVG_DST_WRAP',2),
+                ('CVG_DST_FULL','FULL','CVG_DST_FULL',3),
+                ('CVG_DST_SAVE','SAVE','CVG_DST_SAVE',4),
+                ('AUTO','Auto','Defaults to CVG_DST_CLAMP (for now)',5),
+            ],
+            name='CVG_DST_',
+            description='? see CloudModding wiki',
+            default='AUTO'
+        )
     rendermode_zmode = bpy.props.EnumProperty(
             items=[
                 ('OPA','Opaque','Opaque surfaces (OPA)',1),
@@ -1042,6 +1079,21 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             name='zmode',
             description='Not well understood, has to do with rendering order',
             default='AUTO'
+        )
+    rendermode_blender_flag_CVG_X_ALPHA = bpy.props.EnumProperty(
+            items=[
+                ('YES','Set','Set CVG_X_ALPHA',1),
+                ('NO','Clear','Clear CVG_X_ALPHA',2),
+                ('AUTO','Auto','Set if the material uses transparency, clear otherwise',3), # 421fixme research this
+            ],
+            name='CVG_X_ALPHA',
+            description='CVG_X_ALPHA\n' '? see CloudModding wiki',
+            default='AUTO'
+        )
+    rendermode_blender_flag_ALPHA_CVG_SEL = bpy.props.BoolProperty(
+            name='ALPHA_CVG_SEL',
+            description='ALPHA_CVG_SEL\n' '? see CloudModding wiki',
+            default=True # 421fixme does enabling this kill alpha?
         )
     rendermode_forceblending = bpy.props.EnumProperty(
             items=[
@@ -1134,7 +1186,15 @@ class OBJEX_PT_material(bpy.types.Panel):
         self.layout.prop(data, 'write_environment_color')
         box = self.layout.box()
         box.label(text='Render mode')
+        box.prop(data, 'rendermode_blender_flag_AA_EN')
+        box.prop(data, 'rendermode_blender_flag_Z_CMP')
+        box.prop(data, 'rendermode_blender_flag_Z_UPD')
+        box.prop(data, 'rendermode_blender_flag_IM_RD')
+        box.prop(data, 'rendermode_blender_flag_CLR_ON_CVG')
+        box.prop(data, 'rendermode_blender_flag_CVG_DST_')
         box.prop(data, 'rendermode_zmode')
+        box.prop(data, 'rendermode_blender_flag_CVG_X_ALPHA')
+        box.prop(data, 'rendermode_blender_flag_ALPHA_CVG_SEL')
         box.prop(data, 'rendermode_forceblending')
         box.prop(data, 'rendermode_blending_cycle0')
         if data.rendermode_blending_cycle0 == 'CUSTOM':
