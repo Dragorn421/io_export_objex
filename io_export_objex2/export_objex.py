@@ -263,7 +263,7 @@ class ObjexWriter():
             ?
             -> 2 checkboxes? first "always apply object transform when writing mesh data of an animated mesh" (default unchecked) if unchecked 2nd appears "apply object transform to animations instead" (default checked)
             """
-            if self.options['EXPORT_ANIM'] and ob.find_armature():
+            if self.options['EXPORT_ANIM'] and ob.find_armature(): # 421fixme merge logic with is_rigged 100 lines later
                 log.info('Writing mesh data for {} in object space as it seems animated', ob.name)
                 me.transform(self.options['GLOBAL_MATRIX'])
             else:
@@ -276,7 +276,6 @@ class ObjexWriter():
                 has_uvs = len(me.uv_textures) > 0
                 if has_uvs:
                     uv_texture = me.uv_textures.active.data[:]
-                    #uv_layer = me.uv_layers.active.data[:]
             else:
                 has_uvs = False
             
@@ -294,8 +293,6 @@ class ObjexWriter():
             if self.options['EXPORT_NORMALS'] and face_index_pairs:
                 me.calc_normals_split()
                 # No need to call me.free_normals_split later, as this mesh is deleted anyway!
-
-            #loops = me.loops
 
             if (self.options['EXPORT_SMOOTH_GROUPS'] or self.options['EXPORT_SMOOTH_GROUPS_BITFLAGS']) and face_index_pairs:
                 smooth_groups, smooth_groups_tot = me.calc_smooth_groups(self.options['EXPORT_SMOOTH_GROUPS_BITFLAGS'])
@@ -363,7 +360,7 @@ class ObjexWriter():
                 del vertGroupNames
 
             # Vert
-            is_rigged = ob.parent and ob.parent.type == 'ARMATURE'
+            is_rigged = ob.parent and ob.parent.type == 'ARMATURE' # 421fixme use find_armature instead
             if is_rigged:
                 fw('useskel %s\n' % util.quote(ob.parent.name))
             if self.options['EXPORT_WEIGHTS'] and vertex_groups and is_rigged:

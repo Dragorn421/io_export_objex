@@ -353,6 +353,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             log.trace('Writing name={!r} name_q={!r} material={!r} face_img={!r}', name, name_q, material, face_img)
             objex_data = material.objex_bonus if material else None
             if objex_data and objex_data.is_objex_material:
+                # 421todo compare face_img with texel0/1
                 if not material.use_nodes:
                     log.error('Material {!r} is_objex_material but not use_nodes (was "Use Nodes" unchecked after adding objex nodes to it?)', material)
                 explorer = ObjexMaterialNodeTreeExplorer(material.node_tree)
