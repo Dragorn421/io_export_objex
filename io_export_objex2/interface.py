@@ -2,6 +2,7 @@ import bpy
 import mathutils
 import re
 
+from . import const_data as CST
 from .logging_util import getLogger
 
 """
@@ -51,18 +52,6 @@ def propOffset(layout, data, key, propName):
 
 # object
 
-class ObjexObjectProperties(bpy.types.PropertyGroup):
-    priority = bpy.props.IntProperty(
-            name='Priority',
-            description='Objects with higher priority are written first',
-            default=0
-        )
-    write_origin = bpy.props.BoolProperty(
-            name='Origin',
-            description='If checked, export object location in world space. Used by zzconvert to translate the mesh coordinates back, as if object had its location at world origin.\nHas an actual use for billboards',
-            default=False,
-        )
-
 class OBJEX_PT_object(bpy.types.Panel):
     bl_label = 'Objex'
     bl_space_type = 'PROPERTIES'
@@ -83,6 +72,7 @@ class OBJEX_PT_object(bpy.types.Panel):
 
 # armature
 
+# do not use the self argument, as the function is used by at least 2 properties
 def armature_export_actions_change(self, context):
     armature = context.armature
     data = armature.objex_bonus
@@ -99,68 +89,9 @@ def armature_export_actions_change(self, context):
     if not actions or actions[-1].action:
         actions.add()
 
-class ObjexArmatureExportActionsItem(bpy.types.PropertyGroup):
-    action = bpy.props.PointerProperty(
-            type=bpy.types.Action,
-            name='Action',
-            description='',
-            update=armature_export_actions_change
-        )
-
 class OBJEX_UL_actions(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         layout.prop(item, 'action', text='')
-
-class ObjexArmatureProperties(bpy.types.PropertyGroup):
-    export_all_actions = bpy.props.BoolProperty(
-            name='Export all actions',
-            description='',
-            default=True,
-            update=armature_export_actions_change
-        )
-    export_actions_active = bpy.props.IntProperty()
-    export_actions = bpy.props.CollectionProperty(
-            type=ObjexArmatureExportActionsItem,
-            name='Actions',
-            description=''
-        )
-    
-    type = bpy.props.EnumProperty(
-            items=[
-                ('z64player','z64player','',1),
-                ('z64npc','z64npc','',2),
-                ('z64dummy','z64dummy','',3),
-                ('NONE','','',4)
-            ],
-            name='Type',
-            description='',
-            default='NONE'
-        )
-    
-    pbody = bpy.props.BoolProperty(
-            name='Physics Body',
-            description='',
-            default=False
-        )
-    pbody_parent_object = bpy.props.PointerProperty(
-            type=bpy.types.Object,
-            name='Parent Object',
-            description='Optional'
-        )
-    pbody_parent_bone = bpy.props.StringProperty(
-            name='Parent Bone',
-            description=''
-        )
-    
-    segment = bpy.props.StringProperty(
-            name='Segment',
-            description='Hexadecimal'
-        )
-    segment_local = bpy.props.BoolProperty(
-            name='Local',
-            description='',
-            default=False
-        )
 
 class OBJEX_PT_armature(bpy.types.Panel):
     bl_label = 'Objex'
@@ -209,97 +140,6 @@ class OBJEX_PT_armature(bpy.types.Panel):
 #
 # material
 #
-
-class CST:
-    COLOR_OK = (0,1,0,1) # green
-    COLOR_BAD = (1,0,0,1) # red
-    COLOR_RGBA_COLOR = (1,1,0,1) # yellow
-    COLOR_NONE = (0,0,0,0) # transparent
-
-    CYCLE_COLOR = 'C'
-    CYCLE_ALPHA = 'A'
-
-    COMBINER_FLAGS_0 = {
-        'C': 'G_CCMUX_0',
-        'A': 'G_ACMUX_0',
-    }
-
-    COMBINER_FLAGS_PREFIX = {
-        'C': 'G_CCMUX_',
-        'A': 'G_ACMUX_',
-    }
-
-    # 421todo *_SHADE* is only vertex colors atm
-    # supported combiner inputs by cycle (Color, Alpha) and by variable (A,B,C,D)
-    # source: https://wiki.cloudmodding.com/oot/F3DZEX#Color_Combiner_Settings
-    COMBINER_FLAGS_SUPPORT = {
-        'C': {
-            'A': {
-                'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-                'G_CCMUX_SHADE',
-                'G_CCMUX_ENVIRONMENT','G_CCMUX_1',
-                #'G_CCMUX_NOISE',
-                'G_CCMUX_0'
-            },
-            'B': {
-                'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-                'G_CCMUX_SHADE',
-                'G_CCMUX_ENVIRONMENT',
-                #'G_CCMUX_CENTER',
-                #'G_CCMUX_K4',
-                'G_CCMUX_0'
-            },
-            'C': {
-                'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-                'G_CCMUX_SHADE',
-                'G_CCMUX_ENVIRONMENT',
-                #'G_CCMUX_SCALE',
-                'G_CCMUX_COMBINED_ALPHA',
-                'G_CCMUX_TEXEL0_ALPHA',
-                'G_CCMUX_TEXEL1_ALPHA',
-                'G_CCMUX_PRIMITIVE_ALPHA',
-                'G_CCMUX_SHADE_ALPHA',
-                'G_CCMUX_ENV_ALPHA',
-                #'G_CCMUX_LOD_FRACTION',
-                #'G_CCMUX_PRIM_LOD_FRAC',
-                #'G_CCMUX_K5',
-                'G_CCMUX_0'
-            },
-            'D': {
-                'G_CCMUX_COMBINED','G_CCMUX_TEXEL0','G_CCMUX_TEXEL1','G_CCMUX_PRIMITIVE',
-                'G_CCMUX_SHADE',
-                'G_CCMUX_ENVIRONMENT','G_CCMUX_1','G_CCMUX_0'
-            },
-        },
-        'A': {
-            'A': {
-                'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-                'G_ACMUX_SHADE',
-                'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
-                'G_ACMUX_0'
-            },
-            'B': {
-                'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-                'G_ACMUX_SHADE',
-                'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
-                'G_ACMUX_0'
-            },
-            'C': {
-                #'G_ACMUX_LOD_FRACTION',
-                'G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-                'G_ACMUX_SHADE',
-                'G_ACMUX_ENVIRONMENT',
-                #'G_ACMUX_PRIM_LOD_FRAC',
-                'G_ACMUX_0'
-            },
-            'D': {
-                'G_ACMUX_COMBINED','G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
-                'G_ACMUX_SHADE',
-                'G_ACMUX_ENVIRONMENT','G_ACMUX_1',
-                'G_ACMUX_0'
-            },
-        },
-    }
 
 def stripPrefix(s, prefix):
     return s[len(prefix):] if s.startswith(prefix) else s
@@ -412,19 +252,6 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
         flag, warnMsg = self.linkToFlag()
         return CST.COLOR_BAD if warnMsg else CST.COLOR_OK
 
-"""
-OBJEX_NodeSocket_CombinerInput.input_flag = bpy.props.EnumProperty(
-    items=[
-        (flag, stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[CST.CYCLE_COLOR]), flag)
-            for flag in CST.COMBINER_FLAGS_SUPPORT[CST.CYCLE_COLOR]['A']
-            # 421todo can't implement these without using cycle number:
-            if flag not in ('G_CCMUX_COMBINED','G_CCMUX_COMBINED_ALPHA','G_ACMUX_COMBINED')
-    ],
-    name='bleuh',
-    description='desc bleuh',
-    default=CST.COMBINER_FLAGS_0[CST.CYCLE_COLOR]
-)
-"""
 def input_flag_list_choose_get(variable):
     def input_flag_list_choose(self, context):
         log = getLogger('interface')
@@ -1041,176 +868,6 @@ class OBJEX_OT_material_init(bpy.types.Operator):
 
 # properties and non-node UI
 
-class ObjexMaterialProperties(bpy.types.PropertyGroup):
-    is_objex_material = bpy.props.BoolProperty(default=False)
-
-    backface_culling = bpy.props.BoolProperty(
-            name='Cull backfaces',
-            description='Culls the back face of geometry',
-            default=True
-        )
-    write_primitive_color = bpy.props.BoolProperty(
-            name='Set prim color',
-            description='Set the primitive color in the generated display list (macro gsDPSetPrimColor).\n'
-                        'Disabling this can for example allow to set a dynamic primitive color from code or from another display list',
-            default=True
-        )
-    write_environment_color = bpy.props.BoolProperty(
-            name='Set env color',
-            description='Same as "Set prim color" for the environment color (macro gsDPSetEnvColor)',
-            default=True
-        )
-
-    rendermode_blender_flag_AA_EN = bpy.props.BoolProperty(
-            name='AA_EN',
-            description='AA_EN\n' 'Enable anti-aliasing?',
-            default=True
-        )
-    rendermode_blender_flag_Z_CMP = bpy.props.BoolProperty(
-            name='Z_CMP',
-            description='Z_CMP\n' 'Use Z buffer',
-            default=True
-        )
-    rendermode_blender_flag_Z_UPD = bpy.props.BoolProperty(
-            name='Z_UPD',
-            description='Z_UPD\n' 'Update Z buffer',
-            default=True
-        )
-    rendermode_blender_flag_IM_RD = bpy.props.BoolProperty(
-            name='IM_RD',
-            description='IM_RD\n' '? see CloudModding wiki',
-            default=True
-        )
-    rendermode_blender_flag_CLR_ON_CVG = bpy.props.BoolProperty(
-            name='CLR_ON_CVG',
-            description='CLR_ON_CVG\n' '? see CloudModding wiki',
-            default=False
-        )
-    rendermode_blender_flag_CVG_DST_ = bpy.props.EnumProperty(
-            items=[
-                ('CVG_DST_CLAMP','CLAMP','CVG_DST_CLAMP',1),
-                ('CVG_DST_WRAP','WRAP','CVG_DST_WRAP',2),
-                ('CVG_DST_FULL','FULL','CVG_DST_FULL',3),
-                ('CVG_DST_SAVE','SAVE','CVG_DST_SAVE',4),
-                ('AUTO','Auto','Defaults to CVG_DST_CLAMP (for now)',5),
-            ],
-            name='CVG_DST_',
-            description='? see CloudModding wiki',
-            default='AUTO'
-        )
-    rendermode_zmode = bpy.props.EnumProperty(
-            items=[
-                ('OPA','Opaque','Opaque surfaces (OPA)',1),
-                ('INTER','Interpenetrating','Interpenetrating surfaces',2),
-                ('XLU','Translucent','Translucent surfaces (XLU)',3),
-                ('DEC','Decal','Decal surfaces (eg paths)',4),
-                ('AUTO','Auto','Default to Translucent (XLU) if material uses transparency, or Opaque (OPA) otherwise',5),
-            ],
-            name='zmode',
-            description='Not well understood, has to do with rendering order',
-            default='AUTO'
-        )
-    rendermode_blender_flag_CVG_X_ALPHA = bpy.props.EnumProperty(
-            items=[
-                ('YES','Set','Set CVG_X_ALPHA',1),
-                ('NO','Clear','Clear CVG_X_ALPHA',2),
-                ('AUTO','Auto','Set if the material uses transparency, clear otherwise',3), # 421fixme research this
-            ],
-            name='CVG_X_ALPHA',
-            description='CVG_X_ALPHA\n' '? see CloudModding wiki',
-            default='AUTO'
-        )
-    rendermode_blender_flag_ALPHA_CVG_SEL = bpy.props.BoolProperty(
-            name='ALPHA_CVG_SEL',
-            description='ALPHA_CVG_SEL\n' '? see CloudModding wiki',
-            default=True # 421fixme does enabling this kill alpha?
-        )
-    rendermode_forceblending = bpy.props.EnumProperty(
-            items=[
-                ('YES','Always','Force blending',1),
-                ('NO','Never','Do not force blending',2),
-                ('AUTO','Auto','Force blending if the material uses transparency',3),
-            ],
-            name='Force blending',
-            description='Not well understood, related to transparency and rendering order',
-            default='AUTO'
-        )
-    rendermode_blending_cycle0 = bpy.props.EnumProperty(
-            items=[
-                ('FOG_PRIM','Fog RGBA','Blend with fog color and alpha (G_RM_FOG_PRIM_A)',1),  # G_BL_CLR_FOG   G_BL_A_FOG     G_BL_CLR_IN    G_BL_1MA
-                ('FOG_SHADE','Fog RGB, shade A','Blend with fog color and shade alpha (shade from combiner cycles) (G_RM_FOG_SHADE_A)',2),  # G_BL_CLR_FOG   G_BL_A_SHADE   G_BL_CLR_IN    G_BL_1MA
-                ('PASS','Pass','Let the input pixel color through unaltered (G_RM_PASS...)',3), # G_BL_CLR_IN    G_BL_0         G_BL_CLR_IN    G_BL_1
-                ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',4), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
-                ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',5), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
-                ('AUTO','Auto','Use "Pass" if material uses transparency and "Fog RGB, shade A" otherwise',6),
-                ('CUSTOM','Custom','Define a custom blending cycle',7),
-            ],
-            name='First blending cycle',
-            description='First cycle\nHow to blend the pixels being rendered with the frame buffer\nResponsible for at least transparency effects and fog',
-            default='AUTO'
-        )
-    rendermode_blending_cycle1 = bpy.props.EnumProperty(
-            items=[
-                ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',1), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
-                ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',2), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
-                ('AUTO','Auto','XLU-like if material uses transparency, OPA-like otherwise',3),
-                ('CUSTOM','Custom','Define a custom blending cycle',4),
-            ],
-            name='Second blending cycle',
-            description='Second cycle\nHow to blend the pixels being rendered with the frame buffer\nResponsible for at least transparency effects and fog',
-            default='AUTO'
-        )
-
-    standalone = bpy.props.BoolProperty(
-            name='Standalone',
-            description='Write the display list for this material once, and use 0xDE G_DL commands to branch to it every use',
-            default=False
-        )
-    empty = bpy.props.BoolProperty(
-            name='Empty',
-            description='Do not write any geometry using this material',
-            default=False
-        )
-    force_write = bpy.props.BoolProperty(
-            name='Force write',
-            description='Write this material even if it is not used',
-            default=False
-        )
-
-    use_texgen = bpy.props.BoolProperty(
-            name='Texgen',
-            description='Generates texture coordinates at run time depending on the view',
-            default=False
-        )
-
-    scaleS = bpy.props.FloatProperty(
-            name='"U" scale',
-            description='Not fully understood, "as if" it scaled U in UVs?',
-            min=0, max=1, step=0.01, precision=6,
-            default=1
-        )
-    scaleT = bpy.props.FloatProperty(
-            name='"V" scale',
-            description='Not fully understood, "as if" it scaled V in UVs?',
-            min=0, max=1, step=0.01, precision=6,
-            default=1
-        )
-
-# add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B
-for c in (0,1):
-    for v,choices,d in (
-    # variable   choices                                                     default
-        ('P', ('G_BL_CLR_IN','G_BL_CLR_MEM','G_BL_CLR_BL','G_BL_CLR_FOG'), 'G_BL_CLR_IN'),
-        ('A', ('G_BL_A_IN','G_BL_A_FOG','G_BL_A_SHADE','G_BL_0'),          'G_BL_A_IN'),
-        ('M', ('G_BL_CLR_IN','G_BL_CLR_MEM','G_BL_CLR_BL','G_BL_CLR_FOG'), 'G_BL_CLR_MEM'),
-        ('B', ('G_BL_1MA','G_BL_A_MEM','G_BL_1','G_BL_0'),                 'G_BL_1MA')
-    ):
-        setattr(ObjexMaterialProperties, 'rendermode_blending_cycle%d_custom_%s' % (c,v), bpy.props.EnumProperty(
-            items=[(choices[i],choices[i],'',i+1) for i in range(4)],
-            name='%s' % v,
-            default=d
-        ))
-
 class OBJEX_PT_material(bpy.types.Panel):
     bl_label = 'Objex'
     bl_space_type = 'PROPERTIES'
@@ -1262,84 +919,23 @@ class OBJEX_PT_material(bpy.types.Panel):
                 image = textureNode.texture.image
                 box.label(text=image.filepath if image.filepath else 'Image without filepath?')
                 box.prop(textureNode.texture, 'image')
-                image.objex_bonus.draw(image, box)
-
-# images
-
-class ObjexImageProperties(bpy.types.PropertyGroup):
-    format = bpy.props.EnumProperty(
-            items=[
-                # number identifiers are 0xFS with F~G_IM_FMT_ and S~G_IM_SIZ_
-                ('I4','I4','Greyscale shared with alpha, 16 values (AAAA)',0x40),
-                ('I8','I8','Greyscale shared with alpha, 256 values (AAAA AAAA)',0x41),
-                ('IA4','IA4','Greyscale 8 values and alpha on/off (CCCA)',0x30),
-                ('IA8','IA8','Distinct greyscale and alpha, 16 values each (CCCC AAAA)',0x31),
-                ('IA16','IA16','Distinct greyscale and alpha, 256 values each (CCCC CCCC AAAA AAAA)',0x32),
-                ('RGBA16','RGBA16','32 values per color red/green/blue, and alpha on/off (RRRR RGGG GGBB BBBA)',0x02),
-                ('RGBA32','RGBA32','256 values per color red/green/blue and alpha (RRRR RRRR GGGG GGGG BBBB BBBB AAAA AAAA)',0x03),
-                ('CI4','CI4','Paletted in 16 colors',0x20),
-                ('CI8','CI8','Paletted in 256 colors',0x21),
-                ('AUTO','Auto','Do not specify a format',0xFF),
-            ],
-            name='Format',
-            description='What format to use when writing the texture',
-            default='AUTO'
-        )
-    palette = bpy.props.IntProperty(
-            name='Palette',
-            description='Palette slot to use (0 for automatic)\nSeveral paletted textures (CI format) may use the same palette slot to save space',
-            min=0,
-            soft_max=255, # todo ?
-            default=0
-        )
-    pointer = bpy.props.StringProperty(
-            name='Pointer',
-            description='The address that should be used when referencing this texture',
-            default=''
-        )
-    priority = bpy.props.IntProperty(
-            name='Priority',
-            description='Textures with higher priority are written first',
-            default=0
-        )
-    force_write = bpy.props.EnumProperty(
-            items=[
-                ('FORCE_WRITE','Always','Force the texture to be written',1),
-                ('DO_NOT_WRITE','Never','Force the texture to NOT be written',2),
-                ('UNSPECIFIED','If used','Texture will be written if it is used',3),
-            ],
-            name='Write',
-            description='Explicitly state to write or to not write the image',
-            default='UNSPECIFIED'
-        )
-    texture_bank = bpy.props.StringProperty(
-            name='Bank',
-            description='Image data to write instead of this texture, useful for dynamic textures (eyes, windows)',
-            subtype='FILE_PATH',
-            default=''
-        )
-
-    def draw(self, image, layout):
-        data = self
-
-        layout.prop(data, 'format')
-        if data.format[:2] == 'CI':
-            layout.prop(data, 'palette')
-        propOffset(layout, data, 'pointer', 'Pointer')
-        layout.prop(data, 'priority')
-        layout.prop(data, 'force_write')
-        layout.prop(data, 'texture_bank')
+                data = image.objex_bonus
+                box.prop(data, 'format')
+                if data.format[:2] == 'CI':
+                    box.prop(data, 'palette')
+                propOffset(box, data, 'pointer', 'Pointer')
+                box.prop(data, 'priority')
+                box.prop(data, 'force_write')
+                box.prop(data, 'texture_bank')
 
 
 classes = (
-    ObjexObjectProperties,
     OBJEX_PT_object,
 
-    ObjexArmatureExportActionsItem,
-    ObjexArmatureProperties,
     OBJEX_UL_actions,
     OBJEX_PT_armature,
 
+    # order matters: each socket interface must be registered before its matching socket
     OBJEX_NodeSocketInterface_CombinerOutput,
     OBJEX_NodeSocketInterface_CombinerInput,
     OBJEX_NodeSocketInterface_RGBA_Color,
@@ -1348,10 +944,7 @@ classes = (
     OBJEX_NodeSocket_RGBA_Color,
 
     OBJEX_OT_material_init,
-    ObjexMaterialProperties,
     OBJEX_PT_material,
-
-    ObjexImageProperties,
 )
 
 def register_interface():
@@ -1362,21 +955,6 @@ def register_interface():
         except:
             log.exception('Failed to register {!r}', clazz)
             raise
-    """
-    OBJEX_NodeSocketInterface_UVpipe_WrapU = type(
-        'OBJEX_NodeSocketInterface_UVpipe_WrapU',
-        (bpy.types.NodeSocketInterface,OBJEX_NodeSocketInterface_Dummy),
-        dict()
-    )
-    OBJEX_NodeSocketInterface_UVpipe_WrapU.bl_socket_idname = 'OBJEX_NodeSocket_UVpipe_WrapU'
-    OBJEX_NodeSocket_UVpipe_WrapU = type(
-        'OBJEX_NodeSocket_UVpipe_WrapU',
-        (bpy.types.NodeSocket,OBJEX_NodeSocket_BoolProperty),
-        {'target_socket_name':'Wrap U (0/1)'}
-    )
-    bpy.utils.register_class(OBJEX_NodeSocketInterface_UVpipe_WrapU)
-    bpy.utils.register_class(OBJEX_NodeSocket_UVpipe_WrapU)
-    """
     for class_name_suffix, target_socket_name in (
         ('UVpipe_WrapU', 'Wrap U (0/1)'),
         ('UVpipe_WrapV', 'Wrap V (0/1)'),
@@ -1397,16 +975,8 @@ def register_interface():
         )
         bpy.utils.register_class(socket_interface_class)
         bpy.utils.register_class(socket_class)
-    bpy.types.Object.objex_bonus = bpy.props.PointerProperty(type=ObjexObjectProperties)
-    bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
-    bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
-    bpy.types.Image.objex_bonus = bpy.props.PointerProperty(type=ObjexImageProperties)
 
 def unregister_interface():
-    del bpy.types.Object.objex_bonus
-    del bpy.types.Armature.objex_bonus
-    del bpy.types.Material.objex_bonus
-    del bpy.types.Image.objex_bonus
     for clazz in reversed(classes):
         try:
             bpy.utils.unregister_class(clazz)

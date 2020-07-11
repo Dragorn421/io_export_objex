@@ -52,15 +52,6 @@ bl_info = {
     'support': 'COMMUNITY',
     'category': 'Import-Export'}
 
-if 'bpy' in locals():
-	import importlib
-	if 'export_objex' in locals():
-		importlib.reload(export_objex)
-	if 'interface' in locals():
-		importlib.reload(interface)
-	if 'logging_util' in locals():
-		importlib.reload(logging_util)
-
 
 import bpy
 from bpy.props import (
