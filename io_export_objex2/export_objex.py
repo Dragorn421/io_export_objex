@@ -920,8 +920,10 @@ class ObjexMaterialNodeTreeExplorer():
         scaleUVnode = textureNode.inputs[0].links[0].from_node
         return {
             'texture': textureNode.texture,
-            'uv_scale_u': scaleUVnode.inputs[1].default_value,
-            'uv_scale_v': scaleUVnode.inputs[2].default_value,
+            # 421todo use internal float sockets or nice custom sockets?
+            # 421todo for scale make sure int() rounds the same way nodes do
+            'uv_scale_u': int(scaleUVnode.inputs[1].default_value),
+            'uv_scale_v': int(scaleUVnode.inputs[2].default_value),
             'uv_wrap_u': scaleUVnode.inputs[3].default_value,
             'uv_wrap_v': scaleUVnode.inputs[4].default_value,
             'uv_mirror_u': scaleUVnode.inputs[5].default_value,
@@ -1072,6 +1074,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                         and material.use_transparency)
                 ):
                     otherModeLowerHalfFlags.append('FORCE_BL')
+                # blender cycles
                 """
 from gbi.h :
 count  P              A              M              B            comment
@@ -1180,8 +1183,29 @@ count  P              A              M              B            comment
                     if texelData:
                         fw('gbivar cms%s "%s"\n' % (i, ' | '.join(getUVflags(texelData['uv_wrap_u'], texelData['uv_mirror_u']))))
                         fw('gbivar cmt%s "%s"\n' % (i, ' | '.join(getUVflags(texelData['uv_wrap_v'], texelData['uv_mirror_v']))))
-                        fw('gbivar shifts%s %d\n' % (i, texelData['uv_scale_u']))
-                        fw('gbivar shiftt%s %d\n' % (i, texelData['uv_scale_v']))
+                        def shiftFromScale(scaleExp):
+                            # scaleExp = 0
+                            # n = scaleExp = 0
+                            if scaleExp == 0:
+                                return 0
+                            # 1 <= scaleExp <= 5
+                            # 15 >= n = 16 - scaleExp >= 11
+                            if scaleExp > 0:
+                                if scaleExp <= 5:
+                                    return 16 - scaleExp
+                                else:
+                                    log.error('{!r} scale too big: {}', material, scaleExp)
+                                    return 0
+                            # -10 <= scaleExp <= -1
+                            # 10 >= n = -scaleExp >= 1
+                            if scaleExp < 0:
+                                if scaleExp >= -10:
+                                    return -scaleExp
+                                else:
+                                    log.error('{!r} scale too low: {}', material, scaleExp)
+                                    return 0
+                        fw('gbivar shifts%s %d\n' % (i, shiftFromScale(texelData['uv_scale_u'])))
+                        fw('gbivar shiftt%s %d\n' % (i, shiftFromScale(texelData['uv_scale_v'])))
                 if texel0data or texel1data:
                     fw('gbi _loadtexels\n')
             else:
