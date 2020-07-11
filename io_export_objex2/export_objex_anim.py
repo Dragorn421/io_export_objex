@@ -124,7 +124,15 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
             write_skeleton(file_write_skel, global_matrix, armature, bones_ordered)
         
         if file_write_anim:
-            write_animations(file_write_anim, scene, global_matrix, armature, root_bone, bones_ordered, armature_actions)
+            if armature.animation_data:
+                write_animations(file_write_anim, scene, global_matrix, armature, root_bone, bones_ordered, armature_actions)
+            else:
+                log.warning(
+                    'Skipped exporting actions {!r} with armature {} because the armature did not have animation_data '
+                    '(consider unchecking "Export all actions" under Objex armature properties; '
+                    'if you do want actions to be exported with this armature, animation_data can be initialized by creating a dummy action by adding a keyframe in pose mode)'
+                    , armature_actions, armature.name
+                )
         
         if armature.animation_data:
             armature.animation_data.action = user_armature_action
