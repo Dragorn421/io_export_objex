@@ -290,6 +290,12 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
                         log.info(line)
             progress_report.print = progress_report_print
 
+            for area in bpy.context.screen.areas:
+                if area.type == 'VIEW_3D':
+                    for space in area.spaces:
+                        if space.type == 'VIEW_3D' and space.viewport_shade != 'MATERIAL':
+                            log.warning('There is a 3d view area in the current screen which is using {} shading and not MATERIAL shading. MATERIAL shading is required to correctly preview objex-enabled materials', space.viewport_shade)
+
             return export_objex.save(context, **keywords)
         except:
             log.exception('Uncaught exception')
