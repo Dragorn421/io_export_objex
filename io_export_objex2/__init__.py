@@ -70,6 +70,17 @@ from bpy_extras.io_utils import (
 import os
 import progress_report
 
+# reload files
+import importlib
+loc = locals()
+for n in (
+    'export_objex', 'export_objex_mtl', 'export_objex_anim',
+    'properties', 'interface', 'const_data', 'util', 'logging_util',
+):
+    if n in loc:
+        importlib.reload(loc[n])
+del importlib
+
 from . import export_objex
 from . import properties
 from . import interface
