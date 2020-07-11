@@ -49,6 +49,38 @@ def propOffset(layout, data, key, propName):
         layout.label(text='It will be read in base 16')
         layout.label(text='Use 0x prefix to be explicit')
 
+# object
+
+class ObjexObjectProperties(bpy.types.PropertyGroup):
+    priority = bpy.props.IntProperty(
+            name='Priority',
+            description='Objects with higher priority are written first',
+            default=0
+        )
+    write_origin = bpy.props.BoolProperty(
+            name='Origin',
+            description='If checked, export object location in world space. Used by zzconvert to translate the mesh coordinates back, as if object had its location at world origin.\nHas an actual use for billboards',
+            default=False,
+        )
+
+class OBJEX_PT_object(bpy.types.Panel):
+    bl_label = 'Objex'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'object'
+
+    @classmethod
+    def poll(self, context):
+        object = context.object
+        return object.type == 'MESH' # 421fixme ? mesh # priority on armatures (skeleton) would make sense too? does properties on object instead of Mesh (object.data) make sense?
+
+    def draw(self, context):
+        object = context.object
+        data = object.objex_bonus
+        self.layout.label(text='objex object stuff here')
+        self.layout.prop(data, 'priority')
+        self.layout.prop(data, 'write_origin')
+
 # armature
 
 def armature_export_actions_change(self, context):
@@ -1283,6 +1315,9 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
 
 
 classes = (
+    ObjexObjectProperties,
+    OBJEX_PT_object,
+
     ObjexArmatureExportActionsItem,
     ObjexArmatureProperties,
     OBJEX_UL_actions,
@@ -1345,11 +1380,13 @@ def register_interface():
         )
         bpy.utils.register_class(socket_interface_class)
         bpy.utils.register_class(socket_class)
+    bpy.types.Object.objex_bonus = bpy.props.PointerProperty(type=ObjexObjectProperties)
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
     bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
     bpy.types.Image.objex_bonus = bpy.props.PointerProperty(type=ObjexImageProperties)
 
 def unregister_interface():
+    del bpy.types.Object.objex_bonus
     del bpy.types.Armature.objex_bonus
     del bpy.types.Material.objex_bonus
     del bpy.types.Image.objex_bonus

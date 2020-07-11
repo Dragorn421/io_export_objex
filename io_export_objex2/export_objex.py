@@ -391,6 +391,14 @@ class ObjexWriter():
             fw('g %s\n' % obnamestring)
             del name1, name2, obnamestring
 
+            if ob.type == 'MESH': # 421fixme ? # see "421fixme ? mesh" in interface.py
+                objex_data = ob.objex_bonus
+                if objex_data.priority != 0:
+                    fw('priority %d\n' % objex_data.priority)
+                if objex_data.write_origin:
+                    fw('origin %.6f %.6f %.6f\n' % tuple(self.options['GLOBAL_MATRIX'] * ob.location))
+                # 421todo attrib: mesh attributes
+
             subprogress2.step()
 
             # XXX
