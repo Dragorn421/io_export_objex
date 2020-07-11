@@ -1041,9 +1041,6 @@ class OBJEX_OT_material_init(bpy.types.Operator):
 
 # properties and non-node UI
 
-def material_updated_my_int(self, context):
-    log.info('my_int -> {:d}', context.material.objex_bonus.my_int)
-
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
 

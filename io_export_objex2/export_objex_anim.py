@@ -194,7 +194,7 @@ def write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, a
         """
         root_loc = root_pose_bone.head # armature space
         root_loc = global_matrix * root_loc
-        fw('loc %.6f %.6f %.6f\n' % (root_loc.x, root_loc.y, root_loc.z))
+        fw('loc %.6f %.6f %.6f\n' % (root_loc.x, root_loc.y, root_loc.z)) # 421todo what about "ms"
         for bone in bones_ordered:
             pose_bone = pose_bones[bone.name]
             parent_pose_bone = pose_bone.parent
