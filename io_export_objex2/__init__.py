@@ -59,10 +59,8 @@ from bpy.props import (
         IntProperty,
         FloatProperty,
         StringProperty,
-        EnumProperty,
         )
 from bpy_extras.io_utils import (
-        ImportHelper,
         ExportHelper,
         orientation_helper_factory,
         path_reference_mode,
