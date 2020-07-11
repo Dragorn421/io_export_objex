@@ -317,12 +317,7 @@ class ObjexWriter():
                 smooth_groups, smooth_groups_tot = (), 0
 
             materials = me.materials[:]
-            material_names = [m.name if m else None for m in materials]
-
-            # avoid bad index errors
-            if not materials:
-                materials = [None]
-                material_names = [name_compat(None)]
+            use_materials = materials and self.options['EXPORT_MTL']
 
             # Sort by Material, then images
             # so we dont over context switch in the obj file.
@@ -449,68 +444,52 @@ class ObjexWriter():
 
             # those context_* variables are used to keep track of the last g/usemtl/s directive written, according to options
             # Set the default mat to no material and no image.
-            context_material_name = context_texture_name = 0  # Can never be this, so we will label a new material the first chance we get. used for usemtl directives if EXPORT_MTL
+            context_material = context_face_image = 0  # Can never be this, so we will label a new material the first chance we get. used for usemtl directives if EXPORT_MTL
             context_smooth = None  # Will either be true or false,  set bad to force initialization switch. with EXPORT_SMOOTH_GROUPS or EXPORT_SMOOTH_GROUPS_BITFLAGS, has effects on writing the s directive
 
             for f, f_index in face_index_pairs:
                 f_smooth = f.use_smooth
                 if f_smooth and smooth_groups:
                     f_smooth = smooth_groups[f_index]
-                f_mat = min(f.material_index, len(materials) - 1)
 
-                if has_uvs:
-                    tface = uv_texture[f_index]
-                    f_image = tface.image
+                face_material = materials[f.material_index] if use_materials else None
+                face_image = uv_texture[f_index].image if has_uvs else None
 
-
-                # make current context
-                current_material_name = material_names[f_mat]
-                if has_uvs and f_image:
-                    current_texture_name = f_image.name
+                # if context hasn't changed, do nothing
+                if context_material == face_material and context_face_image == face_image:
+                    pass
                 else:
-                    current_texture_name = None  # No image, use None instead.
+                    # update context
+                    context_material = face_material
+                    context_face_image = face_image
 
-                # CHECK FOR CONTEXT SWITCH
-                if current_material_name == context_material_name and current_texture_name == context_texture_name:
-                    pass  # Context already switched, dont do anything
-                else:
-                    if current_material_name is None and current_texture_name is None:
+                    # clear context
+                    if face_material is None and face_image is None:
                         if self.options['EXPORT_MTL']:
                             fw('clearmtl\n')
-
+                    # new context
                     else:
-                        current_key = (current_material_name,current_texture_name)
-                        mat_data = self.mtl_dict.get(current_key)
-                        if not mat_data:
-                            # First add to global dict so we can export to mtl
-                            # Then write mtl
-
-                            # Make a new names from the mat and image name,
-                            # converting any spaces to underscores with name_compat.
-
-                            # If none image dont bother adding it to the name
-                            # Try to avoid as much as possible adding texname (or other things)
-                            # to the mtl name (see [#32102])...
-                            mtl_name = "%s" % name_compat(current_material_name)
-                            if self.mtl_rev_dict.get(mtl_name, None) not in {current_key, None}:
-                                if current_texture_name is None:
-                                    tmp_ext = "_NONE"
-                                else:
-                                    tmp_ext = "_%s" % name_compat(current_texture_name)
-                                i = 0
-                                while self.mtl_rev_dict.get(mtl_name + tmp_ext, None) not in {current_key, None}:
-                                    i += 1
-                                    tmp_ext = "_%3d" % i
-                                mtl_name += tmp_ext
-                            mat_data = self.mtl_dict[current_key] = mtl_name, materials[f_mat], f_image
-                            self.mtl_rev_dict[mtl_name] = current_key
+                        # mtl_dict is {(material, image): (name, name_q, material, face_image)}
+                        data = self.mtl_dict.get((face_material, face_image))
+                        if data:
+                            name_q = data[1]
+                        else:
+                            # new (material, image) pair, find a new unique name for it
+                            name_base = face_material.name if face_material else 'None'
+                            if face_image:
+                                name_base = '%s %s' % (name_base, face_image.name)
+                            name = name_base
+                            i = 0
+                            while name in (_name for (_name, _name_q, _material, _face_image) in self.mtl_dict.values()):
+                                i += 1
+                                name = '%s %d' % (name_base, i)
+                            name_q = name_compat(name)
+                            # remember the pair
+                            self.mtl_dict[(face_material, face_image)] = name, name_q, face_material, face_image
 
                         if self.options['EXPORT_MTL']:
-                            fw("usemtl %s\n" % mat_data[0])  # can be mat_image or (null)
+                            fw('usemtl %s\n' % name_q)
 
-                context_material_name = current_material_name
-                context_texture_name = current_texture_name
-                
                 if f_smooth != context_smooth:
                     if f_smooth:  # on now off
                         if smooth_groups:
@@ -581,12 +560,10 @@ class ObjexWriter():
                     self.total_vertex = self.total_uv = self.total_normal = self.total_vertex_color = 1
 
                     # A Dict of Materials
-                    # (material.name, image.name):matname_imagename # matname_imagename has gaps removed.
+                    # "materials" here refer to a material + face image pair, where either or both may be unset
+                    # (material, image): (name, name_q, material, face_image)
+                    # name_q = name_compat(name)
                     self.mtl_dict = {}
-                    # Used to reduce the usage of matname_texname materials, which can become annoying in case of
-                    # repeated exports/imports, yet keeping unique mat names per keys!
-                    # mtl_name: (material.name, image.name)
-                    self.mtl_rev_dict = {}
 
                     copy_set = set()
 

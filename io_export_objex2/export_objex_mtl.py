@@ -349,8 +349,8 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             # or the name used for writing the image path
             return texture_name
 
-        for material_name, material, face_img in mtl_dict.values():
-            log.trace('Writing material_name={!r} material={!r} face_img={!r}', material_name, material, face_img)
+        for name, name_q, material, face_img in mtl_dict.values():
+            log.trace('Writing name={!r} name_q={!r} material={!r} face_img={!r}', name, name_q, material, face_img)
             objex_data = material.objex_bonus if material else None
             if objex_data and objex_data.is_objex_material:
                 if not material.use_nodes:
@@ -370,12 +370,12 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     texel1data = data['texel1']
                     tex = texel1data['texture']
                     texel1data['texture_name'] = writeTexture(tex.image, tex.name)
-                fw('newmtl %s\n' % material_name)
+                fw('newmtl %s\n' % name_q)
                 # 421todo attrib, collision/colliders
                 if objex_data.standalone:
                     fw('standalone\n')
                 # zzconvert detects "empty." on its own, making it explicit here doesn't hurt
-                if objex_data.empty or material_name.startswith('empty.'):
+                if objex_data.empty or name.startswith('empty.'):
                     fw('empty\n')
                 if objex_data.force_write:
                     fw('forcewrite\n')
@@ -583,7 +583,7 @@ count  P              A              M              B            comment
                     texture_name = writeTexture(image, texture_name)
                 else:
                     texture_name = None
-                fw('newmtl %s\n' % material_name)
+                fw('newmtl %s\n' % name_q)
                 if texture_name:
                     fw('texel0 %s\n' % texture_name)
 
