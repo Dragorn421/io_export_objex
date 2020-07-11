@@ -14,7 +14,10 @@ def write_skeleton(file_write_skel, global_matrix, armature, bones_ordered):
     # extra is optional
     # quote and escape strings
     objex_data = armature.data.objex_bonus
-    fw('newskel %s %s\n' % (armature.name, objex_data.type))
+    fw('newskel %s' % armature.name)
+    if objex_data.type != 'NONE':
+        fw(' %s' % objex_data.type)
+    fw('\n')
     if objex_data.segment:
         fw('segment %s%s%s\n' % (
             '' if objex_data.segment.startswith('0x') else '0x',

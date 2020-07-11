@@ -129,11 +129,12 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
             items=[
                 ('z64player','z64player','',1),
                 ('z64npc','z64npc','',2),
-                ('z64dummy','z64dummy','',3)
+                ('z64dummy','z64dummy','',3),
+                ('NONE','','',4)
             ],
             name='Type',
             description='',
-            default='z64dummy'
+            default='NONE'
         )
     
     pbody = bpy.props.BoolProperty(
