@@ -73,6 +73,7 @@ import os
 import progress_report
 
 from . import export_objex
+from . import properties
 from . import interface
 from . import logging_util
 
@@ -314,12 +315,14 @@ def register():
         bpy.utils.register_class(cls)
 
     bpy.types.INFO_MT_file_export.append(menu_func_export)
-    
+
+    properties.register_properties()
     interface.register_interface()
 
 
 def unregister():
     interface.unregister_interface()
+    properties.unregister_properties()
     
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
 
