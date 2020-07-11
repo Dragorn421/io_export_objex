@@ -519,9 +519,8 @@ class ObjexWriter():
                     pass  # Context already switched, dont do anything
                 else:
                     if current_material_name is None and current_texture_name is None:
-                        # Write a null material, since we know the context has changed.
                         if self.options['EXPORT_MTL']:
-                            fw("usemtl (null)\n")  # mat, image
+                            fw('clearmtl\n')
 
                     else:
                         current_key = (current_material_name,current_texture_name)
