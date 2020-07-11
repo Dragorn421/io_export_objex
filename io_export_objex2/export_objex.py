@@ -382,14 +382,9 @@ class ObjexWriter():
 
                 del sort_func
 
-            name1 = ob.name
-            name2 = ob.data.name
-            if name1 == name2:
-                obnamestring = name_compat(name1)
-            else:
-                obnamestring = '%s_%s' % (name_compat(name1), name_compat(name2))
+            obnamestring = name_compat(ob.name)
             fw('g %s\n' % obnamestring)
-            del name1, name2, obnamestring
+            del obnamestring
 
             if ob.type == 'MESH': # 421fixme ? # see "421fixme ? mesh" in interface.py
                 objex_data = ob.objex_bonus

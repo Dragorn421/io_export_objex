@@ -151,7 +151,7 @@ a ram segment (for example, Link's eyes use `0x08000000`)
 `format fmt` (optional)
 specify the format to force the texture to use during
 conversion; valid formats include:
-`rgba16, ia16, ci4, ci8, ia4, ia8, i4, i8`
+`rgba32, rgba16, ia16, ci4, ci8, ia4, ia8, i4, i8`
 
 #### `palette`
 
