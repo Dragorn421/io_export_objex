@@ -1,20 +1,15 @@
 import bpy
 import mathutils
 
-import re
-import ast
-
+from . import util
 from .logging_util import getLogger
 
 
-def write_skeleton(file_write_skel, global_matrix, armature, bones_ordered):
+def write_skeleton(file_write_skel, global_matrix, armature, armature_name_q, bones_ordered):
     log = getLogger('anim')
     fw = file_write_skel
-    # 421todo
-    # extra is optional
-    # quote and escape strings
     objex_data = armature.data.objex_bonus
-    fw('newskel %s' % armature.name)
+    fw('newskel %s' % armature_name_q)
     if objex_data.type != 'NONE':
         fw(' %s' % objex_data.type)
     fw('\n')
@@ -110,7 +105,7 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
         # 421todo better error/warning reporting
         log.warning('animations are being viewed at {:.1f} fps (change this in render settings), but will be used at 20 fps', scene_fps)
     
-    for armature, armature_actions in armatures:
+    for armature_name_q, armature, armature_actions in armatures:
         if armature.animation_data:
             user_armature_action = armature.animation_data.action
         
@@ -121,11 +116,11 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
             log.error('armature {} has no bones', armature.name)
         
         if file_write_skel:
-            write_skeleton(file_write_skel, global_matrix, armature, bones_ordered)
+            write_skeleton(file_write_skel, global_matrix, armature, armature_name_q, bones_ordered)
         
         if file_write_anim:
             if armature.animation_data:
-                write_animations(file_write_anim, scene, global_matrix, armature, root_bone, bones_ordered, armature_actions)
+                write_animations(file_write_anim, scene, global_matrix, armature, armature_name_q, root_bone, bones_ordered, armature_actions)
             else:
                 log.warning(
                     'Skipped exporting actions {!r} with armature {} because the armature did not have animation_data '
@@ -139,13 +134,13 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
     
     scene.frame_set(user_frame_current, user_frame_subframe)
 
-def write_animations(file_write_anim, scene, global_matrix, armature, root_bone, bones_ordered, actions):
+def write_animations(file_write_anim, scene, global_matrix, armature, armature_name_q, root_bone, bones_ordered, actions):
     fw = file_write_anim
     fw('# %s\n' % armature.name)
     for action in actions:
         frame_start, frame_end = action.frame_range
         frame_count = int(frame_end - frame_start + 1) # 421fixme is this correct?
-        fw('newanim %s %s %d\n' % (armature.name, action.name, frame_count))
+        fw('newanim %s %s %d\n' % (armature_name_q, util.quote(action.name), frame_count))
         write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, action, frame_start, frame_count)
         fw('\n')
     fw('\n')

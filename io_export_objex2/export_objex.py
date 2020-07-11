@@ -27,22 +27,10 @@ import bpy_extras.io_utils
 
 from progress_report import ProgressReport, ProgressReportSubstep
 
-import json
-
 from . import export_objex_mtl
 from . import export_objex_anim
+from . import util
 from .logging_util import getLogger
-
-
-# 421todo this is the best easiest method I found, is it robust enough?
-def string_to_literal(s):
-    return json.dumps(s)
-
-def name_compat(name):
-    if name is None:
-        return 'None'
-    else:
-        return name.replace(' ', '_')
 
 
 def mesh_triangulate(me):
@@ -221,7 +209,7 @@ class ObjexWriter():
                         actions = bpy.data.actions
                     else:
                         actions = [item.action for item in objex_data.export_actions if item.action]
-                    self.armatures.append((ob, actions))
+                    self.armatures.append((util.quote(ob.name), ob, actions))
                 else:
                     self.armatures.append((ob, []))
             
@@ -351,9 +339,7 @@ class ObjexWriter():
 
                 del sort_func
 
-            obnamestring = name_compat(ob.name)
-            fw('g %s\n' % obnamestring)
-            del obnamestring
+            fw('g %s\n' % util.quote(ob.name))
 
             if ob.type == 'MESH': # 421fixme ? # see "421fixme ? mesh" in interface.py
                 objex_data = ob.objex_bonus
@@ -379,24 +365,25 @@ class ObjexWriter():
             # Vert
             is_rigged = ob.parent and ob.parent.type == 'ARMATURE'
             if is_rigged:
-                fw('useskel %s\n' % string_to_literal(ob.parent.name))
+                fw('useskel %s\n' % util.quote(ob.parent.name))
             if self.options['EXPORT_WEIGHTS'] and vertex_groups and is_rigged:
                 # only write vertex groups named after actual bones
                 armature = ob.parent
                 bone_names = [bone.name for bone in armature.data.bones]
                 bone_vertex_groups = [
-                    [(group_name, weight) for group_name, weight in vertex_vertex_groups if group_name in bone_names]
+                    # Store group_name_q = util.quote(group_name) for performance
+                    [(util.quote(group_name), weight) for group_name, weight in vertex_vertex_groups if group_name in bone_names]
                     for vertex_vertex_groups in vertex_groups
                 ]
                 # only group of maximum weight, with weight 1
                 if self.options['UNIQUE_WEIGHTS']:
                     for v in vertices:
-                        groups = bone_vertex_groups[v.index] # list of (group_name, group_weight) tuples for that vertex
+                        groups = bone_vertex_groups[v.index] # list of (group_name_q, group_weight) tuples for that vertex
                         if groups:
-                            group_name, weight = max(groups, key=lambda _g: _g[1])
+                            group_name_q, weight = max(groups, key=lambda _g: _g[1])
                             fw('%s %s\n' % (
                                 'v %.6f %.6f %.6f' % v.co[:],
-                                'weight %s 1' % (string_to_literal(group_name))
+                                'weight %s 1' % group_name_q
                             ))
                         else:
                             fw('v %.6f %.6f %.6f\n' % v.co[:])
@@ -405,7 +392,7 @@ class ObjexWriter():
                     for v in vertices:
                         fw('%s%s\n' % (
                             'v %.6f %.6f %.6f' % v.co[:],
-                            ','.join([' weight %s %.3f' % (string_to_literal(group_name), weight) for group_name, weight in bone_vertex_groups[v.index] if weight != 0])
+                            ','.join([' weight %s %.3f' % (group_name_q, weight) for group_name_q, weight in bone_vertex_groups[v.index] if weight != 0])
                         ))
             # no weights
             else:
@@ -483,7 +470,7 @@ class ObjexWriter():
                             while name in (_name for (_name, _name_q, _material, _face_image) in self.mtl_dict.values()):
                                 i += 1
                                 name = '%s %d' % (name_base, i)
-                            name_q = name_compat(name)
+                            name_q = util.quote(name)
                             # remember the pair
                             self.mtl_dict[(face_material, face_image)] = name, name_q, face_material, face_image
 
@@ -562,7 +549,7 @@ class ObjexWriter():
                     # A Dict of Materials
                     # "materials" here refer to a material + face image pair, where either or both may be unset
                     # (material, image): (name, name_q, material, face_image)
-                    # name_q = name_compat(name)
+                    # name_q = util.quote(name)
                     self.mtl_dict = {}
 
                     copy_set = set()
