@@ -391,6 +391,7 @@ def create_node_group_color_static(group_name, colorValue, colorValueName):
 
     return tree
 
+# 421todo for texgen preview, see G_TEXTURE_GEN in gSPProcessVertex in GLideN64/src/gSP.cpp
 def create_node_group_uv_pipe(group_name):
     tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
     
@@ -422,6 +423,7 @@ def create_node_group_uv_pipe(group_name):
     # before the clamp part instead of clamping at the limit, where color is
     # merged with the wrapping UV
     # (this is only what I am guessing is happening)
+    # 421todo this is basically texture width/height right? could be set automatically
     pixelsU = tree.inputs.new('NodeSocketFloat', 'Pixels along U')
     pixelsU.min_value = 1
     inf = float('inf')
@@ -483,26 +485,6 @@ def create_node_group_uv_pipe(group_name):
         final[uv] = finalU
     finalU = final['U']
     finalV = final['V']
-
-    # v outdated
-    """
-    vScale = tree.nodes.new('ShaderNodeMath')
-    vScale.operation = 'ROUND'
-    vScale.location = (-400,-100)
-    tree.links.new(inputs_node.outputs['V Scale Exponent'], vScale.inputs[0])
-
-    vScalePower = tree.nodes.new('ShaderNodeMath')
-    vScalePower.operation = 'POWER'
-    vScalePower.location = (-200,-100)
-    vScalePower.inputs[0].default_value = 2
-    tree.links.new(vScale.outputs[0], vScalePower.inputs[1])
-
-    scaleV = tree.nodes.new('ShaderNodeMath')
-    scaleV.operation = 'MULTIPLY'
-    scaleV.location = (0,0)
-    tree.links.new(separateXYZ.outputs[1], scaleV.inputs[0])
-    tree.links.new(vScalePower.outputs[0], scaleV.inputs[1])
-    """
 
     # out
 
