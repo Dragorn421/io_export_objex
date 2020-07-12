@@ -243,10 +243,8 @@ class ObjexMaterialNodeTreeExplorer():
         scaleUVnode = textureNode.inputs[0].links[0].from_node
         return {
             'texture': textureNode.texture,
-            # 421todo use internal float sockets or nice custom sockets?
-            # 421todo for scale make sure int() rounds the same way nodes do
-            'uv_scale_u': int(scaleUVnode.inputs[1].default_value),
-            'uv_scale_v': int(scaleUVnode.inputs[2].default_value),
+            'uv_scale_u': scaleUVnode.inputs[1].default_value,
+            'uv_scale_v': scaleUVnode.inputs[2].default_value,
             'uv_wrap_u': scaleUVnode.inputs[3].default_value,
             'uv_wrap_v': scaleUVnode.inputs[4].default_value,
             'uv_mirror_u': scaleUVnode.inputs[5].default_value,

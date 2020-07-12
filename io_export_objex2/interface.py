@@ -314,6 +314,17 @@ class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket):
     def text(self, txt):
         return txt
 
+class OBJEX_NodeSocket_IntProperty():
+    def update_prop(self, context):
+        self.node.inputs[self.target_socket_name].default_value = self.default_value
+    default_value = bpy.props.IntProperty(update=update_prop)
+
+    def draw(self, context, layout, node, text):
+        layout.prop(self, 'default_value', text=text)
+
+    def draw_color(self, context, node):
+        return CST.COLOR_NONE
+
 class OBJEX_NodeSocket_BoolProperty():
     def update_prop(self, context):
         self.node.inputs[self.target_socket_name].default_value = 1 if self.default_value else 0
@@ -392,19 +403,17 @@ def create_node_group_uv_pipe(group_name):
     # 421todo if Uniform UV Scale is checked, only display Scale Exponent and use for both U and V scales (is this possible?)
     #tree.inputs.new('NodeSocketBool', 'Uniform UV Scale').default_value = True
     #tree.inputs.new('NodeSocketInt', 'Scale Exponent')
-    # blender 2.79 fails to transfer data somewhere when linking int socket to float socket of math node...
-    #tree.inputs.new('NodeSocketInt', 'U Scale Exponent')
-    #tree.inputs.new('NodeSocketInt', 'V Scale Exponent')
-    # instead, round float inputs
-    tree.inputs.new('NodeSocketFloat', 'U Scale Exponent')
-    tree.inputs.new('NodeSocketFloat', 'V Scale Exponent')
-    # 421todo instead, use U/V scale inputs, and do final_scale = 2^(round(log_2(input_scale))) (as an option?)
-    # 421todo try using a custom socket as U/V scale inputs, auto-round on update
-    # 421todo same for Wrap U/V booleans, create OBJEX_NodeSocket_BoolProperty and make it update the hidden float socket
+    # blender 2.79 fails to transfer data somewhere when linking int socket to float socket of math node, same for booleans
+    # those sockets wrap the float ones that are actually used for calculations
+    tree.inputs.new('OBJEX_NodeSocket_UVpipe_ScaleU', 'U Scale Exponent')
+    tree.inputs.new('OBJEX_NodeSocket_UVpipe_ScaleV', 'V Scale Exponent')
     tree.inputs.new('OBJEX_NodeSocket_UVpipe_WrapU', 'Wrap U')
     tree.inputs.new('OBJEX_NodeSocket_UVpipe_WrapV', 'Wrap V')
     tree.inputs.new('OBJEX_NodeSocket_UVpipe_MirrorU', 'Mirror U')
     tree.inputs.new('OBJEX_NodeSocket_UVpipe_MirrorV', 'Mirror V')
+    # internal hidden sockets
+    tree.inputs.new('NodeSocketFloat', 'U Scale Exponent Float')
+    tree.inputs.new('NodeSocketFloat', 'V Scale Exponent Float')
     tree.inputs.new('NodeSocketFloat', 'Wrap U (0/1)')
     tree.inputs.new('NodeSocketFloat', 'Wrap V (0/1)')
     tree.inputs.new('NodeSocketFloat', 'Mirror U (0/1)')
@@ -441,7 +450,7 @@ def create_node_group_uv_pipe(group_name):
     final = {}
     for uv, i, y in (('U',0,400),('V',1,-600)):
         # looking at the nodes in blender is probably better than trying to understand the code here
-        roundedExp = addMathNode('ROUND', (-400,400+y), inputs_node.outputs['%s Scale Exponent' % uv])
+        roundedExp = addMathNode('ROUND', (-400,400+y), inputs_node.outputs['%s Scale Exponent Float' % uv])
         scalePow = addMathNode('POWER', (-200,400+y), 2, roundedExp.outputs[0])
         scale = addMathNode('MULTIPLY', (0,400+y), separateXYZ.outputs[i], scalePow.outputs[0])
         # mirror
@@ -617,36 +626,28 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         else:
             geometry = nodes['Geometry']
 
-        if 'OBJEX_TransformUV0' not in nodes:
-            uvTransform0 = nodes.new('ShaderNodeGroup')
-            uvTransform0.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
-            uvTransform0.name = 'OBJEX_TransformUV0' # internal name
-            uvTransform0.label = 'UV transform 0' # displayed name
-            uvTransform0.location = (-150, 50)
-            uvTransform0.width += 50
-            # set default values in most common usage, but it is also
-            # required to update the default value of "Wrap/Mirror U/V (0/1)"
-            # sockets which are used for the actual UV transform
-            for uv in ('U','V'):
-                for transform, default_value in (('Wrap',True),('Mirror',False)):
-                    uvTransform0.inputs['%s %s' % (transform,uv)].default_value = default_value
-                    uvTransform0.inputs['%s %s (0/1)' % (transform,uv)].hide = True
-        else:
-            uvTransform0 = nodes['OBJEX_TransformUV0']
-        if 'OBJEX_TransformUV1' not in nodes:
-            uvTransform1 = nodes.new('ShaderNodeGroup')
-            uvTransform1.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
-            uvTransform1.name = 'OBJEX_TransformUV1'
-            uvTransform1.label = 'UV transform 1'
-            uvTransform1.location = (-150, -250)
-            uvTransform1.width += 50
-            # set default_value: same as above
-            for uv in ('U','V'):
-                for transform, default_value in (('Wrap',True),('Mirror',False)):
-                    uvTransform1.inputs['%s %s' % (transform,uv)].default_value = default_value
-                    uvTransform1.inputs['%s %s (0/1)' % (transform,uv)].hide = True
-        else:
-            uvTransform1 = nodes['OBJEX_TransformUV1']
+        for i in (0,1):
+            uvTransform_node_name = 'OBJEX_TransformUV%d' % i
+            if uvTransform_node_name not in nodes:
+                uvTransform = nodes.new('ShaderNodeGroup')
+                uvTransform.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
+                uvTransform.name = uvTransform_node_name # internal name
+                uvTransform.label = 'UV transform %d' % i # displayed name
+                uvTransform.location = (-150, 50 - i * 300)
+                uvTransform.width += 50
+                # set default values in most common usage, but it is also
+                # required to update the default value of "Wrap/Mirror U/V (0/1)"
+                # sockets which are used for the actual UV transform
+                for uv in ('U','V'):
+                    for wrapper_socket_name, float_socket_name, default_value in (
+                        ('%s Scale Exponent', '%s Scale Exponent Float', 0),
+                        ('Wrap %s', 'Wrap %s (0/1)', True),
+                        ('Mirror %s', 'Mirror %s (0/1)', False),
+                    ):
+                        uvTransform.inputs[wrapper_socket_name % uv].default_value = default_value
+                        uvTransform.inputs[float_socket_name % uv].hide = True
+        uvTransform0 = nodes['OBJEX_TransformUV0']
+        uvTransform1 = nodes['OBJEX_TransformUV1']
 
         if 'OBJEX_PrimColorRGB' not in nodes:
             primColorRGB = nodes.new('ShaderNodeRGB')
@@ -955,11 +956,13 @@ def register_interface():
         except:
             log.exception('Failed to register {!r}', clazz)
             raise
-    for class_name_suffix, target_socket_name in (
-        ('UVpipe_WrapU', 'Wrap U (0/1)'),
-        ('UVpipe_WrapV', 'Wrap V (0/1)'),
-        ('UVpipe_MirrorU', 'Mirror U (0/1)'),
-        ('UVpipe_MirrorV', 'Mirror V (0/1)'),
+    for class_name_suffix, target_socket_name, mixin in (
+        ('UVpipe_ScaleU', 'U Scale Exponent Float', OBJEX_NodeSocket_IntProperty),
+        ('UVpipe_ScaleV', 'V Scale Exponent Float', OBJEX_NodeSocket_IntProperty),
+        ('UVpipe_WrapU', 'Wrap U (0/1)', OBJEX_NodeSocket_BoolProperty),
+        ('UVpipe_WrapV', 'Wrap V (0/1)', OBJEX_NodeSocket_BoolProperty),
+        ('UVpipe_MirrorU', 'Mirror U (0/1)', OBJEX_NodeSocket_BoolProperty),
+        ('UVpipe_MirrorV', 'Mirror V (0/1)', OBJEX_NodeSocket_BoolProperty),
     ):
         socket_interface_class = type(
             'OBJEX_NodeSocketInterface_%s' % class_name_suffix,
@@ -970,7 +973,7 @@ def register_interface():
         socket_interface_class.bl_socket_idname = socket_class_name
         socket_class = type(
             socket_class_name,
-            (bpy.types.NodeSocket, OBJEX_NodeSocket_BoolProperty),
+            (bpy.types.NodeSocket, mixin),
             {'target_socket_name': target_socket_name}
         )
         bpy.utils.register_class(socket_interface_class)
