@@ -44,7 +44,7 @@ def write_skeleton(file_write_skel, global_matrix, armature, armature_name_q, bo
                 # 421todo instead of warn, automatically solve the problem (add a bone from (0,0,0) ?)
                 log.warning('root bone {} does not start at armature origin, in-game results may vary', bone.name)
         pos = global_matrix * pos
-        fw('%s+ %s %.6f %.6f %.6f\n' % (' ' * indent, bone.name, pos.x, pos.y, pos.z))
+        fw('%s+ %s %.6f %.6f %.6f\n' % (' ' * indent, util.quote(bone.name), pos.x, pos.y, pos.z))
         indent += 1
         stack.append(bone)
     while indent > 0:

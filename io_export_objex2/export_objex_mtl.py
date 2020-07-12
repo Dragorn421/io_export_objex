@@ -21,8 +21,8 @@ import os
 import bpy
 import bpy_extras.io_utils
 
+from . import util
 from .logging_util import getLogger
-
 
 class ObjexMaterialNodeTreeExplorer():
     def __init__(self, tree):
@@ -289,14 +289,18 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
         # used for writing exportid
         append_header(fw)
 
-        # maps a file path to a texture name, to avoid duplicate newtex declarations
+        # maps a file path to (texture_name, texture_name_q),
+        # to avoid duplicate newtex declarations
         # 421fixme is this still expected behavior?
         texture_names = {}
 
         def writeTexture(image, name):
             image_filepath = image.filepath
-            texture_name = texture_names.get(image_filepath)
-            if not texture_name:
+            data = texture_names.get(image_filepath)
+            if data:
+                texture_name, texture_name_q = data
+                log.trace('Skipped writing texture {} using file {}', texture_name, image_filepath)
+            else:
                 texture_name = name
                 # make sure texture_name is not already used
                 i = 0
@@ -305,8 +309,9 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     texture_name = '%s_%d' % (name, i)
                 if i != 0:
                     log.debug('Texture name {} was already used, using {} instead', name, texture_name)
-                texture_names[image_filepath] = texture_name
-                fw('newtex %s\n' % texture_name)
+                texture_name_q = util.quote(texture_name)
+                texture_names[image_filepath] = (texture_name, texture_name_q)
+                fw('newtex %s\n' % texture_name_q)
                 if image.packed_files:
                     if export_packed_images:
                         # save externally a packed image
@@ -343,11 +348,9 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                             tod.texture_bank, source_dir, dest_dir,
                             path_mode, '', copy_set
                     ))
-            else:
-                log.trace('Skipped writing texture {} using file {}', texture_name, image_filepath)
-            # texture_name is input name if new texture,
-            # or the name used for writing the image path
-            return texture_name
+            # texture_name_q is input name if new texture, or
+            # the name used for writing the image path (quoted)
+            return texture_name_q
 
         for name, name_q, material, face_img in mtl_dict.values():
             log.trace('Writing name={!r} name_q={!r} material={!r} face_img={!r}', name, name_q, material, face_img)
@@ -366,11 +369,11 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     texel0data = data['texel0']
                     # todo check texture.type == 'IMAGE'
                     tex = texel0data['texture']
-                    texel0data['texture_name'] = writeTexture(tex.image, tex.name)
+                    texel0data['texture_name_q'] = writeTexture(tex.image, tex.name)
                 if 'texel1' in data:
                     texel1data = data['texel1']
                     tex = texel1data['texture']
-                    texel1data['texture_name'] = writeTexture(tex.image, tex.name)
+                    texel1data['texture_name_q'] = writeTexture(tex.image, tex.name)
                 fw('newmtl %s\n' % name_q)
                 # 421todo attrib, collision/colliders
                 if objex_data.standalone:
@@ -381,9 +384,9 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 if objex_data.force_write:
                     fw('forcewrite\n')
                 if texel0data:
-                    fw('texel0 %s\n' % texel0data['texture_name'])
+                    fw('texel0 %s\n' % texel0data['texture_name_q'])
                 if texel1data:
-                    fw('texel1 %s\n' % texel1data['texture_name'])
+                    fw('texel1 %s\n' % texel1data['texture_name_q'])
                 scaleS = max(0, min(0xFFFF/0x10000, objex_data.scaleS))
                 scaleT = max(0, min(0xFFFF/0x10000, objex_data.scaleT))
                 fw('gbi gsSPTexture(qu016(%f), qu016(%f), 0, G_TX_RENDERTILE, G_ON)\n' % (scaleS, scaleT))
@@ -580,11 +583,10 @@ count  P              A              M              B            comment
                                 image = None
 
                 if image:
-                    texture_name = 'texture_%d' % len(texture_names)
-                    texture_name = writeTexture(image, texture_name)
+                    texture_name_q = writeTexture(image, image.name)
                 else:
-                    texture_name = None
+                    texture_name_q = None
                 fw('newmtl %s\n' % name_q)
-                if texture_name:
-                    fw('texel0 %s\n' % texture_name)
+                if texture_name_q:
+                    fw('texel0 %s\n' % texture_name_q)
 
