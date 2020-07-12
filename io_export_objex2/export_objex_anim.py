@@ -23,7 +23,7 @@ def write_skeleton(file_write_skel, global_matrix, object_transform, armature, a
         fw('pbody')
         if objex_data.pbody_parent_object:
             # 421todo escape, make sure name written here is same as in target's newskel
-            fw(' parent %s %s' % (objex_data.pbody_parent_object.name, objex_data.pbody_parent_bone))
+            fw(' parent %s %s' % (util.quote(objex_data.pbody_parent_object.name), util.quote(objex_data.pbody_parent_bone)))
         fw('\n')
     indent = 0
     stack = [None]
