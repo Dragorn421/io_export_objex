@@ -40,12 +40,6 @@ def registerLogging(root_logger_name):
     resetLoggingSettings()
     getLogger('logging_util').debug('Logging OK')
 
-"""
-fuck %-formatting
-culprit hardcoded here https://github.com/python/cpython/blob/3.8/Lib/logging/__init__.py#L369
-
-"""
-
 def setConsoleLevel(level):
     global root_logger_stream_handler
     root_logger_stream_handler.setLevel(level)
@@ -93,7 +87,7 @@ def setLogOperator(operator, level=logging.INFO):
     if operator:
         root_logger_operator_report_handler = OperatorReportLogHandler(operator)
         root_logger_operator_report_handler.setFormatter(root_logger_formatter)
-        root_logger_operator_report_handler.setLevel(logging.WARNING)
+        root_logger_operator_report_handler.setLevel(level)
         root_logger.addHandler(root_logger_operator_report_handler)
 
 def resetLoggingSettings():
