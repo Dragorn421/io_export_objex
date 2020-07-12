@@ -209,21 +209,27 @@ class ObjexWriter():
                         actions = bpy.data.actions
                     else:
                         actions = [item.action for item in objex_data.export_actions if item.action]
-                    self.armatures.append((util.quote(ob.name), ob, actions))
                 else:
-                    self.armatures.append((ob, []))
-            
+                    actions = []
+                self.armatures.append((util.quote(ob.name), ob, ob_mat, actions))
+
+            # 421todo should this be None in some cases? ("export with current armature deform" option?)
+            rigged_to_armature = ob.find_armature()
+
             apply_modifiers = self.options['APPLY_MODIFIERS']
             # disable armature deform modifiers
-            if apply_modifiers:
-                user_show_armature_modifiers = []
+            user_show_armature_modifiers = []
+            if apply_modifiers and rigged_to_armature:
                 for modifier in ob.modifiers:
                     if modifier.type == 'ARMATURE':
-                        # 421todo not sure armature deform could be used for anything other than main animation?
-                        # and modifier.object == ob.parent
-                        user_show_armature_modifiers.append((modifier, modifier.show_viewport, modifier.show_render))
-                        modifier.show_viewport = False
-                        modifier.show_render = False
+                        if modifier.object == rigged_to_armature:
+                            # 421todo not sure armature deform could be used for anything other than main animation?
+                            user_show_armature_modifiers.append((modifier, modifier.show_viewport, modifier.show_render))
+                            modifier.show_viewport = False
+                            modifier.show_render = False
+                        else:
+                            log.warning('Object {} was found to be rigged to {} but it also has an armature deform modifier using {}',
+                                ob.name, rigged_to_armature.name, modifier.object.name if modifier.object else None)
             try:
                 me = ob.to_mesh(scene, apply_modifiers, calc_tessface=False,
                                 settings='RENDER' if self.options['APPLY_MODIFIERS_RENDER'] else 'PREVIEW')
@@ -231,10 +237,9 @@ class ObjexWriter():
                 me = None
             finally:
                 # restore modifiers properties
-                if apply_modifiers:
-                    for modifier, user_show_viewport, user_show_render in user_show_armature_modifiers:
-                        modifier.show_viewport = user_show_viewport
-                        modifier.show_render = user_show_render
+                for modifier, user_show_viewport, user_show_render in user_show_armature_modifiers:
+                    modifier.show_viewport = user_show_viewport
+                    modifier.show_render = user_show_render
             del apply_modifiers
             
             if me is None:
@@ -244,17 +249,13 @@ class ObjexWriter():
             if self.options['TRIANGULATE']:
                 # _must_ do this first since it re-allocs arrays
                 mesh_triangulate(me)
-            
-            # 421todo apply ob_mat in animations if object is animated
-            # 421fixme (assuming has parent armature = animated ...)
-            # 421fixme scale should still be applied here as it cannot be part of animation data
+
             """
             421todo
             apply scale here
             apply translation to root_bone in loc
             apply rotation to bones in rot
             """
-            # 421fixme is self.options['EXPORT_ANIM'] the right check? animations may come from some other source
             """
             options['DEFORMED_MESH_STRATEGY']
             -> 'WRITE_WORLD' write world coordinates for every mesh including ones deformed by armature (may break animations if world space != object space)
@@ -263,11 +264,7 @@ class ObjexWriter():
             ?
             -> 2 checkboxes? first "always apply object transform when writing mesh data of an animated mesh" (default unchecked) if unchecked 2nd appears "apply object transform to animations instead" (default checked)
             """
-            if self.options['EXPORT_ANIM'] and ob.find_armature(): # 421fixme merge logic with is_rigged 100 lines later
-                log.info('Writing mesh data for {} in object space as it seems animated', ob.name)
-                me.transform(self.options['GLOBAL_MATRIX'])
-            else:
-                me.transform(self.options['GLOBAL_MATRIX'] * ob_mat)
+            me.transform(self.options['GLOBAL_MATRIX'] * ob_mat)
             # If negative scaling, we have to invert the normals...
             if ob_mat.determinant() < 0.0:
                 me.flip_normals()
@@ -360,13 +357,11 @@ class ObjexWriter():
                 del vertGroupNames
 
             # Vert
-            is_rigged = ob.parent and ob.parent.type == 'ARMATURE' # 421fixme use find_armature instead
-            if is_rigged:
-                fw('useskel %s\n' % util.quote(ob.parent.name))
-            if self.options['EXPORT_WEIGHTS'] and vertex_groups and is_rigged:
+            if rigged_to_armature:
+                fw('useskel %s\n' % util.quote(rigged_to_armature.name))
+            if self.options['EXPORT_WEIGHTS'] and vertex_groups and rigged_to_armature:
                 # only write vertex groups named after actual bones
-                armature = ob.parent
-                bone_names = [bone.name for bone in armature.data.bones]
+                bone_names = [bone.name for bone in rigged_to_armature.data.bones]
                 bone_vertex_groups = [
                     # Store group_name_q = util.quote(group_name) for performance
                     [(util.quote(group_name), weight) for group_name, weight in vertex_vertex_groups if group_name in bone_names]

@@ -5,7 +5,7 @@ from . import util
 from .logging_util import getLogger
 
 
-def write_skeleton(file_write_skel, global_matrix, armature, armature_name_q, bones_ordered):
+def write_skeleton(file_write_skel, global_matrix, object_transform, armature, armature_name_q, bones_ordered):
     log = getLogger('anim')
     fw = file_write_skel
     objex_data = armature.data.objex_bonus
@@ -33,17 +33,17 @@ def write_skeleton(file_write_skel, global_matrix, armature, armature_name_q, bo
             indent -= 1
             fw('%s-\n' % (' ' * indent))
             stack.pop()
-        pos = bone.head_local
+        pos = global_matrix * object_transform * bone.head_local
         if bone.parent:
             pos = pos.copy()
-            pos -= bone.parent.head_local
+            pos -= global_matrix * object_transform * bone.parent.head_local
+        # 421todo this warning looks very outdated now that we use object transform
         # 421todo confirm that bone root position is always assumed to be 0 by oot, if yes make sure WYSIWYG applies with the edit-mode location being accounted for in write_action_from_pose_bones
         else:
             # 421fixme better warnings, 
-            if pos != mathutils.Vector((0,0,0)):
+            if bone.head_local != mathutils.Vector((0,0,0)):
                 # 421todo instead of warn, automatically solve the problem (add a bone from (0,0,0) ?)
-                log.warning('root bone {} does not start at armature origin, in-game results may vary', bone.name)
-        pos = global_matrix * pos
+                log.warning('root bone {} at {!r} does not start at armature origin, in-game results may vary', bone.name, pos)
         fw('%s+ %s %.6f %.6f %.6f\n' % (' ' * indent, util.quote(bone.name), pos.x, pos.y, pos.z))
         indent += 1
         stack.append(bone)
@@ -103,8 +103,9 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
     scene_fps = scene.render.fps / scene.render.fps_base
     if scene_fps != 20:
         log.warning('animations are being viewed at {:.1f} fps (change this in render settings), but will be used at 20 fps', scene_fps)
-    
-    for armature_name_q, armature, armature_actions in armatures:
+
+    # armatures is built in ObjexWriter#write_object in export_objex.py (look for self.armatures)
+    for armature_name_q, armature, object_transform, armature_actions in armatures:
         if armature.animation_data:
             user_armature_action = armature.animation_data.action
         
@@ -115,11 +116,11 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
             log.error('armature {} has no bones', armature.name)
         
         if file_write_skel:
-            write_skeleton(file_write_skel, global_matrix, armature, armature_name_q, bones_ordered)
+            write_skeleton(file_write_skel, global_matrix, object_transform, armature, armature_name_q, bones_ordered)
         
         if file_write_anim:
             if armature.animation_data:
-                write_animations(file_write_anim, scene, global_matrix, armature, armature_name_q, root_bone, bones_ordered, armature_actions)
+                write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, armature_actions)
             else:
                 log.warning(
                     'Skipped exporting actions {!r} with armature {} because the armature did not have animation_data '
@@ -133,22 +134,23 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
     
     scene.frame_set(user_frame_current, user_frame_subframe)
 
-def write_animations(file_write_anim, scene, global_matrix, armature, armature_name_q, root_bone, bones_ordered, actions):
+def write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, actions):
     fw = file_write_anim
     fw('# %s\n' % armature.name)
     for action in actions:
         frame_start, frame_end = action.frame_range
         frame_count = int(frame_end - frame_start + 1) # 421fixme is this correct?
         fw('newanim %s %s %d\n' % (armature_name_q, util.quote(action.name), frame_count))
-        write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, action, frame_start, frame_count)
+        write_action(fw, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count)
         fw('\n')
     fw('\n')
 
-def write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, action, frame_start, frame_count):
+def write_action(fw, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count):
     log = getLogger('anim')
-    global_matrix3 = global_matrix.to_3x3()
-    global_matrix3_inv = global_matrix3.inverted()
-    
+    transform = global_matrix * object_transform
+    transform3 = transform.to_3x3()
+    transform3_inv = transform3.inverted()
+
     armature.animation_data.action = action
     
     pose_bones = armature.pose.bones
@@ -187,7 +189,7 @@ def write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, a
         so if root bone is not at 0,0,0 in edit mode (aka root_bone.head != 0) it may cause issues if loc and root_bone.head are summed
         """
         root_loc = root_pose_bone.head # armature space
-        root_loc = global_matrix * root_loc
+        root_loc = transform * root_loc
         fw('loc %.6f %.6f %.6f\n' % (root_loc.x, root_loc.y, root_loc.z)) # 421todo what about "ms"
         for bone in bones_ordered:
             pose_bone = pose_bones[bone.name]
@@ -210,8 +212,8 @@ def write_action(fw, scene, global_matrix, armature, root_bone, bones_ordered, a
             else:
                 # without a parent, transform can stay relative to armature (as if parent_pose_bone.matrix_channel = Identity)
                 rot_matrix = pose_bone.matrix_channel.to_3x3()
-            rot_matrix = global_matrix3 * rot_matrix * global_matrix3_inv
-            
+            rot_matrix = transform3 * rot_matrix * transform3_inv
+
             # OoT actually uses XYZ Euler angles.
             rotation_euler_zyx = rot_matrix.to_euler('XYZ')
             # 5 digits: precision of s16 angles in radians is 2pi/2^16 ~ ‭0.000096
