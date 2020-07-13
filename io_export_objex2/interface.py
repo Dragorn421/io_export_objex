@@ -925,7 +925,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 propOffset(box, data, 'pointer', 'Pointer')
                 box.prop(data, 'priority')
                 box.prop(data, 'force_write')
-                box.prop(data, 'texture_bank')
+                box.template_ID(data, 'texture_bank', open='image.open')
 
 
 classes = (
