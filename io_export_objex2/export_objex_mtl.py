@@ -511,11 +511,6 @@ count  P              A              M              B            comment
                 """
                 # todo better G_?CMUX_ prefix stripping
                 fw('gbi gsDPSetCombineLERP(%s)\n' % (', '.join(flag[len('G_?CMUX_'):] for flag in explorer.combinerFlags)))
-                if texel0data or texel1data:
-                    fw('gbi gsDPSetTileSize(G_TX_RENDERTILE, 0, 0, '
-                        'qu102(_texel{0}width-1), qu102(_texel{0}height-1))\n'
-                        .format('0' if texel0data else '1')
-                    ) # 421fixme ?
                 def rgba32(rgba):
                     return tuple(int(c*255) for c in rgba)
                 if 'primitive' in data and objex_data.write_primitive_color:
@@ -589,6 +584,10 @@ count  P              A              M              B            comment
                         fw('gbivar shiftt%s %d\n' % (i, shiftFromScale(texelData['uv_scale_v'])))
                 if texel0data or texel1data:
                     fw('gbi _loadtexels\n')
+                    fw('gbi gsDPSetTileSize(G_TX_RENDERTILE, 0, 0, '
+                        'qu102(_texel{0}width-1), qu102(_texel{0}height-1))\n'
+                        .format('0' if texel0data else '1')
+                    ) # 421fixme ?
             else:
                 image = None
                 # Write images!
