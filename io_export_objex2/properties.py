@@ -89,6 +89,11 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Culls the back face of geometry',
             default=True
         )
+    frontface_culling = bpy.props.BoolProperty(
+            name='Cull frontfaces',
+            description='Culls the front face of geometry',
+            default=False
+        )
     write_primitive_color = bpy.props.BoolProperty(
             name='Set prim color',
             description='Set the primitive color in the generated display list (macro gsDPSetPrimColor).\n'
@@ -221,6 +226,21 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             name='Texgen',
             description='Generates texture coordinates at run time depending on the view',
             default=False
+        )
+    geometrymode_G_FOG = bpy.props.EnumProperty(
+            items=[
+                ('YES','Set','Set G_FOG',1),
+                ('NO','Clear','Clear G_FOG',2),
+                ('AUTO','Auto','Set if blending uses G_BL_CLR_FOG or G_BL_A_FOG, clear otherwise',3), # I am only assuming this is good practice
+            ],
+            name='G_FOG',
+            description='G_FOG\n' '? see CloudModding wiki, has to do with computing fog values\n' 'THIS DOES NOT DISABLE FOG, use the blending cycle settings for that purpose',
+            default='AUTO'
+        )
+    geometrymode_G_ZBUFFER = bpy.props.BoolProperty(
+            name='Z buffer',
+            description='G_ZBUFFER\n' 'Enable Z buffer calculations',
+            default=True
         )
 
     scaleS = bpy.props.FloatProperty(

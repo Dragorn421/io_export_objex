@@ -501,23 +501,37 @@ count  P              A              M              B            comment
                     fw('gbi gsDPSetPrimColor(0, qu08(0.5), %d, %d, %d, %d)\n' % rgba32(data['primitive'])) # 421fixme minlevel, lodfrac
                 if 'environment' in data and objex_data.write_environment_color:
                     fw('gbi gsDPSetEnvColor(%d, %d, %d, %d)\n' % rgba32(data['environment']))
-                # 421todo more geometry mode flags
+                """
+                421todo
+                G_SHADE, G_SHADING_SMOOTH ?
+                """
                 geometryModeFlagsClear = []
                 geometryModeFlagsSet = []
+                for flag, set_flag in (
+                    ('G_CULL_FRONT', objex_data.frontface_culling),
+                    ('G_CULL_BACK', objex_data.backface_culling),
+                    ('G_ZBUFFER', objex_data.geometrymode_G_ZBUFFER),
+                    ('G_TEXTURE_GEN', objex_data.use_texgen),
+                    ('G_TEXTURE_GEN_LINEAR', objex_data.use_texgen),
+                    ('G_FOG', objex_data.geometrymode_G_FOG == 'YES' or (
+                        objex_data.geometrymode_G_FOG == 'AUTO' and (
+                            ('G_BL_CLR_FOG' in blendCycle0flags)
+                            or ('G_BL_CLR_FOG' in blendCycle1flags)
+                            or ('G_BL_A_FOG' in blendCycle0flags)
+                            or ('G_BL_A_FOG' in blendCycle1flags)
+                        )
+                    )),
+                ):
+                    if set_flag:
+                        geometryModeFlagsSet.append(flag)
+                    else:
+                        geometryModeFlagsClear.append(flag)
                 if 'shade' in data:
                     shadeData = data['shade']
                     (geometryModeFlagsSet
                         if shadeData['type'] == 'normals'
                         else geometryModeFlagsClear
                     ).append('G_LIGHTING')
-                (geometryModeFlagsSet
-                    if objex_data.backface_culling
-                    else geometryModeFlagsClear
-                ).append('G_CULL_BACK')
-                (geometryModeFlagsSet
-                    if objex_data.use_texgen
-                    else geometryModeFlagsClear
-                ).extend(('G_TEXTURE_GEN','G_TEXTURE_GEN_LINEAR'))
                 if len(geometryModeFlagsClear) == 0:
                     geometryModeFlagsClear = ('0',)
                 if len(geometryModeFlagsSet) == 0:

@@ -868,6 +868,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         # 421todo maybe not show the init button if init has already been done
         self.layout.operator('OBJEX_OT_material_init')
         self.layout.prop(data, 'backface_culling')
+        self.layout.prop(data, 'frontface_culling')
         self.layout.prop(data, 'write_primitive_color')
         self.layout.prop(data, 'write_environment_color')
         box = self.layout.box()
@@ -894,6 +895,10 @@ class OBJEX_PT_material(bpy.types.Panel):
         self.layout.prop(data, 'empty')
         self.layout.prop(data, 'force_write')
         self.layout.prop(data, 'use_texgen')
+        self.layout.prop(data, 'geometrymode_G_FOG')
+        if data.geometrymode_G_FOG == 'NO':
+            self.layout.label(text='G_FOG off does not disable fog', icon='ERROR')
+        self.layout.prop(data, 'geometrymode_G_ZBUFFER')
         self.layout.prop(data, 'scaleS')
         self.layout.prop(data, 'scaleT')
         if data.is_objex_material:
