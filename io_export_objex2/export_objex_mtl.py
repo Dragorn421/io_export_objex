@@ -270,7 +270,7 @@ class ObjexMaterialNodeTreeExplorer():
 
 # fixme this is going to end up finding uv/vcolor layers from node (or default to active I guess), if several layers, may write the wrong layer in .objex ... should call write_mtl and get uvs/vcolor data this way before writing the .objex?
 def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
-    log = getLogger('export_objex')
+    log = getLogger('export_objex_mtl')
 
     source_dir = os.path.dirname(bpy.data.filepath)
     dest_dir = os.path.dirname(filepath)
