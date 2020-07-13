@@ -281,13 +281,15 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
 
     scaleS = bpy.props.FloatProperty(
             name='"U" scale',
-            description='Not fully understood, "as if" it scaled U in UVs?',
+            description='Not fully understood, "as if" it scaled U in UVs?\n'
+                        'Used in gsSPTexture',
             min=0, max=1, step=0.01, precision=6,
             default=1
         )
     scaleT = bpy.props.FloatProperty(
             name='"V" scale',
-            description='Not fully understood, "as if" it scaled V in UVs?',
+            description='Not fully understood, "as if" it scaled V in UVs?\n'
+                        'Used in gsSPTexture',
             min=0, max=1, step=0.01, precision=6,
             default=1
         )

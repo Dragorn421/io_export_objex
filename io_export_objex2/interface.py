@@ -914,6 +914,8 @@ class OBJEX_PT_material(bpy.types.Panel):
             for textureNode in (n for n in material.node_tree.nodes if n.bl_idname == 'ShaderNodeTexture' and n.texture):
                 box = self.layout.box()
                 image = textureNode.texture.image
+                if not image:
+                    continue
                 box.label(text=image.filepath if image.filepath else 'Image without filepath?')
                 box.prop(textureNode.texture, 'image')
                 data = image.objex_bonus
