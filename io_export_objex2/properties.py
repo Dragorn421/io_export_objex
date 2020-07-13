@@ -328,11 +328,10 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
             description='Explicitly state to write or to not write the image',
             default='UNSPECIFIED'
         )
-    texture_bank = bpy.props.StringProperty(
+    texture_bank = bpy.props.PointerProperty(
+            type=bpy.types.Image,
             name='Bank',
-            description='Image data to write instead of this texture, useful for dynamic textures (eyes, windows)',
-            subtype='FILE_PATH',
-            default=''
+            description='Image data to write instead of this texture, useful for dynamic textures (eyes, windows)'
         )
 
 
