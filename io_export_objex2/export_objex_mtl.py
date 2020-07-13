@@ -239,7 +239,23 @@ class ObjexMaterialNodeTreeExplorer():
         self.data[k] = self.buildTexelDataFromTextureNode(textureNode)
 
     def buildTexelDataFromTextureNode(self, textureNode):
+        log = self.log
         # FIXME
+        if textureNode.type != 'TEXTURE':
+            log.error('Expected a texture node but this is {} of type {}', textureNode, textureNode.type)
+        if not textureNode.inputs[0].links:
+            log.error('First input of texture node {} {} has no links', textureNode, textureNode.inputs[0])
+            return {
+                # 421fixme ... until logic rewrite
+                'texture': textureNode.texture,
+                'uv_scale_u': 0,
+                'uv_scale_v': 0,
+                'uv_wrap_u': True,
+                'uv_wrap_v': True,
+                'uv_mirror_u': False,
+                'uv_mirror_v': False,
+                #'uv_layer': None, # unused for now!
+            }
         scaleUVnode = textureNode.inputs[0].links[0].from_node
         return {
             'texture': textureNode.texture,
@@ -373,13 +389,17 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 texel0data = texel1data = None
                 if 'texel0' in data:
                     texel0data = data['texel0']
-                    # todo check texture.type == 'IMAGE'
-                    tex = texel0data['texture']
-                    texel0data['texture_name_q'] = writeTexture(tex.image, tex.name)
                 if 'texel1' in data:
                     texel1data = data['texel1']
-                    tex = texel1data['texture']
-                    texel1data['texture_name_q'] = writeTexture(tex.image, tex.name)
+                for texelData in (texel0data,texel1data):
+                    if texelData:
+                        # todo check texture.type == 'IMAGE'
+                        tex = texelData['texture']
+                        if not tex:
+                            raise util.ObjexExportAbort('Material %s uses texel data %r without a texture '
+                                '(make sure texel0 and texel1 have a texture set if they are used in the combiner)'
+                                % (name, texelData))
+                        texelData['texture_name_q'] = writeTexture(tex.image, tex.name)
                 fw('newmtl %s\n' % name_q)
                 # 421todo attrib, collision/colliders
                 if 'shade' in data:

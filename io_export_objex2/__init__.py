@@ -306,6 +306,9 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
                             log.warning('There is a 3d view area in the current screen which is using {} shading and not MATERIAL shading. MATERIAL shading is required to correctly preview objex-enabled materials', space.viewport_shade)
 
             return export_objex.save(context, **keywords)
+        except util.ObjexExportAbort as abort:
+            log.error('Export abort: {}', abort.reason)
+            return {'CANCELLED'}
         except:
             log.exception('Uncaught exception')
             raise
