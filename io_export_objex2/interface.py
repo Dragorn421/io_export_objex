@@ -893,6 +893,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
         self.layout.prop(data, 'standalone')
         self.layout.prop(data, 'empty')
+        self.layout.prop(data, 'vertex_shading')
         self.layout.prop(data, 'force_write')
         self.layout.prop(data, 'use_texgen')
         self.layout.prop(data, 'geometrymode_G_FOG')

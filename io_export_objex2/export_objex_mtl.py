@@ -382,6 +382,19 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     texel1data['texture_name_q'] = writeTexture(tex.image, tex.name)
                 fw('newmtl %s\n' % name_q)
                 # 421todo attrib, collision/colliders
+                if 'shade' in data:
+                    shadingType = data['shade']['type']
+                else:
+                    shadingType = None
+                if objex_data.vertex_shading == 'DYNAMIC':
+                    fw('vertexshading dynamic\n')
+                else: # vertex_shading == 'AUTO'
+                    if shadingType is None:
+                        fw('vertexshading none\n')
+                    elif shadingType == 'normals':
+                        fw('vertexshading normal\n')
+                    else:
+                        fw('vertexshading color\n')
                 if objex_data.standalone:
                     fw('standalone\n')
                 # zzconvert detects "empty." on its own, making it explicit here doesn't hurt
@@ -534,10 +547,9 @@ count  P              A              M              B            comment
                         geometryModeFlagsSet.append(flag)
                     else:
                         geometryModeFlagsClear.append(flag)
-                if 'shade' in data:
-                    shadeData = data['shade']
+                if shadingType is not None:
                     (geometryModeFlagsSet
-                        if shadeData['type'] == 'normals'
+                        if shadingType == 'normals'
                         else geometryModeFlagsClear
                     ).append('G_LIGHTING')
                 if len(geometryModeFlagsClear) == 0:

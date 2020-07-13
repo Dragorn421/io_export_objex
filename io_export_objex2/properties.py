@@ -216,6 +216,15 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Do not write any geometry using this material',
             default=False
         )
+    vertex_shading = bpy.props.EnumProperty(
+            items=[
+                ('AUTO','Auto','Colors only or normals only, depending on the node setup',1),
+                ('DYNAMIC','Dynamic','Use normals where vertex colors are opaque white (1,1,1,1), and vertex colors otherwise',2),
+            ],
+            name='Shading',
+            description='What shade data should be written for each vertex',
+            default='AUTO'
+        )
     force_write = bpy.props.BoolProperty(
             name='Force write',
             description='Write this material even if it is not used',
