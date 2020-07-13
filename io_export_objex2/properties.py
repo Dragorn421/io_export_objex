@@ -4,12 +4,12 @@ from . import interface
 from .logging_util import getLogger
 
 
-# object
+# mesh
 
-class ObjexObjectProperties(bpy.types.PropertyGroup):
+class ObjexMeshProperties(bpy.types.PropertyGroup):
     priority = bpy.props.IntProperty(
             name='Priority',
-            description='Objects with higher priority are written first',
+            description='Meshs with higher priority are written first',
             default=0
         )
     write_origin = bpy.props.BoolProperty(
@@ -17,6 +17,27 @@ class ObjexObjectProperties(bpy.types.PropertyGroup):
             description='If checked, export object location in world space. Used by zzconvert to translate the mesh coordinates back, as if object had its location at world origin.\nHas an actual use for billboards',
             default=False,
         )
+
+# 421todo copied straight from specs, may want to improve wording / properties names
+for attrib, desc in (
+    ('LIMBMTX', 'include explicit limb matrix at start of Dlist'),
+    ('POSMTX', 'include world positioning matrix at start of Dlist'),
+    ('BBMTXS', 'include spherical billboard matrix in Dlist'),
+    ('BBMTXC', 'include cylindrical billboard matrix in Dlist'),
+    ('NOSPLIT', 'do not divide mesh by bones (and do not write skeleton)'),
+    ('NOSKEL', 'do not write a skeleton to the generated zobj'),
+    ('PROXY', 'write a proxy Dlist (will have _PROXY suffix)\n'
+        'in the case of a divided mesh, a proxy is written for each Dlist, and a C array is generated\n'
+        'if NOSKEL is not present (if a skeleton is written), that C array data is also written to zobj at PROXY_ offset and the skeleton points to that table\n'
+        'in play-as data, display list pointers point to the proxy for each instead of the real display list'),
+):
+    setattr(ObjexMeshProperties, 'attrib_%s' % attrib,
+        bpy.props.BoolProperty(
+            name=attrib,
+            description=desc,
+            default=False
+    ))
+
 
 # armature
 
@@ -336,7 +357,7 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
 
 
 classes = (
-    ObjexObjectProperties,
+    ObjexMeshProperties,
 
     ObjexArmatureExportActionsItem,
     ObjexArmatureProperties,
@@ -354,13 +375,13 @@ def register_properties():
         except:
             log.exception('Failed to register {!r}', clazz)
             raise
-    bpy.types.Object.objex_bonus = bpy.props.PointerProperty(type=ObjexObjectProperties)
+    bpy.types.Mesh.objex_bonus = bpy.props.PointerProperty(type=ObjexMeshProperties)
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
     bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
     bpy.types.Image.objex_bonus = bpy.props.PointerProperty(type=ObjexImageProperties)
 
 def unregister_properties():
-    del bpy.types.Object.objex_bonus
+    del bpy.types.Mesh.objex_bonus
     del bpy.types.Armature.objex_bonus
     del bpy.types.Material.objex_bonus
     del bpy.types.Image.objex_bonus

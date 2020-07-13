@@ -335,13 +335,15 @@ class ObjexWriter():
 
             fw('g %s\n' % util.quote(ob.name))
 
-            if ob.type == 'MESH': # 421fixme ? # see "421fixme ? mesh" in interface.py
-                objex_data = ob.objex_bonus
+            if ob.type == 'MESH':
+                objex_data = ob.data.objex_bonus # ObjexMeshProperties
                 if objex_data.priority != 0:
                     fw('priority %d\n' % objex_data.priority)
                 if objex_data.write_origin:
                     fw('origin %.6f %.6f %.6f\n' % tuple(self.options['GLOBAL_MATRIX'] * ob.location))
-                # 421todo attrib: mesh attributes
+                for attrib in ('LIMBMTX', 'POSMTX', 'BBMTXS', 'BBMTXC', 'NOSPLIT', 'NOSKEL', 'PROXY'):
+                    if getattr(objex_data, 'attrib_%s' % attrib):
+                        fw('attrib %s\n' % attrib)
 
             subprogress2.step()
 

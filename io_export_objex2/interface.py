@@ -50,25 +50,28 @@ def propOffset(layout, data, key, propName):
         layout.label(text='It will be read in base 16')
         layout.label(text='Use 0x prefix to be explicit')
 
-# object
 
-class OBJEX_PT_object(bpy.types.Panel):
+# mesh
+
+class OBJEX_PT_mesh(bpy.types.Panel):
     bl_label = 'Objex'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_context = 'object'
+    bl_context = 'data'
 
     @classmethod
     def poll(self, context):
         object = context.object
-        return object.type == 'MESH' # 421fixme ? mesh # priority on armatures (skeleton) would make sense too? does properties on object instead of Mesh (object.data) make sense?
+        return object.type == 'MESH'
 
     def draw(self, context):
         object = context.object
-        data = object.objex_bonus
-        self.layout.label(text='objex object stuff here')
+        data = object.data.objex_bonus # ObjexMeshProperties
         self.layout.prop(data, 'priority')
         self.layout.prop(data, 'write_origin')
+        for attrib in ('LIMBMTX', 'POSMTX', 'BBMTXS', 'BBMTXC', 'NOSPLIT', 'NOSKEL', 'PROXY'):
+            self.layout.prop(data, 'attrib_%s' % attrib)
+
 
 # armature
 
@@ -919,7 +922,7 @@ class OBJEX_PT_material(bpy.types.Panel):
 
 
 classes = (
-    OBJEX_PT_object,
+    OBJEX_PT_mesh,
 
     OBJEX_UL_actions,
     OBJEX_PT_armature,
