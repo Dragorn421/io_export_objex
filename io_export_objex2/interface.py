@@ -895,7 +895,12 @@ class OBJEX_PT_material(bpy.types.Panel):
             for v in ('P','A','M','B'):
                 box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
         self.layout.prop(data, 'standalone')
-        self.layout.prop(data, 'empty')
+        if material.name.startswith('empty.'):
+            self.layout.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
+        else:
+            self.layout.prop(data, 'empty')
+        if data.empty or material.name.startswith('empty.'):
+            self.layout.prop(data, 'branch_to_object')
         self.layout.prop(data, 'vertex_shading')
         self.layout.prop(data, 'force_write')
         self.layout.prop(data, 'use_texgen')

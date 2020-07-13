@@ -400,6 +400,8 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 # zzconvert detects "empty." on its own, making it explicit here doesn't hurt
                 if objex_data.empty or name.startswith('empty.'):
                     fw('empty\n')
+                    if objex_data.branch_to_object:
+                        fw('gbi gsSPDisplayList(_group=%s)\n' % util.quote(objex_data.branch_to_object.name))
                 if objex_data.force_write:
                     fw('forcewrite\n')
                 if texel0data:

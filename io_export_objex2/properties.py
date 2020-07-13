@@ -237,6 +237,12 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Do not write any geometry using this material',
             default=False
         )
+    branch_to_object = bpy.props.PointerProperty(
+            type=bpy.types.Object,
+            name='Branch to',
+            description='Jump to the display list of another object',
+            poll=lambda self, object: object.type == 'MESH'
+        )
     vertex_shading = bpy.props.EnumProperty(
             items=[
                 ('AUTO','Auto','Colors only or normals only, depending on the node setup',1),
