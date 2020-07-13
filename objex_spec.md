@@ -208,6 +208,23 @@ to `ci8`
 `newmtl name` creates a material; `newmtl` can be followed
 by any of these new (optional) directives:
 
+#### `vertexshading`
+
+`vertexshading mode`
+
+What to write for the color/normal part of vertices data
+
+`mode` can be
+ - color: write vc for vertex
+ - normal: write vn for vertex
+ - dynamic: auto-detect, allows some vertices to use colors,
+ and some normals, using normals where vc is full intensity
+ (`0xFFFFFFFF` opaque white)
+ - none: write anything, the color/normal data part isn't
+ used and doesn't matter
+
+`dynamic` mode also switches the geometry mode `G_LIGHTING` flag accordingly
+
 #### `gbi`
 
 every line starting with `gbi` after a `newmtl` will be
