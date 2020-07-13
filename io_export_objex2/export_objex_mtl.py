@@ -519,11 +519,12 @@ count  P              A              M              B            comment
                     fw('gbi gsDPSetEnvColor(%d, %d, %d, %d)\n' % rgba32(data['environment']))
                 """
                 421todo
-                G_SHADE, G_SHADING_SMOOTH ?
+                G_SHADING_SMOOTH ?
                 """
                 geometryModeFlagsClear = []
                 geometryModeFlagsSet = []
                 for flag, set_flag in (
+                    ('G_SHADE', shadingType is not None),
                     ('G_CULL_FRONT', objex_data.frontface_culling),
                     ('G_CULL_BACK', objex_data.backface_culling),
                     ('G_ZBUFFER', objex_data.geometrymode_G_ZBUFFER),
