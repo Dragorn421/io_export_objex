@@ -373,11 +373,11 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             log.trace('Writing name={!r} name_q={!r} material={!r} face_img={!r}', name, name_q, material, face_img)
             objex_data = material.objex_bonus if material else None
             if objex_data and material.use_nodes and not objex_data.is_objex_material:
-                log.warning('Material {!r} use_nodes but not is_objex_material '
-                    '(did you copy-paste nodes from another material instead of clicking the "Init..." button?), '
-                    'nodes will be ignored and the face image will be used '
-                    '(for now, to use the current nodes you can make a temporary duplicate of the material, '
-                    'click the "Init..." button on the original material, delete all the generated nodes '
+                log.warning('Material {!r} use_nodes but not is_objex_material\n'
+                    '(did you copy-paste nodes from another material instead of clicking the "Init..." button?),\n'
+                    'nodes will be ignored and the face image will be used\n'
+                    '(for now, to use the current nodes you can make a temporary duplicate of the material,\n'
+                    'click the "Init..." button on the original material, delete all the generated nodes\n'
                     'and paste the actual nodes from the duplicate)'
                     , material)
             if objex_data and objex_data.is_objex_material:

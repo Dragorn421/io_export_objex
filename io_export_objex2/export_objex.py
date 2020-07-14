@@ -436,6 +436,9 @@ class ObjexWriter():
                 face_material = materials[f.material_index] if use_materials else None
                 face_image = uv_texture[f_index].image if has_uvs else None
 
+                # 421fixme we do not need to switch context when the face image changes if
+                # the (objex) material doesn't change, as the face image is completely ignored
+                # when using objex materials
                 # if context hasn't changed, do nothing
                 if context_material == face_material and context_face_image == face_image:
                     pass
