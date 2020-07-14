@@ -26,18 +26,32 @@ class ObjexMeshProperties(bpy.types.PropertyGroup):
             description='Meshs with higher priority are written first',
             default=0
         )
-    write_origin = bpy.props.BoolProperty(
+    write_origin = bpy.props.EnumProperty(
+            items=[
+                ('YES','Yes','Write origin',1),
+                ('NO','No','Do not write origin',2),
+                ('AUTO','Auto','Write origin if mesh uses billboarding, do not otherwise',3)
+            ],
             name='Origin',
-            description='If checked, export object location in world space. Used by zzconvert to translate the mesh coordinates back, as if object had its location at world origin.\nHas an actual use for billboards',
-            default=False,
+            description='Export object location in world space.\n'
+                        'Used by zzconvert to translate the mesh coordinates back, as if object had its location at world origin.',
+            default='AUTO'
+        )
+    attrib_billboard = bpy.props.EnumProperty(
+            items=[
+                ('BBMTXS','Spherical','include spherical billboard matrix in Dlist',1),
+                ('BBMTXC','Cylindrical','include cylindrical billboard matrix in Dlist',2),
+                ('NONE','None','No billboarding',3)
+            ],
+            name='Billboard',
+            description='Billboard type',
+            default='NONE'
         )
 
 # 421todo copied straight from specs, may want to improve wording / properties names
 for attrib, desc in (
     ('LIMBMTX', 'include explicit limb matrix at start of Dlist'),
     ('POSMTX', 'include world positioning matrix at start of Dlist'),
-    ('BBMTXS', 'include spherical billboard matrix in Dlist'),
-    ('BBMTXC', 'include cylindrical billboard matrix in Dlist'),
     ('NOSPLIT', 'do not divide mesh by bones (and do not write skeleton)'),
     ('NOSKEL', 'do not write a skeleton to the generated zobj'),
     ('PROXY', 'write a proxy Dlist (will have _PROXY suffix)\n'

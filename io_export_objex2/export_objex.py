@@ -339,9 +339,14 @@ class ObjexWriter():
                 objex_data = ob.data.objex_bonus # ObjexMeshProperties
                 if objex_data.priority != 0:
                     fw('priority %d\n' % objex_data.priority)
-                if objex_data.write_origin:
+                if objex_data.write_origin == 'YES' or (
+                    objex_data.write_origin == 'AUTO'
+                    and objex_data.attrib_billboard != 'NONE'
+                ):
                     fw('origin %.6f %.6f %.6f\n' % tuple(self.options['GLOBAL_MATRIX'] * ob.location))
-                for attrib in ('LIMBMTX', 'POSMTX', 'BBMTXS', 'BBMTXC', 'NOSPLIT', 'NOSKEL', 'PROXY'):
+                if objex_data.attrib_billboard != 'NONE':
+                    fw('attrib %s\n' % objex_data.attrib_billboard)
+                for attrib in ('LIMBMTX', 'POSMTX', 'NOSPLIT', 'NOSKEL', 'PROXY'):
                     if getattr(objex_data, 'attrib_%s' % attrib):
                         fw('attrib %s\n' % attrib)
 

@@ -69,7 +69,8 @@ class OBJEX_PT_mesh(bpy.types.Panel):
         data = object.data.objex_bonus # ObjexMeshProperties
         self.layout.prop(data, 'priority')
         self.layout.prop(data, 'write_origin')
-        for attrib in ('LIMBMTX', 'POSMTX', 'BBMTXS', 'BBMTXC', 'NOSPLIT', 'NOSKEL', 'PROXY'):
+        self.layout.prop(data, 'attrib_billboard')
+        for attrib in ('LIMBMTX', 'POSMTX', 'NOSPLIT', 'NOSKEL', 'PROXY'):
             self.layout.prop(data, 'attrib_%s' % attrib)
         self.layout.operator('OBJEX_OT_mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
         self.layout.operator('OBJEX_OT_mesh_find_unassigned_vertices', text='Find unassigned vertices')
