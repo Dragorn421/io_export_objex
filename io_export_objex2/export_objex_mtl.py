@@ -308,12 +308,14 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
         # 421fixme is this still expected behavior?
         texture_names = {}
 
-        def getImagePath(image):
+        def getImagePath(image, filename=None):
             image_filepath = image.filepath
             if image.packed_files:
                 if export_packed_images:
+                    if not filename:
+                        filename = '%s_%d' % (os.path.basename(image_filepath), len(texture_names))
                     # save externally a packed image
-                    image_filepath = '%s/%s' % (export_packed_images_dir, texture_name)
+                    image_filepath = '%s/%s' % (export_packed_images_dir, filename)
                     image_filepath = bpy.path.abspath(image_filepath)
                     log.info('Saving packed image {!r} to {}', image, image_filepath)
                     image.save_render(image_filepath)
@@ -340,7 +342,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 texture_name_q = util.quote(texture_name)
                 texture_names[image_filepath] = (texture_name, texture_name_q)
                 fw('newtex %s\n' % texture_name_q)
-                filepath = getImagePath(image)
+                filepath = getImagePath(image, texture_name)
                 fw('map %s\n' % filepath)
                 # texture objex data
                 tod = image.objex_bonus
