@@ -536,9 +536,13 @@ count  P              A              M              B            comment
                 fw('gbi gsDPSetCombineLERP(%s)\n' % (', '.join(flag[len('G_?CMUX_'):] for flag in explorer.combinerFlags)))
                 def rgba32(rgba):
                     return tuple(int(c*255) for c in rgba)
-                if 'primitive' in data and objex_data.write_primitive_color:
+                if 'primitive' in data and (objex_data.write_primitive_color == 'YES'
+                    or (objex_data.write_primitive_color == 'GLOBAL' and scene.objex_bonus.write_primitive_color)
+                ):
                     fw('gbi gsDPSetPrimColor(0, qu08(0.5), %d, %d, %d, %d)\n' % rgba32(data['primitive'])) # 421fixme minlevel, lodfrac
-                if 'environment' in data and objex_data.write_environment_color:
+                if 'environment' in data and (objex_data.write_environment_color == 'YES'
+                    or (objex_data.write_environment_color == 'GLOBAL' and scene.objex_bonus.write_environment_color)
+                ):
                     fw('gbi gsDPSetEnvColor(%d, %d, %d, %d)\n' % rgba32(data['environment']))
                 """
                 421todo

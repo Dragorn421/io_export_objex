@@ -899,8 +899,13 @@ class OBJEX_PT_material(bpy.types.Panel):
         # often-used options
         self.layout.prop(data, 'backface_culling')
         self.layout.prop(data, 'frontface_culling')
-        self.layout.prop(data, 'write_primitive_color')
-        self.layout.prop(data, 'write_environment_color')
+        for prop in ('write_primitive_color','write_environment_color'):
+            if getattr(data, prop) == 'GLOBAL':
+                box = self.layout.box()
+                box.prop(data, prop)
+                box.prop(context.scene.objex_bonus, prop)
+            else:
+                self.layout.prop(data, prop)
         self.layout.prop(data, 'use_texgen')
         # texel0/1 image properties
         for textureNode in (n for n in material.node_tree.nodes if n.bl_idname == 'ShaderNodeTexture' and n.texture):

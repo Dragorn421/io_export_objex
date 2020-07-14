@@ -3,6 +3,20 @@ import bpy
 from . import interface
 from .logging_util import getLogger
 
+# scene
+
+class ObjexSceneProperties(bpy.types.PropertyGroup):
+    write_primitive_color = bpy.props.BoolProperty(
+            name='Set prim color (global)',
+            description='Scene property, shared by materials',
+            default=True
+        )
+    write_environment_color = bpy.props.BoolProperty(
+            name='Set env color (global)',
+            description='Scene property, shared by materials',
+            default=True
+        )
+
 
 # mesh
 
@@ -115,16 +129,26 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Culls the front face of geometry',
             default=False
         )
-    write_primitive_color = bpy.props.BoolProperty(
+    write_primitive_color = bpy.props.EnumProperty(
+            items=[
+                ('YES','Yes','Set the color',1),
+                ('NO','No','Do not set the color',2),
+                ('GLOBAL','Follow global','Default to the global (per-scene) setting, shared by all materials',3),
+            ],
             name='Set prim color',
             description='Set the primitive color in the generated display list (macro gsDPSetPrimColor).\n'
                         'Disabling this can for example allow to set a dynamic primitive color from code or from another display list',
-            default=True
+            default='GLOBAL'
         )
-    write_environment_color = bpy.props.BoolProperty(
+    write_environment_color = bpy.props.EnumProperty(
+            items=[
+                ('YES','Yes','Set the color',1),
+                ('NO','No','Do not set the color',2),
+                ('GLOBAL','Follow global','Default to the global (per-scene) setting, shared by all materials',3),
+            ],
             name='Set env color',
             description='Same as "Set prim color" for the environment color (macro gsDPSetEnvColor)',
-            default=True
+            default='GLOBAL'
         )
 
     rendermode_blender_flag_AA_EN = bpy.props.BoolProperty(
@@ -365,6 +389,8 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
 
 
 classes = (
+    ObjexSceneProperties,
+
     ObjexMeshProperties,
 
     ObjexArmatureExportActionsItem,
@@ -383,12 +409,14 @@ def register_properties():
         except:
             log.exception('Failed to register {!r}', clazz)
             raise
+    bpy.types.Scene.objex_bonus = bpy.props.PointerProperty(type=ObjexSceneProperties)
     bpy.types.Mesh.objex_bonus = bpy.props.PointerProperty(type=ObjexMeshProperties)
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
     bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
     bpy.types.Image.objex_bonus = bpy.props.PointerProperty(type=ObjexImageProperties)
 
 def unregister_properties():
+    del bpy.types.Scene.objex_bonus
     del bpy.types.Mesh.objex_bonus
     del bpy.types.Armature.objex_bonus
     del bpy.types.Material.objex_bonus
