@@ -868,12 +868,45 @@ class OBJEX_PT_material(bpy.types.Panel):
     def draw(self, context):
         material = context.material
         data = material.objex_bonus
-        # 421todo maybe not show the init button if init has already been done
-        self.layout.operator('OBJEX_OT_material_init')
+        # setup operators
+        if not data.is_objex_material:
+            self.layout.operator('OBJEX_OT_material_init', text='Init Objex material')
+            return
+        self.layout.operator('OBJEX_OT_material_init', text='Reset nodes')
+        # often-used options
         self.layout.prop(data, 'backface_culling')
         self.layout.prop(data, 'frontface_culling')
         self.layout.prop(data, 'write_primitive_color')
         self.layout.prop(data, 'write_environment_color')
+        self.layout.prop(data, 'use_texgen')
+        # texel0/1 image properties
+        for textureNode in (n for n in material.node_tree.nodes if n.bl_idname == 'ShaderNodeTexture' and n.texture):
+            box = self.layout.box()
+            image = textureNode.texture.image
+            if not image:
+                continue
+            box.label(text=image.filepath if image.filepath else 'Image without filepath?')
+            box.prop(textureNode.texture, 'image')
+            imdata = image.objex_bonus
+            box.prop(imdata, 'format')
+            if imdata.format[:2] == 'CI':
+                box.prop(imdata, 'palette')
+            propOffset(box, imdata, 'pointer', 'Pointer')
+            box.prop(imdata, 'priority')
+            box.prop(imdata, 'force_write')
+            row = box.row()
+            row.label(text='Texture bank:')
+            row.template_ID(imdata, 'texture_bank', open='image.open')
+        # less used properties
+        if material.name.startswith('empty.'):
+            self.layout.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
+        else:
+            self.layout.prop(data, 'empty')
+        if data.empty or material.name.startswith('empty.'):
+            self.layout.prop(data, 'branch_to_object')
+        self.layout.prop(data, 'standalone')
+        self.layout.prop(data, 'force_write')
+        # other mode, lower half (blender settings)
         box = self.layout.box()
         box.label(text='Render mode')
         box.prop(data, 'rendermode_blender_flag_AA_EN')
@@ -894,38 +927,14 @@ class OBJEX_PT_material(bpy.types.Panel):
         if data.rendermode_blending_cycle1 == 'CUSTOM':
             for v in ('P','A','M','B'):
                 box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
-        self.layout.prop(data, 'standalone')
-        if material.name.startswith('empty.'):
-            self.layout.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
-        else:
-            self.layout.prop(data, 'empty')
-        if data.empty or material.name.startswith('empty.'):
-            self.layout.prop(data, 'branch_to_object')
+        # other rarely-used or auto settings
         self.layout.prop(data, 'vertex_shading')
-        self.layout.prop(data, 'force_write')
-        self.layout.prop(data, 'use_texgen')
         self.layout.prop(data, 'geometrymode_G_FOG')
         if data.geometrymode_G_FOG == 'NO':
             self.layout.label(text='G_FOG off does not disable fog', icon='ERROR')
         self.layout.prop(data, 'geometrymode_G_ZBUFFER')
         self.layout.prop(data, 'scaleS')
         self.layout.prop(data, 'scaleT')
-        if data.is_objex_material:
-            for textureNode in (n for n in material.node_tree.nodes if n.bl_idname == 'ShaderNodeTexture' and n.texture):
-                box = self.layout.box()
-                image = textureNode.texture.image
-                if not image:
-                    continue
-                box.label(text=image.filepath if image.filepath else 'Image without filepath?')
-                box.prop(textureNode.texture, 'image')
-                data = image.objex_bonus
-                box.prop(data, 'format')
-                if data.format[:2] == 'CI':
-                    box.prop(data, 'palette')
-                propOffset(box, data, 'pointer', 'Pointer')
-                box.prop(data, 'priority')
-                box.prop(data, 'force_write')
-                box.template_ID(data, 'texture_bank', open='image.open')
 
 
 classes = (
