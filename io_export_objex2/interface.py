@@ -71,6 +71,9 @@ class OBJEX_PT_mesh(bpy.types.Panel):
         self.layout.prop(data, 'write_origin')
         for attrib in ('LIMBMTX', 'POSMTX', 'BBMTXS', 'BBMTXC', 'NOSPLIT', 'NOSKEL', 'PROXY'):
             self.layout.prop(data, 'attrib_%s' % attrib)
+        self.layout.operator('OBJEX_OT_mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
+        self.layout.operator('OBJEX_OT_mesh_find_unassigned_vertices', text='Find unassigned vertices')
+        self.layout.operator('OBJEX_OT_mesh_list_vertex_groups', text='List groups of selected vertex')
 
 
 # armature

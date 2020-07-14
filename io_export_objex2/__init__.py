@@ -76,6 +76,7 @@ loc = locals()
 for n in (
     'export_objex', 'export_objex_mtl', 'export_objex_anim',
     'properties', 'interface', 'const_data', 'util', 'logging_util',
+    'helper_ops',
 ):
     if n in loc:
         importlib.reload(loc[n])
@@ -85,6 +86,7 @@ from . import export_objex
 from . import properties
 from . import interface
 from . import logging_util
+from . import helper_ops
 
 IOOBJOrientationHelper = orientation_helper_factory('IOOBJOrientationHelper', axis_forward='-Z', axis_up='Y')
 
@@ -334,6 +336,7 @@ def register():
 
     bpy.types.INFO_MT_file_export.append(menu_func_export)
 
+    helper_ops.register()
     properties.register_properties()
     interface.register_interface()
 
@@ -341,6 +344,7 @@ def register():
 def unregister():
     interface.unregister_interface()
     properties.unregister_properties()
+    helper_ops.unregister()
     
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
 
