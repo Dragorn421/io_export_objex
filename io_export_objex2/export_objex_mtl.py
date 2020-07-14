@@ -308,6 +308,20 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
         # 421fixme is this still expected behavior?
         texture_names = {}
 
+        def getImagePath(image):
+            image_filepath = image.filepath
+            if image.packed_files:
+                if export_packed_images:
+                    # save externally a packed image
+                    image_filepath = '%s/%s' % (export_packed_images_dir, texture_name)
+                    image_filepath = bpy.path.abspath(image_filepath)
+                    log.info('Saving packed image {!r} to {}', image, image_filepath)
+                    image.save_render(image_filepath)
+                else:
+                    log.warning('Image {!r} is packed, assuming it exists at {}', image, image_filepath)
+            return bpy_extras.io_utils.path_reference(image_filepath, source_dir, dest_dir,
+                                                      path_mode, '', copy_set, image.library)
+
         def writeTexture(image, name):
             image_filepath = image.filepath
             data = texture_names.get(image_filepath)
@@ -326,17 +340,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 texture_name_q = util.quote(texture_name)
                 texture_names[image_filepath] = (texture_name, texture_name_q)
                 fw('newtex %s\n' % texture_name_q)
-                if image.packed_files:
-                    if export_packed_images:
-                        # save externally a packed image
-                        image_filepath = '%s/%s' % (export_packed_images_dir, texture_name)
-                        image_filepath = bpy.path.abspath(image_filepath)
-                        log.info('Saving packed image {!r} to {}', image, image_filepath)
-                        image.save_render(image_filepath)
-                    else:
-                        log.warning('Image {!r} is packed, assuming it exists at {}', image, image_filepath)
-                filepath = bpy_extras.io_utils.path_reference(image_filepath, source_dir, dest_dir,
-                                                              path_mode, "", copy_set, image.library)
+                filepath = getImagePath(image)
                 fw('map %s\n' % filepath)
                 # texture objex data
                 tod = image.objex_bonus
@@ -357,11 +361,8 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 elif tod.force_write == 'DO_NOT_WRITE':
                     fw('forcenowrite\n')
                 if tod.texture_bank:
-                    fw('texturebank %s\n'
-                        % bpy_extras.io_utils.path_reference(
-                            tod.texture_bank, source_dir, dest_dir,
-                            path_mode, '', copy_set
-                    ))
+                    texturebank_filepath = getImagePath(tod.texture_bank)
+                    fw('texturebank %s\n' % texturebank_filepath)
             # texture_name_q is input name if new texture, or
             # the name used for writing the image path (quoted)
             return texture_name_q
