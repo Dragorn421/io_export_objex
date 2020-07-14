@@ -872,6 +872,27 @@ class OBJEX_PT_material(bpy.types.Panel):
         if not data.is_objex_material:
             self.layout.operator('OBJEX_OT_material_init', text='Init Objex material')
             return
+        # handle is_objex_material, use_nodes mismatch
+        if not material.use_nodes:
+            self.layout.label(text='Material was initialized', icon='ERROR')
+            self.layout.label(text='as an objex material')
+            self.layout.label(text='but does not use nodes')
+            self.layout.label(text='Did you uncheck')
+            self.layout.label(text='"Use Nodes" for it?')
+            self.layout.label(text='Solutions:', icon='INFO')
+            box = self.layout.box()
+            box.label('1) Check "Use Nodes"')
+            box.prop(material, 'use_nodes')
+            # 421todo "clear objex material" operator "Click here to make this a standard, non-objex, material"
+            # would allow ctrl+z
+            box = self.layout.box()
+            box.label('2) Disable objex features')
+            box.label('for this material')
+            box.prop(data, 'is_objex_material')
+            box = self.layout.box()
+            box.label('3) Reset nodes')
+            box.operator('OBJEX_OT_material_init', text='Reset nodes')
+            return
         self.layout.operator('OBJEX_OT_material_init', text='Reset nodes')
         # often-used options
         self.layout.prop(data, 'backface_culling')
