@@ -128,7 +128,7 @@ class OBJEX_PT_armature(bpy.types.Panel):
             if data.pbody_parent_object:
                 if hasattr(data.pbody_parent_object, 'type') and data.pbody_parent_object.type == 'ARMATURE':
                     box.prop(data, 'pbody_parent_object')
-                    valid_bone = data.pbody_parent_bone in armature.bones
+                    valid_bone = data.pbody_parent_bone in data.pbody_parent_object.data.bones
                     box.prop_search(data, 'pbody_parent_bone', data.pbody_parent_object.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
                     if not valid_bone:
                         box.label(text='A bone must be picked')
