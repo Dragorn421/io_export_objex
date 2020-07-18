@@ -910,10 +910,18 @@ class OBJEX_PT_material(bpy.types.Panel):
                 box.prop(context.scene.objex_bonus, prop)
             else:
                 self.layout.prop(data, prop)
+        # 421todo inform about clamp overriding texgen
         self.layout.prop(data, 'use_texgen')
         # texel0/1 image properties
         for textureNode in (n for n in material.node_tree.nodes if n.bl_idname == 'ShaderNodeTexture' and n.texture):
             box = self.layout.box()
+            if textureNode.texture.type != 'IMAGE':
+                box.label(text='Texture used by node', icon='ERROR')
+                box.label(text='"%s"' % textureNode.label, icon='ERROR')
+                box.label(text='is of type %s.' % textureNode.texture.type, icon='ERROR')
+                box.label(text='Only image textures', icon='ERROR')
+                box.label(text='should be used.', icon='ERROR')
+                continue
             image = textureNode.texture.image
             if not image:
                 continue

@@ -217,6 +217,10 @@ class ObjexMaterialNodeTreeExplorer():
                 log.error('(data key: {}) socket {!r} is not linked to a ShaderNodeRGB node, instead it is linked to {!r} ({})', k, socket, socket.node, socket.node.bl_idname)
         else:
             log.error('(data key: {}) socket {!r} is not linked (it should, to a ShaderNodeRGB node)', k, socket)
+        if socket.default_value[3] != 1:
+            log.warning('(data key: {}) RGB node {} {!r} has its alpha set to {} instead of the default 1\n'
+                'This value has no effect and will be ignored, set the alpha in the combiner inputs nodes instead',
+                k, socket.node.label, socket.node, socket.default_value[3])
         self.data[k] = socket.default_value
 
     def buildColorInputA(self, k, socket):
@@ -397,12 +401,15 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     texel1data = data['texel1']
                 for texelData in (texel0data,texel1data):
                     if texelData:
-                        # todo check texture.type == 'IMAGE'
                         tex = texelData['texture']
                         if not tex:
                             raise util.ObjexExportAbort('Material %s uses texel data %r without a texture '
                                 '(make sure texel0 and texel1 have a texture set if they are used in the combiner)'
                                 % (name, texelData))
+                        if tex.type != 'IMAGE':
+                            raise util.ObjexExportAbort('Material %s uses non-image texture type %s '
+                                '(only image textures can be exported)'
+                                % (name, tex.type))
                         texelData['texture_name_q'] = writeTexture(tex.image, tex.name)
                 fw('newmtl %s\n' % name_q)
                 # 421todo attrib, collision/colliders

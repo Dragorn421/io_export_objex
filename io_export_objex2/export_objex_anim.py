@@ -123,9 +123,11 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
                 write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, armature_actions)
             else:
                 log.warning(
-                    'Skipped exporting actions {!r} with armature {} because the armature did not have animation_data '
-                    '(consider unchecking "Export all actions" under Objex armature properties; '
-                    'if you do want actions to be exported with this armature, animation_data can be initialized by creating a dummy action by adding a keyframe in pose mode)'
+                    'Skipped exporting actions {!r} with armature {},\n'
+                    'because the armature did not have animation_data\n'
+                    '(consider unchecking "Export all actions" under Objex armature properties;\n'
+                    'if you do want actions to be exported with this armature,\n'
+                    'animation_data can be initialized by creating a dummy action by adding a keyframe in pose mode)'
                     , armature_actions, armature.name
                 )
         
