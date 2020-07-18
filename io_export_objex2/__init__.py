@@ -127,6 +127,11 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             description='Use render settings when applying modifiers to mesh objects',
             default=export_objex.ObjexWriter.default_options['APPLY_MODIFIERS_RENDER'],
             )
+    apply_unused_armature_deform = BoolProperty(
+            name='Apply unused deform',
+            description='Apply armature deform modifiers when the armature is not being exported',
+            default=export_objex.ObjexWriter.default_options['APPLY_UNUSED_ARMATURE_DEFORM'],
+            )
 
     # extra data group
     use_smooth_groups = BoolProperty(
