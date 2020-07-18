@@ -110,6 +110,11 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             description='Export selected objects only',
             default=False,
             )
+    include_armatures_from_selection = BoolProperty(
+            name='Used armatures',
+            description='Also export any armature used by the selection, even if it is not selected',
+            default=True,
+            )
 
     # object group
     use_mesh_modifiers = BoolProperty(

@@ -652,6 +652,7 @@ def save(context,
          export_packed_images=None,
          export_packed_images_dir=None,
          use_selection=None,
+         include_armatures_from_selection=True,
          global_matrix=None,
          path_mode=None
          ):
@@ -684,6 +685,12 @@ def save(context,
 
     if use_selection:
         objects = context.selected_objects
+        if include_armatures_from_selection:
+            objex_writer.add_target_objects(
+                armature for armature in (
+                    obj.find_armature() for obj in objects
+                ) if armature and armature not in objects
+            )
     else:
         objects = context.scene.objects
     objex_writer.add_target_objects(objects)
