@@ -370,9 +370,11 @@ class ObjexWriter():
                 del vertGroupNames
 
             # Vert
-            if rigged_to_armature:
+            # rig_is_exported is used to avoid referencing a skeleton or bones which aren't exported
+            rig_is_exported = rigged_to_armature in self.objects
+            if rigged_to_armature and rig_is_exported:
                 fw('useskel %s\n' % util.quote(rigged_to_armature.name))
-            if self.options['EXPORT_WEIGHTS'] and vertex_groups and rigged_to_armature:
+            if self.options['EXPORT_WEIGHTS'] and vertex_groups and rigged_to_armature and rig_is_exported:
                 # only write vertex groups named after actual bones
                 bone_names = [bone.name for bone in rigged_to_armature.data.bones]
                 bone_vertex_groups = [
