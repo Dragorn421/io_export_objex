@@ -70,11 +70,18 @@ class OBJEX_PT_mesh(bpy.types.Panel):
         self.layout.prop(data, 'priority')
         self.layout.prop(data, 'write_origin')
         self.layout.prop(data, 'attrib_billboard')
-        for attrib in ('LIMBMTX', 'POSMTX', 'NOSPLIT', 'NOSKEL', 'PROXY'):
-            self.layout.prop(data, 'attrib_%s' % attrib)
-        self.layout.operator('OBJEX_OT_mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
-        self.layout.operator('OBJEX_OT_mesh_find_unassigned_vertices', text='Find unassigned vertices')
-        self.layout.operator('OBJEX_OT_mesh_list_vertex_groups', text='List groups of selected vertex')
+        self.layout.prop(data, 'attrib_POSMTX')
+        if object.find_armature():
+            self.layout.prop(data, 'attrib_PROXY')
+            self.layout.prop(data, 'attrib_NOSPLIT')
+            if data.attrib_NOSPLIT:
+                self.layout.label(text='NOSKEL (implied by NOSPLIT)', icon='CHECKBOX_HLT')
+            else:
+                self.layout.prop(data, 'attrib_NOSKEL')
+            self.layout.prop(data, 'attrib_LIMBMTX')
+            self.layout.operator('OBJEX_OT_mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
+            self.layout.operator('OBJEX_OT_mesh_find_unassigned_vertices', text='Find unassigned vertices')
+            self.layout.operator('OBJEX_OT_mesh_list_vertex_groups', text='List groups of selected vertex')
 
 
 # armature
