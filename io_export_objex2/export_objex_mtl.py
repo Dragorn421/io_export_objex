@@ -371,6 +371,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
 
         for name, name_q, material, face_img in mtl_dict.values():
             log.trace('Writing name={!r} name_q={!r} material={!r} face_img={!r}', name, name_q, material, face_img)
+            util.detect_zztag(log, name)
             objex_data = material.objex_bonus if material else None
             if objex_data and material.use_nodes and not objex_data.is_objex_material:
                 log.warning('Material {!r} use_nodes but not is_objex_material\n'

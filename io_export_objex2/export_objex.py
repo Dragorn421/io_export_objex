@@ -333,6 +333,7 @@ class ObjexWriter():
 
                 del sort_func
 
+            util.detect_zztag(log, ob.name)
             fw('g %s\n' % util.quote(ob.name))
 
             if ob.type == 'MESH':
