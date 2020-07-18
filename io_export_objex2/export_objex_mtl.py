@@ -431,8 +431,17 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 # zzconvert detects "empty." on its own, making it explicit here doesn't hurt
                 if objex_data.empty or name.startswith('empty.'):
                     fw('empty\n')
-                    if objex_data.branch_to_object:
-                        fw('gbi gsSPDisplayList(_group=%s)\n' % util.quote(objex_data.branch_to_object.name))
+                    if objex_data.branch_to_object: # branch_to_object is a MESH object
+                        # use .bone in branched-to _group if mesh is rigged and split
+                        if objex_data.branch_to_object.find_armature() and not objex_data.branch_to_object.data.objex_bonus.attrib_NOSPLIT:
+                            if not objex_data.branch_to_object_bone:
+                                log.warning('No branch-to bone set for empty material {}, '
+                                    'but mesh object {} is rigged to {} and does not set NOSPLIT',
+                                    name, objex_data.branch_to_object.name, objex_data.branch_to_object.find_armature().name)
+                            branch_to_group_path = '%s.%s' % (objex_data.branch_to_object.name, objex_data.branch_to_object_bone)
+                        else:
+                            branch_to_group_path = objex_data.branch_to_object.name
+                        fw('gbi gsSPDisplayList(_group=%s)\n' % util.quote(branch_to_group_path))
                 if objex_data.force_write:
                     fw('forcewrite\n')
                 if texel0data:

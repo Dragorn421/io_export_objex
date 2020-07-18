@@ -281,6 +281,10 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Jump to the display list of another object',
             poll=lambda self, object: object.type == 'MESH'
         )
+    branch_to_object_bone = bpy.props.StringProperty(
+            name='Branch to bone',
+            description='Jump to the display list for a bone'
+        )
     vertex_shading = bpy.props.EnumProperty(
             items=[
                 ('AUTO','Auto','Colors only or normals only, depending on the node setup',1),

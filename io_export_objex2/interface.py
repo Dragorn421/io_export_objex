@@ -938,12 +938,26 @@ class OBJEX_PT_material(bpy.types.Panel):
             row.label(text='Texture bank:')
             row.template_ID(imdata, 'texture_bank', open='image.open')
         # less used properties
+        is_empty = data.empty or material.name.startswith('empty.')
+        layout = self.layout.box() if is_empty else self.layout
         if material.name.startswith('empty.'):
-            self.layout.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
+            layout.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
         else:
-            self.layout.prop(data, 'empty')
-        if data.empty or material.name.startswith('empty.'):
-            self.layout.prop(data, 'branch_to_object')
+            layout.prop(data, 'empty')
+        if is_empty:
+            layout.prop(data, 'branch_to_object')
+            if data.branch_to_object: # branch_to_object is a MESH object
+                branch_to_object_armature = data.branch_to_object.find_armature()
+                if branch_to_object_armature:
+                    if data.branch_to_object.data.objex_bonus.attrib_NOSPLIT:
+                        layout.label('%s is marked NOSPLIT' % data.branch_to_object.name, icon='INFO')
+                    else:
+                        valid_bone = data.branch_to_object_bone in branch_to_object_armature.data.bones
+                        layout.prop_search(data, 'branch_to_object_bone', branch_to_object_armature.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
+                        if not valid_bone:
+                            layout.label('A bone must be picked', icon='ERROR')
+                            layout.label('NOSPLIT is off on %s' % data.branch_to_object.name, icon='INFO')
+        del layout
         self.layout.prop(data, 'standalone')
         self.layout.prop(data, 'force_write')
         # other mode, lower half (blender settings)
