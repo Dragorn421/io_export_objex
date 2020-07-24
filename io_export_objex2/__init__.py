@@ -76,7 +76,7 @@ loc = locals()
 for n in (
     'export_objex', 'export_objex_mtl', 'export_objex_anim',
     'properties', 'interface', 'const_data', 'util', 'logging_util',
-    'helper_ops', 'data_updater',
+    'helper_ops', 'data_updater', 'view3d_copybuffer_patch',
 ):
     if n in loc:
         importlib.reload(loc[n])
@@ -88,6 +88,7 @@ from . import data_updater
 from . import interface
 from . import logging_util
 from . import helper_ops
+from . import view3d_copybuffer_patch
 
 IOOBJOrientationHelper = orientation_helper_factory('IOOBJOrientationHelper', axis_forward='-Z', axis_up='Y')
 
@@ -334,8 +335,38 @@ def menu_func_export(self, context):
     self.layout.operator(OBJEX_OT_export.bl_idname, text='Extended OBJ (new WIP) (.objex)')
 
 
+class OBJEX_AddonPreferences(bpy.types.AddonPreferences):
+    bl_idname = __package__
+
+    monkeyPatch_view3d_copybuffer = bpy.props.EnumProperty(
+        items=[
+            ('AUTO','Auto','Disable "Ctrl+C" (for now)',1),
+            ('NOTHING','Do nothing','Do not disable "Ctrl+C" (or any other or change anything else',2),
+            ('DISABLE','Disable Ctrl+C','Disable "Ctrl+C", the key combo will do nothing',3),
+        ],
+        name='"Fix" copy',
+        # Specifically, the addon-defined sockets *seem* to be at fault
+        description='Method to use for "fixing" (read: circumventing an issue) "Ctrl+C" (or any shortcut mapped to the copy operator view3d.copybuffer) which crashed Blender when copying objects using Objex-enabled materials',
+        default='AUTO',
+        update=view3d_copybuffer_patch.monkeyPatch_view3d_copybuffer_update
+    )
+    # what were the user settings for view3d.copybuffer before the addon changed it
+    monkeyPatch_view3d_copybuffer_active_user = bpy.props.EnumProperty(
+        items=[
+            ('None', '','',1), # settings not overwritten by addon
+            ('True', '','',2),
+            ('False','','',3),
+        ],
+        default='None'
+    )
+
+    def draw(self, context):
+        self.layout.prop(self, 'monkeyPatch_view3d_copybuffer')
+
+
 classes = (
     OBJEX_OT_export,
+    OBJEX_AddonPreferences,
 )
 
 
@@ -351,9 +382,11 @@ def register():
     properties.register_properties()
     data_updater.register()
     interface.register_interface()
+    view3d_copybuffer_patch.register()
 
 
 def unregister():
+    view3d_copybuffer_patch.unregister()
     interface.unregister_interface()
     data_updater.unregister()
     properties.unregister_properties()
