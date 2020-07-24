@@ -1,6 +1,7 @@
 import bpy
 import mathutils
 import re
+from math import pi
 
 from . import const_data as CST
 from .logging_util import getLogger
@@ -418,7 +419,88 @@ def addMathNodeTree(tree, operation, location, in0=None, in1=None):
                 tree.links.new(input, n.inputs[i])
     return n.outputs[0]
 
-# 421todo for texgen preview, see G_TEXTURE_GEN in gSPProcessVertex in GLideN64/src/gSP.cpp
+def create_node_group_uv_pipe_main(group_name):
+    tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
+
+    inputs_node = tree.nodes.new('NodeGroupInput')
+    inputs_node.location = (-1000,150)
+    tree.inputs.new('NodeSocketVector', 'UV')
+    tree.inputs.new('NodeSocketVector', 'Normal')
+    tree.inputs.new('OBJEX_NodeSocket_UVpipe_main_Texgen', 'Texgen')
+    tree.inputs.new('OBJEX_NodeSocket_UVpipe_main_TexgenLinear', 'Texgen Linear')
+    for uv in ('U','V'):
+        scale = tree.inputs.new('NodeSocketFloat', '%s Scale' % uv)
+        scale.default_value = 1
+        scale.min_value = 0
+        scale.max_value = 1
+    tree.inputs.new('NodeSocketFloat', 'Texgen (0/1)')
+    tree.inputs.new('NodeSocketFloat', 'Texgen Linear (0/1)')
+
+    # texgen math based on GLideN64/src/gSP.cpp (see G_TEXTURE_GEN in gSPProcessVertex)
+
+    separateUV = tree.nodes.new('ShaderNodeSeparateXYZ')
+    separateUV.location = (-800,300)
+    tree.links.new(inputs_node.outputs['UV'], separateUV.inputs[0])
+
+    transformNormal = tree.nodes.new('ShaderNodeVectorTransform')
+    transformNormal.location = (-800,-100)
+    tree.links.new(inputs_node.outputs['Normal'], transformNormal.inputs[0])
+    transformNormal.vector_type = 'VECTOR'
+    transformNormal.convert_from = 'OBJECT'
+    transformNormal.convert_to = 'CAMERA'
+
+    normalize = tree.nodes.new('ShaderNodeVectorMath')
+    normalize.location = (-600,-100)
+    tree.links.new(transformNormal.outputs[0], normalize.inputs[0])
+    normalize.operation = 'NORMALIZE'
+
+    separateUVtexgen = tree.nodes.new('ShaderNodeSeparateXYZ')
+    separateUVtexgen.location = (-400,-100)
+    tree.links.new(normalize.outputs[0], separateUVtexgen.inputs[0])
+
+    def addMathNode(operation, location, in0=None, in1=None):
+        return addMathNodeTree(tree, operation, location, in0, in1)
+
+    texgenOn = inputs_node.outputs['Texgen (0/1)']
+    texgenOff = addMathNode('SUBTRACT', (-600,500), 1, texgenOn)
+
+    texgenLinear = inputs_node.outputs['Texgen Linear (0/1)']
+    texgenLinearNot = addMathNode('SUBTRACT', (-600,-300), 1, texgenLinear)
+
+    frameLinear = tree.nodes.new('NodeFrame')
+    frameLinear.label = '_LINEAR'
+    final = {}
+    for uv, i, y in (('U',0,100),('V',1,-200)):
+        d = -200 if uv == 'V' else 200
+        texgenNotLinear = separateUVtexgen.outputs[i]
+        texgenNotLinearPart = addMathNode('MULTIPLY', (-200,d+y), texgenLinearNot, texgenNotLinear)
+        multMin1 = addMathNode('MULTIPLY', (-200,y), texgenNotLinear, -1)
+        acos = addMathNode('ARCCOSINE', (0,y), multMin1)
+        divPi = addMathNode('DIVIDE', (200,y), acos, pi)
+        mult2 = addMathNode('MULTIPLY', (400,y), divPi, 2)
+        sub1 = addMathNode('SUBTRACT', (600,y), mult2, 1)
+        for s in (multMin1, acos, divPi, mult2, sub1):
+            s.node.parent = frameLinear
+        texgenLinearPart = addMathNode('MULTIPLY', (800,d+y), texgenLinear, sub1)
+        finalIfTexgen = addMathNode('ADD', (1000,y), texgenNotLinearPart, texgenLinearPart)
+        trulyFinalIfTexgen = addMathNode('MULTIPLY', (1200,y), finalIfTexgen, 50)
+        texgenPart = addMathNode('MULTIPLY', (1400,d+y), texgenOn, trulyFinalIfTexgen)
+        noTexgenPart = addMathNode('MULTIPLY', (1100,d+y), texgenOff, separateUV.outputs[i])
+        onlyScaleLeft = addMathNode('ADD', (1600,y), texgenPart, noTexgenPart)
+        final[uv] = addMathNode('MULTIPLY', (1800,y), onlyScaleLeft, inputs_node.outputs['%s Scale' % uv])
+
+    combineXYZ = tree.nodes.new('ShaderNodeCombineXYZ')
+    combineXYZ.location = (2000,100)
+    tree.links.new(final['U'], combineXYZ.inputs[0])
+    tree.links.new(final['V'], combineXYZ.inputs[1])
+
+    outputs_node = tree.nodes.new('NodeGroupOutput')
+    outputs_node.location = (2200,100)
+    tree.outputs.new('NodeSocketVector', 'UV')
+    tree.links.new(combineXYZ.outputs[0], outputs_node.inputs['UV'])
+
+    return tree
+
 def create_node_group_uv_pipe(group_name):
     tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
 
@@ -568,6 +650,7 @@ def update_node_groups():
         'OBJEX_Cycle': (1, create_node_group_cycle),
         'OBJEX_Color0': (1, lambda group_name: create_node_group_color_static(group_name, (0,0,0,0), '0')),
         'OBJEX_Color1': (1, lambda group_name: create_node_group_color_static(group_name, (1,1,1,1), '1')),
+        'OBJEX_UV_pipe_main': (1, create_node_group_uv_pipe_main),
         'OBJEX_UV_pipe': (1, create_node_group_uv_pipe),
         'OBJEX_rgba_pipe': (1, create_node_group_rgba_pipe),
     }
@@ -932,8 +1015,6 @@ class OBJEX_PT_material(bpy.types.Panel):
                 box.prop(context.scene.objex_bonus, prop)
             else:
                 self.layout.prop(data, prop)
-        # 421todo inform about clamp overriding texgen
-        self.layout.prop(data, 'use_texgen')
         # texel0/1 image properties
         for textureNode in (n for n in material.node_tree.nodes if n.bl_idname == 'ShaderNodeTexture' and n.texture):
             box = self.layout.box()
@@ -1009,8 +1090,6 @@ class OBJEX_PT_material(bpy.types.Panel):
         if data.geometrymode_G_FOG == 'NO':
             self.layout.label(text='G_FOG off does not disable fog', icon='ERROR')
         self.layout.prop(data, 'geometrymode_G_ZBUFFER')
-        self.layout.prop(data, 'scaleS')
-        self.layout.prop(data, 'scaleT')
 
 class OBJEX_OT_material_multitexture(bpy.types.Operator):
 
@@ -1116,6 +1195,9 @@ def register_interface():
             log.exception('Failed to register {!r}', clazz)
             raise
     for class_name_suffix, target_socket_name, mixin in (
+        # 421todo warn if texgen && clamp (clamp "takes priority" in oot but not in the node setup)
+        ('UVpipe_main_Texgen', 'Texgen (0/1)', OBJEX_NodeSocket_BoolProperty),
+        ('UVpipe_main_TexgenLinear', 'Texgen Linear (0/1)', OBJEX_NodeSocket_BoolProperty),
         ('UVpipe_ScaleU', 'U Scale Exponent Float', OBJEX_NodeSocket_IntProperty),
         ('UVpipe_ScaleV', 'V Scale Exponent Float', OBJEX_NodeSocket_IntProperty),
         ('UVpipe_WrapU', 'Wrap U (0/1)', OBJEX_NodeSocket_BoolProperty),

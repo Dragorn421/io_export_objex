@@ -203,8 +203,32 @@ class ObjexMaterialNodeTreeExplorer():
             else:
                 if ks[1] in data:
                     mergedData[k2] = dataMerger2(data[ks[1]])
+        mergeTexel = ('uv_layer', 'texgen', 'texgen_linear', 'uv_scale_u_main', 'uv_scale_v_main')
+        if 'texel0' in mergedData:
+            if 'texel1' in mergedData: # both texel0 and texel1
+                mergedData['uv_main'] = dict()
+                for k in mergeTexel:
+                    if mergedData['texel0'][k] != mergedData['texel1'][k]:
+                        log.error('Could not merge texel0 {!r} and texel1 {!r} main uv transform data into {} in uv_main',
+                            mergedData['texel0'][k], mergedData['texel1'][k], k)
+                        continue
+                    mergedData['uv_main'][k] = mergedData['texel0'][k]
+                    del mergedData['texel0'][k]
+                    del mergedData['texel1'][k]
+            else: # only texel0
+                mergedData['uv_main'] = dict()
+                for k in mergeTexel:
+                    mergedData['uv_main'][k] = mergedData['texel0'][k]
+                    del mergedData['texel0'][k]
+        else:
+            if 'texel1' in mergedData: # only texel1
+                mergedData['uv_main'] = dict()
+                for k in mergeTexel:
+                    mergedData['uv_main'][k] = mergedData['texel1'][k]
+                    del mergedData['texel1'][k]
+            else: # neither texel0 nor texel1
+                pass
         self.data = mergedData
-        # FIXME uv_layer must be merged from texel01 data
 
     def buildColorInputRGB(self, k, socket):
         log = self.log
@@ -258,9 +282,14 @@ class ObjexMaterialNodeTreeExplorer():
                 'uv_wrap_v': True,
                 'uv_mirror_u': False,
                 'uv_mirror_v': False,
-                #'uv_layer': None, # unused for now!
+                'uv_layer': None,
+                'texgen': False,
+                'texgen_linear': False,
+                'uv_scale_u_main': 1,
+                'uv_scale_v_main': 1,
             }
         scaleUVnode = textureNode.inputs[0].links[0].from_node
+        mainUVtransformNode = scaleUVnode.inputs[0].links[0].from_node
         return {
             'texture': textureNode.texture,
             'uv_scale_u': scaleUVnode.inputs[1].default_value,
@@ -269,7 +298,11 @@ class ObjexMaterialNodeTreeExplorer():
             'uv_wrap_v': scaleUVnode.inputs[4].default_value,
             'uv_mirror_u': scaleUVnode.inputs[5].default_value,
             'uv_mirror_v': scaleUVnode.inputs[6].default_value,
-            'uv_layer': scaleUVnode.inputs[0].links[0].from_node.uv_layer,
+            'uv_layer': mainUVtransformNode.inputs[0].links[0].from_node.uv_layer,
+            'texgen': mainUVtransformNode.inputs[2].default_value,
+            'texgen_linear': mainUVtransformNode.inputs[3].default_value,
+            'uv_scale_u_main': mainUVtransformNode.inputs[4].default_value,
+            'uv_scale_v_main': mainUVtransformNode.inputs[5].default_value,
         }
 
     def buildShadingDataFromColorSocket(self, k, socket):
@@ -448,9 +481,18 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     fw('texel0 %s\n' % texel0data['texture_name_q'])
                 if texel1data:
                     fw('texel1 %s\n' % texel1data['texture_name_q'])
-                scaleS = max(0, min(0xFFFF/0x10000, objex_data.scaleS))
-                scaleT = max(0, min(0xFFFF/0x10000, objex_data.scaleT))
-                fw('gbi gsSPTexture(qu016(%f), qu016(%f), 0, G_TX_RENDERTILE, G_ON)\n' % (scaleS, scaleT))
+                if texel0data or texel1data:
+                    scaleS = data['uv_main']['uv_scale_u_main']
+                    scaleT = data['uv_main']['uv_scale_v_main']
+                    for uv,scale in (('U',scaleS),('V',scaleT)):
+                        if scale < 0 or scale > 1:
+                            log.warning('UV scale {} (the one next to texgen settings) {}\n'
+                                'is not in the range (0;1) and will be clamped to that range.\n'
+                                'Use per-texel scales for larger scale values.',
+                                uv, scale)
+                    scaleS = max(0, min(0xFFFF/0x10000, scaleS))
+                    scaleT = max(0, min(0xFFFF/0x10000, scaleT))
+                    fw('gbi gsSPTexture(qu016(%f), qu016(%f), 0, G_TX_RENDERTILE, G_ON)\n' % (scaleS, scaleT))
                 fw('gbi gsDPPipeSync()\n')
                 # blender settings flags
                 otherModeLowerHalfFlags = []
@@ -574,8 +616,8 @@ count  P              A              M              B            comment
                     ('G_CULL_FRONT', objex_data.frontface_culling),
                     ('G_CULL_BACK', objex_data.backface_culling),
                     ('G_ZBUFFER', objex_data.geometrymode_G_ZBUFFER),
-                    ('G_TEXTURE_GEN', objex_data.use_texgen),
-                    ('G_TEXTURE_GEN_LINEAR', objex_data.use_texgen),
+                    ('G_TEXTURE_GEN', 'uv_main' in data and data['uv_main']['texgen']),
+                    ('G_TEXTURE_GEN_LINEAR', 'uv_main' in data and data['uv_main']['texgen_linear']),
                     ('G_FOG', objex_data.geometrymode_G_FOG == 'YES' or (
                         objex_data.geometrymode_G_FOG == 'AUTO' and (
                             ('G_BL_CLR_FOG' in blendCycle0flags)

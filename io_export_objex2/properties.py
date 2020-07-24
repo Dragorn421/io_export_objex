@@ -299,12 +299,6 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Write this material even if it is not used',
             default=False
         )
-
-    use_texgen = bpy.props.BoolProperty(
-            name='Texgen',
-            description='Generates texture coordinates at run time depending on the view',
-            default=False
-        )
     geometrymode_G_FOG = bpy.props.EnumProperty(
             items=[
                 ('YES','Set','Set G_FOG',1),
@@ -319,21 +313,6 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             name='Z buffer',
             description='G_ZBUFFER\n' 'Enable Z buffer calculations',
             default=True
-        )
-
-    scaleS = bpy.props.FloatProperty(
-            name='"U" scale',
-            description='Not fully understood, "as if" it scaled U in UVs?\n'
-                        'Used in gsSPTexture',
-            min=0, max=1, step=0.01, precision=6,
-            default=1
-        )
-    scaleT = bpy.props.FloatProperty(
-            name='"V" scale',
-            description='Not fully understood, "as if" it scaled V in UVs?\n'
-                        'Used in gsSPTexture',
-            min=0, max=1, step=0.01, precision=6,
-            default=1
         )
 
 # add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B
