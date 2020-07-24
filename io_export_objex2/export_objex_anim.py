@@ -118,7 +118,7 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
         if file_write_skel:
             write_skeleton(file_write_skel, global_matrix, object_transform, armature, armature_name_q, bones_ordered)
         
-        if file_write_anim:
+        if file_write_anim and armature_actions:
             if armature.animation_data:
                 write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, armature_actions)
             else:

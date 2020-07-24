@@ -1087,6 +1087,7 @@ def register_interface():
         bpy.utils.register_class(socket_class)
 
 def unregister_interface():
+    log = getLogger('interface')
     for clazz in reversed(classes):
         try:
             bpy.utils.unregister_class(clazz)
