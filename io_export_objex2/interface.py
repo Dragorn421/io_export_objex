@@ -81,9 +81,9 @@ class OBJEX_PT_mesh(bpy.types.Panel):
             else:
                 self.layout.prop(data, 'attrib_NOSKEL')
             self.layout.prop(data, 'attrib_LIMBMTX')
-            self.layout.operator('OBJEX_OT_mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
-            self.layout.operator('OBJEX_OT_mesh_find_unassigned_vertices', text='Find unassigned vertices')
-            self.layout.operator('OBJEX_OT_mesh_list_vertex_groups', text='List groups of selected vertex')
+            self.layout.operator('objex.mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
+            self.layout.operator('objex.mesh_find_unassigned_vertices', text='Find unassigned vertices')
+            self.layout.operator('objex.mesh_list_vertex_groups', text='List groups of selected vertex')
 
 
 # armature
