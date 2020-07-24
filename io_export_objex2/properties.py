@@ -132,6 +132,7 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
 
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
+    objex_version = bpy.props.IntProperty(default=0) # see data_updater.py
 
     backface_culling = bpy.props.BoolProperty(
             name='Cull backfaces',

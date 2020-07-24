@@ -76,7 +76,7 @@ loc = locals()
 for n in (
     'export_objex', 'export_objex_mtl', 'export_objex_anim',
     'properties', 'interface', 'const_data', 'util', 'logging_util',
-    'helper_ops',
+    'helper_ops', 'data_updater',
 ):
     if n in loc:
         importlib.reload(loc[n])
@@ -84,6 +84,7 @@ del importlib
 
 from . import export_objex
 from . import properties
+from . import data_updater
 from . import interface
 from . import logging_util
 from . import helper_ops
@@ -348,11 +349,13 @@ def register():
 
     helper_ops.register()
     properties.register_properties()
+    data_updater.register()
     interface.register_interface()
 
 
 def unregister():
     interface.unregister_interface()
+    data_updater.unregister()
     properties.unregister_properties()
     helper_ops.unregister()
     

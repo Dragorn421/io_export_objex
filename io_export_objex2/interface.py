@@ -4,6 +4,7 @@ import re
 from math import pi
 
 from . import const_data as CST
+from . import data_updater
 from .logging_util import getLogger
 
 """
@@ -640,12 +641,12 @@ def create_node_group_rgba_pipe(group_name):
 
     return tree
 
+# 421fixme check this function still behaves as expected since the updater code was ditched
 def update_node_groups():
     # dict mapping group names (keys in bpy.data.node_groups) to (latest_version, create_function) tuples
     # version is stored in 'objex_version' for each group and compared to latest_version
     # usage: increment associated latest_version when making changes in the create_function of some group
-    # WARNING: the upgrading preserves links, which is the intent, but it means outputs/inputs order must not change
-    #   (if the order must change, more complex upgrading code is required)
+    # WARNING: bumping version here is not enough, material version should be bumped too (see data_updater.py)
     groups = {
         'OBJEX_Cycle': (1, create_node_group_cycle),
         'OBJEX_Color0': (1, lambda group_name: create_node_group_color_static(group_name, (0,0,0,0), '0')),
@@ -654,8 +655,6 @@ def update_node_groups():
         'OBJEX_UV_pipe': (1, create_node_group_uv_pipe),
         'OBJEX_rgba_pipe': (1, create_node_group_rgba_pipe),
     }
-    # dict mapping old groups to new groups, used later for upgrading
-    upgrade = {}
     for group_name, (latest_version, group_create) in groups.items():
         old_node_group = None
         current_node_group = bpy.data.node_groups.get(group_name)
@@ -663,7 +662,7 @@ def update_node_groups():
         if current_node_group and (
             'objex_version' not in current_node_group
             or current_node_group['objex_version'] < latest_version
-        or True): # 421fixme always make groups outdated, easier testing
+        ):
             old_node_group = current_node_group
             old_node_group.name = '%s_old' % group_name
             current_node_group = None
@@ -671,29 +670,37 @@ def update_node_groups():
         if not current_node_group:
             current_node_group = group_create(group_name)
             current_node_group['objex_version'] = latest_version
-        # store update from old_node_group to current_node_group
-        if old_node_group:
-            upgrade[old_node_group] = current_node_group
-    # upgrade outdated group nodes
-    if upgrade:
-        for m in bpy.data.materials:
-            if m.use_nodes and m.node_tree:
-                for n in m.node_tree.nodes:
-                    if n.bl_idname == 'ShaderNodeGroup':
-                        new_tree = upgrade.get(n.node_tree)
-                        if new_tree:
-                            n.node_tree = new_tree
-        for old_node_group in upgrade:
-            bpy.data.node_groups.remove(old_node_group)
 
-class OBJEX_OT_material_init(bpy.types.Operator):
+class OBJEX_OT_material_build_nodes(bpy.types.Operator):
 
-    bl_idname = 'objex.material_init'
+    bl_idname = 'objex.material_build_nodes'
     bl_label = 'Initialize a material for use on Objex export'
     bl_options = {'INTERNAL', 'PRESET', 'REGISTER', 'UNDO'}
-    
+
+    # if set, use the material with this name instead of the context one
+    target_material_name = bpy.props.StringProperty()
+
+    # clear all nodes before building
+    reset = bpy.props.BoolProperty(default=False)
+    # create missing nodes (disabling may cause unchecked errors)
+    create = bpy.props.BoolProperty(default=True)
+    # for existing group nodes, set the used group to the latest
+    # in the end, should have no effect unless updating a material
+    update_groups_of_existing = bpy.props.BoolProperty(default=True)
+    # set locations, dimensions
+    set_looks = bpy.props.BoolProperty(default=True)
+    # create basic links (eg vanilla RGB node OBJEX_PrimColorRGB to RGB pipe node OBJEX_PrimColor)
+    set_basic_links = bpy.props.BoolProperty(default=True)
+
     def execute(self, context):
-        material = context.material
+        if self.target_material_name:
+            material = bpy.data.materials[self.target_material_name]
+        else:
+            material = context.material
+
+        if not (self.create or material.objex_bonus.is_objex_material):
+            return {'CANCELLED'}
+
         # let the user choose, as use_transparency is used when
         # exporting to distinguish opaque and translucent geometry
         #material.use_transparency = True
@@ -701,263 +708,115 @@ class OBJEX_OT_material_init(bpy.types.Operator):
         update_node_groups()
         node_tree = material.node_tree
         nodes = node_tree.nodes
-        
-        nodes.clear() # 421fixme do not inconditionally rebuild
-        """
-        421todo different "rebuild" modes:
-        reset (nodes.clear())
-        fill (add missing nodes)
-        hide sockets (eg "Wrap U (0/1)")
-        re-apply dimensions/positions
-        ...?
-        (this only means splitting this operator in parts, or adding more parameters to it)
-        """
 
-        if 'Geometry' not in nodes:
-            geometry = nodes.new('ShaderNodeGeometry')
-            geometry.name = 'Geometry'
-            geometry.location = (-400, -100)
-        else:
-            geometry = nodes['Geometry']
+        if self.reset:
+            nodes.clear()
 
-        for i in (0,1):
-            uvTransform_node_name = 'OBJEX_TransformUV%d' % i
-            if uvTransform_node_name not in nodes:
-                uvTransform = nodes.new('ShaderNodeGroup')
-                uvTransform.node_tree = bpy.data.node_groups['OBJEX_UV_pipe']
-                uvTransform.name = uvTransform_node_name # internal name
-                uvTransform.label = 'UV transform %d' % i # displayed name
-                uvTransform.location = (-150, 50 - i * 300)
-                uvTransform.width += 50
-                # set default values in most common usage, but it is also
-                # required to update the default value of "Wrap/Mirror U/V (0/1)"
-                # sockets which are used for the actual UV transform
-                for uv in ('U','V'):
-                    for wrapper_socket_name, float_socket_name, default_value in (
-                        ('%s Scale Exponent', '%s Scale Exponent Float', 0),
-                        ('Wrap %s', 'Wrap %s (0/1)', True),
-                        ('Mirror %s', 'Mirror %s (0/1)', False),
-                    ):
-                        uvTransform.inputs[wrapper_socket_name % uv].default_value = default_value
-                        uvTransform.inputs[float_socket_name % uv].hide = True
-        uvTransform0 = nodes['OBJEX_TransformUV0']
-        uvTransform1 = nodes['OBJEX_TransformUV1']
+        # nodes are described in const_data.py
+        nodes_data = CST.node_setup
+        EMPTY_DICT = dict()
+        EMPTY_LIST = list()
 
-        if 'OBJEX_PrimColorRGB' not in nodes:
-            primColorRGB = nodes.new('ShaderNodeRGB')
-            primColorRGB.name = 'OBJEX_PrimColorRGB'
-            primColorRGB.label = 'Primitive Color RGB'
-            primColorRGB.location = (100, 450)
-            primColorRGB.outputs[0].default_value = (1,1,1,1)
-        else:
-            primColorRGB = nodes['OBJEX_PrimColorRGB']
-        if 'OBJEX_EnvColorRGB' not in nodes:
-            envColorRGB = nodes.new('ShaderNodeRGB')
-            envColorRGB.name = 'OBJEX_EnvColorRGB'
-            envColorRGB.label = 'Environment Color RGB'
-            envColorRGB.location = (100, 250)
-            envColorRGB.outputs[0].default_value = (1,1,1,1)
-        else:
-            envColorRGB = nodes['OBJEX_EnvColorRGB']
+        # 1st pass: find/create nodes, set properties, looks
+        for node_name, node_data in nodes_data.items():
+            node_type = node_data.get('type')
+            node_type_group = node_data.get('group')
+            if not node_type and node_type_group:
+                node_type = 'ShaderNodeGroup'
+            node_inputs = node_data.get('inputs', EMPTY_DICT)
+            node_outputs = node_data.get('outputs', EMPTY_DICT)
+            node_outputs_combiner_flags = node_data.get('outputs-combiner-flags', EMPTY_DICT)
+            node_properties_dict = node_data.get('properties-dict', EMPTY_DICT)
+            node_label = node_data.get('label')
+            node_location = node_data.get('location')
+            node_width = node_data.get('width')
+            node_hidden_inputs = node_data.get('hide-inputs', EMPTY_LIST)
+            node = None
+            # skip "find node" code even though with the nodes reset there
+            # would be nothing to find anyway
+            if not self.reset:
+                # find a node with same name, or same type
+                node = nodes.get(node_name)
+                if not node:
+                    for n in nodes:
+                        if (n.bl_idname == node_type
+                            and (not node_type_group
+                                or (n.node_tree
+                                    and n.node_tree.name == node_type_group
+                        ))):
+                            # ignore nodes which have a known name (and purpose)
+                            if n.name in nodes_data:
+                                continue
+                            if node: # found several nodes
+                                # prefer nodes named like targeted (eg '{node_name}.001')
+                                if node_name in n.name:
+                                    node = n
+                                # else, keep previous match
+                            else: # first match
+                                node = n
+            if not node and self.create: # todo so what if node stays none... should self.create really be an option?
+                node = nodes.new(node_type)
+                if node_type_group:
+                    node.node_tree = bpy.data.node_groups[node_type_group]
+                for input_socket_key, default_value in node_inputs.items():
+                    node.inputs[input_socket_key].default_value = default_value
+                for output_socket_key, default_value in node_outputs.items():
+                    node.outputs[output_socket_key].default_value = default_value
+                for output_socket_key, flags in node_outputs_combiner_flags.items():
+                    color_flag, alpha_flag = flags
+                    node.outputs[output_socket_key].flagColorCycle = color_flag if color_flag else ''
+                    node.outputs[output_socket_key].flagAlphaCycle = alpha_flag if alpha_flag else ''
+                for k, v in node_properties_dict.items():
+                    node[k] = v
+            elif node_type_group and self.update_groups_of_existing:
+                node.node_tree = bpy.data.node_groups[node_type_group]
+            node.name = node_name # todo set unconditionally? won't set the name if already taken. rename others first? (set exact name needed for 2nd pass with links)
+            if self.set_looks:
+                if node_label:
+                    node.label = node_label
+                if node_location:
+                    node.location = node_location
+                if node_width:
+                    node.width = node_width
+                for hidden_input_socket_key in node_hidden_inputs:
+                    node.inputs[hidden_input_socket_key].hide = True
 
-        if 'OBJEX_Texel0Texture' not in nodes:
-            texel0texture = nodes.new('ShaderNodeTexture')
-            texel0texture.name = 'OBJEX_Texel0Texture'
-            texel0texture.label = 'Texel 0 Texture'
-            texel0texture.location = (100, 50)
-        else:
-            texel0texture = nodes['OBJEX_Texel0Texture']
-        if 'OBJEX_Texel1Texture' not in nodes:
-            texel1texture = nodes.new('ShaderNodeTexture')
-            texel1texture.name = 'OBJEX_Texel1Texture'
-            texel1texture.label = 'Texel 1 Texture'
-            texel1texture.location = (100, -250)
-        else:
-            texel1texture = nodes['OBJEX_Texel1Texture']
+        # 2nd pass: parenting (frames), links
+        # assumes every node described in nodes_data was created and/or named as expected in the 1st pass
+        for node_name, node_data in nodes_data.items():
+            node = nodes[node_name]
+            node_links = node_data.get('links', EMPTY_DICT)
+            node_children = node_data.get('children', EMPTY_LIST)
+            if self.set_basic_links:
+                # todo clear links? shouldnt be needed because inputs can only have one link (but maybe old links get moved to unintended sockets like for math nodes?)
+                for to_input_socket_key, from_output in node_links.items():
+                    from_node_name, from_output_socket_key = from_output
+                    node_tree.links.new(
+                        nodes[from_node_name].outputs[from_output_socket_key],
+                        node.inputs[to_input_socket_key]
+                    )
+            if self.set_looks:
+                for child_node_name in node_children:
+                    nodes[child_node_name].parent = node
 
-        if 'OBJEX_PrimColor' not in nodes:
-            primColor = nodes.new('ShaderNodeGroup')
-            primColor.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
-            primColor.name = 'OBJEX_PrimColor'
-            primColor.label = 'Primitive Color'
-            primColor.location = (300, 400)
-            primColor.outputs[0].flagColorCycle = 'G_CCMUX_PRIMITIVE'
-            primColor.outputs[1].flagColorCycle = 'G_CCMUX_PRIMITIVE_ALPHA'
-            primColor.outputs[0].flagAlphaCycle = ''
-            primColor.outputs[1].flagAlphaCycle = 'G_ACMUX_PRIMITIVE'
-        else:
-            primColor = nodes['OBJEX_PrimColor']
-
-        if 'OBJEX_EnvColor' not in nodes:
-            envColor = nodes.new('ShaderNodeGroup')
-            envColor.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
-            envColor.name = 'OBJEX_EnvColor'
-            envColor.label = 'Environment Color'
-            envColor.location = (300, 250)
-            envColor.outputs[0].flagColorCycle = 'G_CCMUX_ENVIRONMENT'
-            envColor.outputs[1].flagColorCycle = 'G_CCMUX_ENV_ALPHA'
-            envColor.outputs[0].flagAlphaCycle = ''
-            envColor.outputs[1].flagAlphaCycle = 'G_ACMUX_ENVIRONMENT'
-        else:
-            envColor = nodes['OBJEX_EnvColor']
-        
-        if 'OBJEX_Texel0' not in nodes:
-            texel0 = nodes.new('ShaderNodeGroup')
-            texel0.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
-            texel0.name = 'OBJEX_Texel0'
-            texel0.label = 'Texel 0'
-            texel0.location = (300, 100)
-            texel0.outputs[0].flagColorCycle = 'G_CCMUX_TEXEL0'
-            texel0.outputs[1].flagColorCycle = 'G_CCMUX_TEXEL0_ALPHA'
-            texel0.outputs[0].flagAlphaCycle = ''
-            texel0.outputs[1].flagAlphaCycle = 'G_ACMUX_TEXEL0'
-        else:
-            texel0 = nodes['OBJEX_Texel0']
-        if 'OBJEX_Texel1' not in nodes:
-            texel1 = nodes.new('ShaderNodeGroup')
-            texel1.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
-            texel1.name = 'OBJEX_Texel1'
-            texel1.label = 'Texel 1'
-            texel1.location = (300, -50)
-            texel1.outputs[0].flagColorCycle = 'G_CCMUX_TEXEL1'
-            texel1.outputs[1].flagColorCycle = 'G_CCMUX_TEXEL1_ALPHA'
-            texel1.outputs[0].flagAlphaCycle = ''
-            texel1.outputs[1].flagAlphaCycle = 'G_ACMUX_TEXEL1'
-        else:
-            texel1 = nodes['OBJEX_Texel1']
-        
-        if 'OBJEX_Shade' not in nodes:
-            shade = nodes.new('ShaderNodeGroup')
-            shade.node_tree = bpy.data.node_groups['OBJEX_rgba_pipe']
-            shade.name = 'OBJEX_Shade'
-            shade.label = 'Shade'
-            shade.location = (300, -200)
-            shade.outputs[0].flagColorCycle = 'G_CCMUX_SHADE'
-            shade.outputs[1].flagColorCycle = 'G_CCMUX_SHADE_ALPHA'
-            shade.outputs[0].flagAlphaCycle = ''
-            shade.outputs[1].flagAlphaCycle = 'G_ACMUX_SHADE'
-        else:
-            shade = nodes['OBJEX_Shade']
-        
-        if 'OBJEX_Color0' not in nodes:
-            color0 = nodes.new('ShaderNodeGroup')
-            color0.node_tree = bpy.data.node_groups['OBJEX_Color0']
-            color0.name = 'OBJEX_Color0'
-            color0.label = 'Color 0'
-            color0.location = (300, -350)
-            color0.outputs[0].flagColorCycle = 'G_CCMUX_0'
-            color0.outputs[0].flagAlphaCycle = 'G_ACMUX_0'
-        else:
-            color0 = nodes['OBJEX_Color0']
-        if 'OBJEX_Color1' not in nodes:
-            color1 = nodes.new('ShaderNodeGroup')
-            color1.node_tree = bpy.data.node_groups['OBJEX_Color1']
-            color1.name = 'OBJEX_Color1'
-            color1.label = 'Color 1'
-            color1.location = (300, -430)
-            color1.outputs[0].flagColorCycle = 'G_CCMUX_1'
-            color1.outputs[0].flagAlphaCycle = 'G_ACMUX_1'
-        else:
-            color1 = nodes['OBJEX_Color1']
-        
-        if 'OBJEX_ColorCycle0' not in nodes:
-            cc0 = nodes.new('ShaderNodeGroup')
-            cc0.node_tree = bpy.data.node_groups['OBJEX_Cycle']
-            cc0.name = 'OBJEX_ColorCycle0'
-            cc0.label = 'Color Cycle 0'
-            cc0.location = (500, 250)
-            cc0.width = 200
-            cc0.outputs[0].flagColorCycle = 'G_CCMUX_COMBINED'
-            cc0['cycle'] = CST.CYCLE_COLOR
-        else:
-            cc0 = nodes['OBJEX_ColorCycle0']
-        if 'OBJEX_ColorCycle1' not in nodes:
-            cc1 = nodes.new('ShaderNodeGroup')
-            cc1.node_tree = bpy.data.node_groups['OBJEX_Cycle']
-            cc1.name = 'OBJEX_ColorCycle1'
-            cc1.label = 'Color Cycle 1'
-            cc1.location = (750, 250)
-            cc1.width = 200
-            cc1['cycle'] = CST.CYCLE_COLOR
-        else:
-            cc1 = nodes['OBJEX_ColorCycle1']
-        
-        if 'OBJEX_AlphaCycle0' not in nodes:
-            ac0 = nodes.new('ShaderNodeGroup')
-            ac0.node_tree = bpy.data.node_groups['OBJEX_Cycle']
-            ac0.name = 'OBJEX_AlphaCycle0'
-            ac0.label = 'Alpha Cycle 0'
-            ac0.location = (500, -50)
-            ac0.width = 200
-            ac0.outputs[0].flagColorCycle = 'G_CCMUX_COMBINED_ALPHA'
-            ac0.outputs[0].flagAlphaCycle = 'G_ACMUX_COMBINED'
-            ac0['cycle'] = CST.CYCLE_ALPHA
-        else:
-            ac0 = nodes['OBJEX_AlphaCycle0']
-        if 'OBJEX_AlphaCycle1' not in nodes:
-            ac1 = nodes.new('ShaderNodeGroup')
-            ac1.node_tree = bpy.data.node_groups['OBJEX_Cycle']
-            ac1.name = 'OBJEX_AlphaCycle1'
-            ac1.label = 'Alpha Cycle 1'
-            ac1.location = (750, -50)
-            ac1.width = 200
-            ac1['cycle'] = CST.CYCLE_ALPHA
-        else:
-            ac1 = nodes['OBJEX_AlphaCycle1']
-        
-        if 'Output' not in nodes:
-            output = nodes.new('ShaderNodeOutput')
-            output.name = 'Output'
-            output.location = (1000, 100)
-        else:
-            output = nodes['Output']
-        
-        # decoration
-        if 'OBJEX_Frame_CombinerInputs' not in nodes:
-            frame = nodes.new('NodeFrame')
-            frame.name = 'OBJEX_Frame_CombinerInputs'
-            frame.label = 'Combiner Inputs'
-        for n in (primColor, envColor, texel0, texel1, shade, color0, color1):
-            n.parent = frame
-
-        # texel0
-        node_tree.links.new(geometry.outputs['UV'], uvTransform0.inputs['UV'])
-        node_tree.links.new(uvTransform0.outputs[0], texel0texture.inputs[0])
-        node_tree.links.new(texel0texture.outputs[1], texel0.inputs[0])
-        node_tree.links.new(texel0texture.outputs[0], texel0.inputs[1])
-        # texel1
-        node_tree.links.new(geometry.outputs['UV'], uvTransform1.inputs['UV'])
-        node_tree.links.new(uvTransform1.outputs[0], texel1texture.inputs[0])
-        node_tree.links.new(texel1texture.outputs[1], texel1.inputs[0])
-        node_tree.links.new(texel1texture.outputs[0], texel1.inputs[1])
-        # envColor, primColor RGB
-        node_tree.links.new(primColorRGB.outputs[0], primColor.inputs[0])
-        node_tree.links.new(envColorRGB.outputs[0], envColor.inputs[0])
-        # shade
-        # vertex colors (do not use by default as it would make shade (0,0,0,0))
-        #node_tree.links.new(geometry.outputs['Vertex Color'], shade.inputs[0])
-        #node_tree.links.new(geometry.outputs['Vertex Alpha'], shade.inputs[1])
-        # 421todo implement lighting calculations
-        # for now, use opaque white shade
-        node_tree.links.new(color1.outputs[0], shade.inputs[0])
-        node_tree.links.new(color1.outputs[0], shade.inputs[1])
-        # cycle 0: (TEXEL0 - 0) * PRIM  + 0
-        node_tree.links.new(texel0.outputs[0], cc0.inputs['A'])
-        # an alternative to the above line:
-        #cc0.inputs['A'].input_flags_C_A = 'G_CCMUX_TEXEL0'
-        node_tree.links.new(primColor.outputs[0], cc0.inputs['C'])
-        node_tree.links.new(texel0.outputs[1], ac0.inputs['A'])
-        node_tree.links.new(primColor.outputs[1], ac0.inputs['C'])
-        # cycle 1: (RESULT - 0) * SHADE + 0
-        node_tree.links.new(cc0.outputs[0], cc1.inputs['A'])
-        node_tree.links.new(shade.outputs[0], cc1.inputs['C'])
-        node_tree.links.new(ac0.outputs[0], ac1.inputs['A'])
-        node_tree.links.new(shade.outputs[1], ac1.inputs['C'])
-        # combiners output
-        node_tree.links.new(cc1.outputs[0], output.inputs[0])
-        node_tree.links.new(ac1.outputs[0], output.inputs[1])
+        if self.set_basic_links:
+            # 421todo hardcoding this for now instead of putting it into const_data.py,
+            # because it's not exactly a "basic" links
+            # but we can't just wait for the user to configure it as it appears as an error when unlinked
+            # so, for now default to opaque white shade = lighting shading
+            # shade
+            # vertex colors (do not use by default as it would make shade (0,0,0,0))
+            #node_tree.links.new(geometry.outputs['Vertex Color'], shade.inputs[0])
+            #node_tree.links.new(geometry.outputs['Vertex Alpha'], shade.inputs[1])
+            # 421todo implement lighting calculations
+            # for now, use opaque white shade
+            for i in (0,1):
+                # do not overwrite any previous link (eg keep vertex colors links)
+                if not nodes['OBJEX_Shade'].inputs[i].is_linked:
+                    node_tree.links.new(nodes['OBJEX_Color1'].outputs[0], nodes['OBJEX_Shade'].inputs[i])
 
         material.objex_bonus.is_objex_material = True
+        material.objex_bonus.objex_version = data_updater.addon_material_objex_version
 
         return {'FINISHED'}
 
@@ -979,7 +838,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         data = material.objex_bonus
         # setup operators
         if not data.is_objex_material:
-            self.layout.operator('OBJEX_OT_material_init', text='Init Objex material')
+            self.layout.operator('objex.material_build_nodes', text='Init Objex material')
             return
         # handle is_objex_material, use_nodes mismatch
         if not material.use_nodes:
@@ -1000,10 +859,17 @@ class OBJEX_PT_material(bpy.types.Panel):
             box.prop(data, 'is_objex_material')
             box = self.layout.box()
             box.label('3) Reset nodes')
-            box.operator('OBJEX_OT_material_init', text='Reset nodes')
+            box.operator('objex.material_build_nodes', text='Reset nodes').reset = True
             return
-        self.layout.operator('OBJEX_OT_material_init', text='Reset nodes')
-        self.layout.operator('OBJEX_OT_material_multitexture', text='Multitexture')
+        # update material
+        if data_updater.handle_material(material, self.layout):
+            self.layout.separator()
+            self.layout.operator('objex.material_build_nodes', text='Reset nodes').reset = True
+            return
+        row = self.layout.row()
+        row.operator('objex.material_build_nodes', text='Reset nodes').reset = True
+        row.operator('objex.material_build_nodes', text='Fix nodes')
+        self.layout.operator('objex.material_multitexture', text='Multitexture')
         # 421todo more quick-setup operators
         # often-used options
         self.layout.prop(data, 'backface_culling')
@@ -1181,7 +1047,7 @@ classes = (
     OBJEX_NodeSocket_CombinerInput,
     OBJEX_NodeSocket_RGBA_Color,
 
-    OBJEX_OT_material_init,
+    OBJEX_OT_material_build_nodes,
     OBJEX_OT_material_multitexture,
     OBJEX_PT_material,
 )
