@@ -199,10 +199,8 @@ class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
     flagAlphaCycle = bpy.props.StringProperty(default='')
 
     def draw(self, context, layout, node, text):
-        if node.bl_idname == 'NodeGroupOutput' or (not self.flagColorCycle and not self.flagAlphaCycle):
-            layout.label(text=text)
-        else:
-            layout.label(text='%s (%s/%s)' % (text, stripPrefix(self.flagColorCycle, 'G_CCMUX_'), stripPrefix(self.flagAlphaCycle, 'G_ACMUX_')))
+        layout.label(text=text)
+        #layout.label(text='%s/%s' % (stripPrefix(self.flagColorCycle, 'G_CCMUX_'), stripPrefix(self.flagAlphaCycle, 'G_ACMUX_')))
         # todo "show compat" operator which makes A/B/C/D blink when they support this output?
 
     def draw_color(self, context, node):
@@ -616,7 +614,7 @@ def create_node_group_rgba_pipe(group_name):
     """
     "Casts" input for use as cycle inputs
     Inputs: OBJEX_NodeSocket_RGBA_Color 'Color', NodeSocketFloat 'Alpha'
-    Outputs: OBJEX_NodeSocket_CombinerOutput 'RGB', OBJEX_NodeSocket_CombinerOutput 'A'
+    Outputs: OBJEX_NodeSocket_CombinerOutput 'Color', OBJEX_NodeSocket_CombinerOutput 'Alpha'
     """
     tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
 
@@ -634,10 +632,10 @@ def create_node_group_rgba_pipe(group_name):
 
     outputs_node = tree.nodes.new('NodeGroupOutput')
     outputs_node.location = (100,50)
-    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'RGB')
-    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'A')
-    tree.links.new(inputs_node.outputs[0], outputs_node.inputs['RGB'])
-    tree.links.new(alpha_3d.outputs[0], outputs_node.inputs['A'])
+    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'Color')
+    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'Alpha')
+    tree.links.new(inputs_node.outputs[0], outputs_node.inputs['Color'])
+    tree.links.new(alpha_3d.outputs[0], outputs_node.inputs['Alpha'])
 
     return tree
 
@@ -653,7 +651,7 @@ def update_node_groups():
         'OBJEX_Color1': (1, lambda group_name: create_node_group_color_static(group_name, (1,1,1,1), '1')),
         'OBJEX_UV_pipe_main': (1, create_node_group_uv_pipe_main),
         'OBJEX_UV_pipe': (1, create_node_group_uv_pipe),
-        'OBJEX_rgba_pipe': (1, create_node_group_rgba_pipe),
+        'OBJEX_rgba_pipe': (2, create_node_group_rgba_pipe),
     }
     for group_name, (latest_version, group_create) in groups.items():
         old_node_group = None
