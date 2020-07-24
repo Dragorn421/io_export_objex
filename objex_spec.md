@@ -71,7 +71,7 @@ with `attrib`
 #### `priority`
 
 `priority number` (optional)
-- `number` is a real number (`1`, `-1`, `1000`, etc)
+- `number` is an integer (`1`, `-1`, `1000`, etc)
 - groups with higher priorities are written first;
 - if no priority is specified, the default is `0`;
 - priority can be negative to specify a group is to be
@@ -167,7 +167,7 @@ is updated to use this palette
 #### `priority`
 
 `priority number` (optional)
-- `number` is a real number (`1`, `-1`, `1000`, etc)
+- `number` is an integer (`1`, `-1`, `1000`, etc)
 - textures with higher priorities are written first;
 - if no priority is specified, the default is `0`;
 - priority can be negative to specify a texture is to be
@@ -209,6 +209,19 @@ to `ci8`
 
 `newmtl name` creates a material; `newmtl` can be followed
 by any of these new (optional) directives:
+
+#### `priority`
+
+`priority number` (optional)
+- `number` is an integer (`1`, `-1`, `1000`, etc)
+- geometry using higher-priority materials is written first;
+- if no priority is specified, the default is `0`;
+- priority can be negative to specify to write it last
+- the order in which materials sharing priority are processed
+is undefined
+- use cases: materials that must be written last in a display
+list to prevent drawing issues (triangles containing transparency
+written to OPA, for example)
 
 #### `vertexshading`
 
