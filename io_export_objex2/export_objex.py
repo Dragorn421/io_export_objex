@@ -371,7 +371,7 @@ class ObjexWriter():
 
             # Vert
             # rig_is_exported is used to avoid referencing a skeleton or bones which aren't exported
-            rig_is_exported = rigged_to_armature in self.objects
+            rig_is_exported = self.options['EXPORT_SKEL'] and (rigged_to_armature in self.objects)
             if rigged_to_armature and rig_is_exported:
                 fw('useskel %s\n' % util.quote(rigged_to_armature.name))
             if self.options['EXPORT_WEIGHTS'] and vertex_groups and rigged_to_armature and rig_is_exported:
