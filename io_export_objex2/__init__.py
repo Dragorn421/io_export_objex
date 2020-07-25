@@ -16,8 +16,6 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# <pep8-80 compliant>
-
 """
 Based on the io_scene_obj addon shipped with Blender 2.79b
 Removed import feature
@@ -30,14 +28,9 @@ Added writing weights, and option to only write maximum weight for each vertex
 Refactor, cut the giant write-obj function into a few pieces into the ObjexWriter class, hopefully made the code more readable
 Removed edge, nurb and "by material" exports
 Removed a lot from write_mtl
-"""
-
-"""
-TODO:
-write_mtl is very bare bones
-interface: but designing is required first
-writing animations flow from write_anim to write_skel, should be the opposite
-ctrl+f "421todo" for less important details
+Added a bunch of export options
+Added addon preferences
+Added a draw function to export operator
 """
 
 bl_info = {
