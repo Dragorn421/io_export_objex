@@ -164,7 +164,7 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             )
     use_materials = BoolProperty(
             name='Write Materials',
-            description='Write out the MTL file',
+            description='Write out the MTLEX file',
             default=export_objex.ObjexWriter.default_options['EXPORT_MTL'],
             )
     use_skeletons = BoolProperty(
@@ -341,7 +341,7 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
                 if not os.path.isabs(logfile_path):
                     export_dir, _ = os.path.split(self.filepath)
                     logfile_path = '%s/%s' % (export_dir, logfile_path)
-                log.info('Writing logs to %s' % logfile_path)
+                log.info('Writing logs to {}', logfile_path)
                 logging_util.setLogFile(logfile_path)
             logging_util.setLogOperator(self, self.logging_level_report)
             def progress_report_print(*args, **kwargs):
@@ -455,7 +455,7 @@ def unregister():
     
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
 
-    for cls in classes:
+    for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 
     logging_util.unregisterLogging()
