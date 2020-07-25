@@ -673,14 +673,18 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
 
     bl_idname = 'objex.material_build_nodes'
     bl_label = 'Initialize a material for use on Objex export'
-    bl_options = {'INTERNAL', 'PRESET', 'REGISTER', 'UNDO'}
+    bl_options = {'INTERNAL', 'REGISTER', 'UNDO'}
 
     # if set, use the material with this name instead of the context one
     target_material_name = bpy.props.StringProperty()
 
+    # indicates the material is becoming an objex material for the first time
+    # soft resets by removing nodes that serve no purpose (meant to remove default nodes),
+    # add default combiner links, and infer texel0 from face textures
+    init = bpy.props.BoolProperty(default=False)
     # clear all nodes before building
     reset = bpy.props.BoolProperty(default=False)
-    # create missing nodes (disabling may cause unchecked errors)
+    # create missing nodes (disabling may cause unchecked errors, set_looks and set_basic_links should be disabled too when create is disabled)
     create = bpy.props.BoolProperty(default=True)
     # for existing group nodes, set the used group to the latest
     # in the end, should have no effect unless updating a material
@@ -691,13 +695,12 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
     set_basic_links = bpy.props.BoolProperty(default=True)
 
     def execute(self, context):
+        log = getLogger('OBJEX_OT_material_build_nodes')
+
         if self.target_material_name:
             material = bpy.data.materials[self.target_material_name]
         else:
             material = context.material
-
-        if not (self.create or material.objex_bonus.is_objex_material):
-            return {'CANCELLED'}
 
         # let the user choose, as use_transparency is used when
         # exporting to distinguish opaque and translucent geometry
@@ -752,7 +755,10 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                                 # else, keep previous match
                             else: # first match
                                 node = n
-            if not node and self.create: # todo so what if node stays none... should self.create really be an option?
+            if not node and not self.create:
+                log.info('Skipped creating missing node {}', node_name)
+                continue # skip further actions on missing node
+            if not node:
                 node = nodes.new(node_type)
                 if node_type_group:
                     node.node_tree = bpy.data.node_groups[node_type_group]
@@ -779,12 +785,21 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                 for hidden_input_socket_key in node_hidden_inputs:
                     node.inputs[hidden_input_socket_key].hide = True
 
+        if self.init:
+            # remove useless nodes
+            # tuple() avoids modifying and iterating over nodes at the same time
+            for n in tuple(n for n in nodes if n.name not in nodes_data):
+                nodes.remove(n)
+
         # 2nd pass: parenting (frames), links
-        # assumes every node described in nodes_data was created and/or named as expected in the 1st pass
+        # assumes every node described in nodes_data was created and/or named as expected in the 1st pass (unless self.create is False)
         for node_name, node_data in nodes_data.items():
+            if not self.create and node_name not in nodes:
+                continue # skip missing nodes (only if not self.create, as all nodes should exist otherwise)
             node = nodes[node_name]
             node_links = node_data.get('links', EMPTY_DICT)
             node_children = node_data.get('children', EMPTY_LIST)
+            # warning: not checking if node_links/node_children don't refer to a non-existing node (when self.create is False)
             if self.set_basic_links:
                 # todo clear links? shouldnt be needed because inputs can only have one link (but maybe old links get moved to unintended sockets like for math nodes?)
                 for to_input_socket_key, from_output in node_links.items():
@@ -813,6 +828,75 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                 if not nodes['OBJEX_Shade'].inputs[i].is_linked:
                     node_tree.links.new(nodes['OBJEX_Color1'].outputs[0], nodes['OBJEX_Shade'].inputs[i])
 
+        if self.init:
+            # infer texel0 texture from face textures
+            try:
+                obj = mesh = None
+                if (hasattr(context, 'object') and context.object
+                    and context.object.type == 'MESH'
+                    and context.object.data.uv_textures.active
+                ):
+                    obj = context.object
+                    mesh = obj.data
+                    log.debug('Searching face textures in object {} / mesh {}', obj.name, mesh.name)
+                    uv_textures_data = mesh.uv_textures.active.data
+                    was_edit_mode = False
+                    if not uv_textures_data: # uv_textures_data is empty in edit mode
+                        # assume edit mode, go to object mode
+                        log.debug('-> OBJECT mode')
+                        was_edit_mode = True
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                        uv_textures_data = mesh.uv_textures.active.data
+                    # find slots using our material
+                    material_slot_indices = tuple( # use tuple() for speed
+                        slot_index for slot_index in range(len(obj.material_slots))
+                            if obj.material_slots[slot_index].material == material
+                    )
+                    # find face images used by faces using our material
+                    face_images = set(
+                        uv_textures_data[face.index].image for face in mesh.polygons
+                            if face.material_index in material_slot_indices
+                                and uv_textures_data[face.index].image
+                    )
+                    # uv_textures_data no longer needed
+                    if was_edit_mode:
+                        del uv_textures_data # avoid (dangling pointer?) issues
+                        bpy.ops.object.mode_set(mode='EDIT')
+                    # use face image in texture for texel0, if any
+                    if face_images:
+                        if len(face_images) > 1:
+                            log.info('Found several face images {}', ', '.join(face_image.name for face_image in face_images))
+                        face_image = next(iter(face_images))
+                        face_image_texture = bpy.data.textures.new(face_image.name, 'IMAGE')
+                        face_image_texture.image = face_image
+                        texel0texture = nodes['OBJEX_Texel0Texture']
+                        texel0texture.texture = face_image_texture
+                    else:
+                        log.debug('Found no face image')
+                else:
+                    log.info('Could not find a suitable object (MESH type with uvs) in context to search face textures in')
+            except:
+                self.report({'WARNING'}, 'Something went wrong while searching a face texture to use for texel0')
+                log.exception('material = {!r} obj = {!r} mesh = {!r}', material, obj, mesh)
+            # cycle 0: (TEXEL0 - 0) * PRIM  + 0
+            cc0 = nodes['OBJEX_ColorCycle0']
+            ac0 = nodes['OBJEX_AlphaCycle0']
+            cc0.inputs['A'].input_flags_C_A = 'G_CCMUX_TEXEL0'
+            cc0.inputs['C'].input_flags_C_C = 'G_CCMUX_PRIMITIVE'
+            ac0.inputs['A'].input_flags_A_A = 'G_ACMUX_TEXEL0'
+            ac0.inputs['C'].input_flags_A_C = 'G_ACMUX_PRIMITIVE'
+            # cycle 1: (RESULT - 0) * SHADE + 0
+            cc1 = nodes['OBJEX_ColorCycle1']
+            ac1 = nodes['OBJEX_AlphaCycle1']
+            node_tree.links.new(cc0.outputs[0], cc1.inputs['A'])
+            cc1.inputs['C'].input_flags_C_C = 'G_CCMUX_SHADE'
+            node_tree.links.new(ac0.outputs[0], ac1.inputs['A'])
+            ac1.inputs['C'].input_flags_A_C = 'G_ACMUX_SHADE'
+            # combiners output
+            output = nodes['Output']
+            node_tree.links.new(cc1.outputs[0], output.inputs[0])
+            node_tree.links.new(ac1.outputs[0], output.inputs[1])
+
         material.objex_bonus.is_objex_material = True
         material.objex_bonus.objex_version = data_updater.addon_material_objex_version
 
@@ -836,7 +920,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         data = material.objex_bonus
         # setup operators
         if not data.is_objex_material:
-            self.layout.operator('objex.material_build_nodes', text='Init Objex material')
+            self.layout.operator('objex.material_build_nodes', text='Init Objex material').init = True
             return
         # handle is_objex_material, use_nodes mismatch
         if not material.use_nodes:
@@ -857,15 +941,18 @@ class OBJEX_PT_material(bpy.types.Panel):
             box.prop(data, 'is_objex_material')
             box = self.layout.box()
             box.label('3) Reset nodes')
-            box.operator('objex.material_build_nodes', text='Reset nodes').reset = True
+            op = box.operator('objex.material_build_nodes', text='Reset nodes')
+            op.init = op.reset = True
             return
         # update material
         if data_updater.handle_material(material, self.layout):
             self.layout.separator()
-            self.layout.operator('objex.material_build_nodes', text='Reset nodes').reset = True
+            op = self.layout.operator('objex.material_build_nodes', text='Reset nodes')
+            op.init = op.reset = True
             return
         row = self.layout.row()
-        row.operator('objex.material_build_nodes', text='Reset nodes').reset = True
+        op = row.operator('objex.material_build_nodes', text='Reset nodes')
+        op.init = op.reset = True
         row.operator('objex.material_build_nodes', text='Fix nodes')
         self.layout.operator('objex.material_multitexture', text='Multitexture')
         # 421todo more quick-setup operators
