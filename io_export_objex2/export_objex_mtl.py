@@ -599,6 +599,16 @@ count  P              A              M              B            comment
                 # todo better G_?CMUX_ prefix stripping
                 fw('gbi gsDPSetCombineLERP(%s)\n' % (', '.join(flag[len('G_?CMUX_'):] for flag in explorer.combinerFlags)))
                 def rgba32(rgba):
+                    display_device = scene.display_settings.display_device
+                    if display_device == 'None':
+                        pass # no conversion needed
+                    elif display_device == 'sRGB':
+                        # convert (from ?) to sRGB
+                        # https://en.wikipedia.org/wiki/SRGB#Specification_of_the_transformation
+                        rgb = [(323*u/25) if u <= 0.0031308 else ((211*(u**(5/12))-11)/200) for u in (rgba[i] for i in range(3))]
+                        rgba = rgb + [rgba[3]]
+                    else:
+                        log.warning('Unimplemented display_device = {}, colors in-game may differ from the Blender preview', display_device)
                     return tuple(int(c*255) for c in rgba)
                 if 'primitive' in data and (objex_data.write_primitive_color == 'YES'
                     or (objex_data.write_primitive_color == 'GLOBAL' and scene.objex_bonus.write_primitive_color)
