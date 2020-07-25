@@ -669,11 +669,26 @@ def update_node_groups():
             current_node_group = group_create(group_name)
             current_node_group['objex_version'] = latest_version
 
+def draw_build_nodes_operator(
+    layout, text,
+    init=False, reset=False,
+    create=True, update_groups_of_existing=True,
+    set_looks=True, set_basic_links=True
+):
+    op = layout.operator('objex.material_build_nodes', text=text)
+    # set every property because it looks like not setting them keeps values from last call instead of using default values
+    op.init = init
+    op.reset = reset
+    op.create = create
+    op.update_groups_of_existing = update_groups_of_existing
+    op.set_looks = set_looks
+    op.set_basic_links = set_basic_links
+
 class OBJEX_OT_material_build_nodes(bpy.types.Operator):
 
     bl_idname = 'objex.material_build_nodes'
     bl_label = 'Initialize a material for use on Objex export'
-    bl_options = {'INTERNAL', 'REGISTER', 'UNDO'}
+    bl_options = {'INTERNAL', 'UNDO'}
 
     # if set, use the material with this name instead of the context one
     target_material_name = bpy.props.StringProperty()
@@ -920,7 +935,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         data = material.objex_bonus
         # setup operators
         if not data.is_objex_material:
-            self.layout.operator('objex.material_build_nodes', text='Init Objex material').init = True
+            draw_build_nodes_operator(self.layout, 'Init Objex material', init=True)
             return
         # handle is_objex_material, use_nodes mismatch
         if not material.use_nodes:
@@ -941,19 +956,16 @@ class OBJEX_PT_material(bpy.types.Panel):
             box.prop(data, 'is_objex_material')
             box = self.layout.box()
             box.label('3) Reset nodes')
-            op = box.operator('objex.material_build_nodes', text='Reset nodes')
-            op.init = op.reset = True
+            draw_build_nodes_operator(box, 'Reset nodes', init=True, reset=True)
             return
         # update material
         if data_updater.handle_material(material, self.layout):
             self.layout.separator()
-            op = self.layout.operator('objex.material_build_nodes', text='Reset nodes')
-            op.init = op.reset = True
+            draw_build_nodes_operator(self.layout, 'Reset nodes', init=True, reset=True)
             return
         row = self.layout.row()
-        op = row.operator('objex.material_build_nodes', text='Reset nodes')
-        op.init = op.reset = True
-        row.operator('objex.material_build_nodes', text='Fix nodes')
+        draw_build_nodes_operator(row, 'Reset nodes', init=True, reset=True)
+        draw_build_nodes_operator(row, 'Fix nodes')
         self.layout.operator('objex.material_multitexture', text='Multitexture')
         # 421todo more quick-setup operators
         # often-used options
