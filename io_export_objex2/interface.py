@@ -295,12 +295,12 @@ for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
             OBJEX_NodeSocket_CombinerInput,
             'input_flags_%s_%s' % (cycle, variable),
             bpy.props.EnumProperty(
-                items=[
+                items=sorted(
                     (flag, stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle]), flag)
                         for flag in CST.COMBINER_FLAGS_SUPPORT[cycle][variable]
                         # 421todo can't implement these without using cycle number:
                         if flag not in ('G_CCMUX_COMBINED','G_CCMUX_COMBINED_ALPHA','G_ACMUX_COMBINED')
-                ] + [('_','...','')],
+                ) + [('_','...','')],
                 name='%s' % variable,
                 default='_',
                 update=input_flag_list_choose_get(variable)
