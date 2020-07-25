@@ -2,9 +2,11 @@ import bpy
 
 from .logging_util import getLogger
 
-log = getLogger('view3d_copybuffer_patch')
+log = None # set in register()
 
 # monkeypatch view3d.copybuffer crash
+
+# handle user-defined patch method (in addon preferences) and view3d.copybuffer hotkey (Ctrl+C by default)
 
 def get_view3d_copybuffer_keymap_item_active():
     return bpy.data.window_managers['WinMan'].keyconfigs.user.keymaps['3D View'].keymap_items['view3d.copybuffer'].active
@@ -31,6 +33,8 @@ def monkeyPatch_view3d_copybuffer_update(addon_preferences, context):
     addon_preferences.monkeyPatch_view3d_copybuffer_active_user = active_user
 
 
+# (un)registering
+
 handlers = (bpy.app.handlers.load_post, bpy.app.handlers.scene_update_pre)
 
 def remove_from_handlers():
@@ -38,19 +42,29 @@ def remove_from_handlers():
         if monkeyPatch_view3d_copybuffer_handler in handler:
             handler.remove(monkeyPatch_view3d_copybuffer_handler)
 
+@bpy.app.handlers.persistent
 def monkeyPatch_view3d_copybuffer_handler(_):
+    if not bpy.data.window_managers['WinMan'].keyconfigs.user.keymaps:
+        log.debug('No keymaps (yet)')
+        return
     log.debug('!')
     addon_preferences = bpy.context.user_preferences.addons[__package__].preferences
     monkeyPatch_view3d_copybuffer_update(addon_preferences, bpy.context)
     # remove from handlers after first call
     remove_from_handlers()
 
+
 def register():
+    global log
+    log = getLogger('view3d_copybuffer_patch')
+
     # cannot set key mapping during register, so we do it as soon as possible using handlers
     for handler in handlers:
         handler.append(monkeyPatch_view3d_copybuffer_handler)
+    log.debug('handler appended')
 
 def unregister():
+    log.debug('!')
     # in the seemingly unlikely event monkeyPatch_view3d_copybuffer_handler isn't called and doesn't remove itself, remove it here
     remove_from_handlers()
     # restore view3d.copybuffer key mapping if needed
