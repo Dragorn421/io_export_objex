@@ -258,6 +258,61 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
 
     check_extension = True
 
+    def draw(self, context):
+        self.layout.prop(self, 'global_scale')
+        if self.use_selection:
+            box = self.layout.box()
+            box.prop(self, 'use_selection')
+            box.prop(self, 'include_armatures_from_selection')
+        else:
+            self.layout.prop(self, 'use_selection')
+        if self.use_mesh_modifiers:
+            box = self.layout.box()
+            box.prop(self, 'use_mesh_modifiers')
+            box.prop(self, 'use_mesh_modifiers_render')
+            box.prop(self, 'apply_unused_armature_deform')
+        else:
+            self.layout.prop(self, 'use_mesh_modifiers')
+        self.layout.prop(self, 'use_uvs')
+        self.layout.prop(self, 'use_normals')
+        self.layout.prop(self, 'use_vertex_colors')
+        if self.use_smooth_groups:
+            box = self.layout.box()
+            box.prop(self, 'use_smooth_groups')
+            box.prop(self, 'use_smooth_groups_bitflags')
+        else:
+            self.layout.prop(self, 'use_smooth_groups')
+        self.layout.prop(self, 'use_materials')
+        if self.use_skeletons:
+            box = self.layout.box()
+            box.prop(self, 'use_skeletons')
+            box.prop(self, 'use_animations')
+            if self.use_weights:
+                box2 = box.box()
+                box2.prop(self, 'use_weights')
+                box2.prop(self, 'use_unique_weights')
+            else:
+                box.prop(self, 'use_weights')
+        else:
+            self.layout.prop(self, 'use_skeletons')
+        self.layout.prop(self, 'axis_forward')
+        self.layout.prop(self, 'axis_up')
+        self.layout.prop(self, 'keep_vertex_order')
+        self.layout.prop(self, 'use_triangles')
+        if self.export_packed_images:
+            box = self.layout.box()
+            box.prop(self, 'export_packed_images')
+            box.prop(self, 'export_packed_images_dir')
+        else:
+            self.layout.prop(self, 'export_packed_images')
+        box = self.layout.box()
+        box.prop(self, 'logging_level_console')
+        box.prop(self, 'logging_level_report')
+        box.prop(self, 'logging_file_enable')
+        if self.logging_file_enable:
+            box.prop(self, 'logging_file_path')
+        self.layout.prop(self, 'path_mode')
+
     def execute(self, context):
         from mathutils import Matrix
         keywords = self.as_keywords(ignore=('axis_forward',

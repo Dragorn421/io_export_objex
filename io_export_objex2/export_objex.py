@@ -296,7 +296,7 @@ class ObjexWriter():
                 me.calc_normals_split()
                 # No need to call me.free_normals_split later, as this mesh is deleted anyway!
 
-            if (self.options['EXPORT_SMOOTH_GROUPS'] or self.options['EXPORT_SMOOTH_GROUPS_BITFLAGS']) and face_index_pairs:
+            if self.options['EXPORT_SMOOTH_GROUPS'] and face_index_pairs:
                 smooth_groups, smooth_groups_tot = me.calc_smooth_groups(self.options['EXPORT_SMOOTH_GROUPS_BITFLAGS'])
                 if smooth_groups_tot <= 1:
                     smooth_groups, smooth_groups_tot = (), 0
@@ -439,7 +439,7 @@ class ObjexWriter():
             # those context_* variables are used to keep track of the last g/usemtl/s directive written, according to options
             # Set the default mat to no material and no image.
             context_material = context_face_image = 0  # Can never be this, so we will label a new material the first chance we get. used for usemtl directives if EXPORT_MTL
-            context_smooth = None  # Will either be true or false,  set bad to force initialization switch. with EXPORT_SMOOTH_GROUPS or EXPORT_SMOOTH_GROUPS_BITFLAGS, has effects on writing the s directive
+            context_smooth = None  # Will either be true or false,  set bad to force initialization switch. with EXPORT_SMOOTH_GROUPS, has effects on writing the s directive
 
             for f, f_index in face_index_pairs:
                 f_smooth = f.use_smooth
