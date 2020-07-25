@@ -21,6 +21,7 @@ import os
 import bpy
 import bpy_extras.io_utils
 
+from . import data_updater
 from . import util
 from .logging_util import getLogger
 
@@ -419,6 +420,8 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     'and paste the actual nodes from the duplicate)'
                     , material)
             if objex_data and objex_data.is_objex_material:
+                # raises ObjexExportAbort if the material version doesn't match the current addon material version
+                data_updater.assert_material_at_current_version(material, util.ObjexExportAbort)
                 # 421todo compare face_img with texel0/1
                 if not material.use_nodes:
                     raise util.ObjexExportAbort('Material {0!r} {0.name} is_objex_material but not use_nodes (was "Use Nodes" unchecked after adding objex nodes to it?)'.format(material))

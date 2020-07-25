@@ -64,6 +64,20 @@ def handle_material(material, layout):
         layout.operator('objex.material_update', text='Update ALL objex materials').update_all = True
     return True
 
+def assert_material_at_current_version(material, errorClass):
+    data = material.objex_bonus
+    v = data.objex_version
+    if v > addon_material_objex_version:
+        raise errorClass(
+            'The material %s was created with a newer addon version, '
+            'you should update the addon used in your installation.' % material.name)
+    if v < addon_material_objex_version:
+        raise errorClass(
+            'The material %s was created with an older addon version, '
+            'and needs to be updated. Update/Update all buttons '
+            'can be found in the material tab.' % material.name)
+    # v == addon_material_objex_version
+
 class OBJEX_OT_material_update(bpy.types.Operator):
 
     bl_idname = 'objex.material_update'
