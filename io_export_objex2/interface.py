@@ -650,7 +650,7 @@ def update_node_groups():
         'OBJEX_Color0': (1, lambda group_name: create_node_group_color_static(group_name, (0,0,0,0), '0')),
         'OBJEX_Color1': (1, lambda group_name: create_node_group_color_static(group_name, (1,1,1,1), '1')),
         'OBJEX_UV_pipe_main': (1, create_node_group_uv_pipe_main),
-        'OBJEX_UV_pipe': (1, create_node_group_uv_pipe),
+        'OBJEX_UV_pipe': (2, create_node_group_uv_pipe),
         'OBJEX_rgba_pipe': (2, create_node_group_rgba_pipe),
     }
     for group_name, (latest_version, group_create) in groups.items():
@@ -684,6 +684,20 @@ def draw_build_nodes_operator(
     op.set_looks = set_looks
     op.set_basic_links = set_basic_links
 
+# same intent as draw_build_nodes_operator
+def exec_build_nodes_operator(
+    material,
+    init=False, reset=False,
+    create=True, update_groups_of_existing=True,
+    set_looks=True, set_basic_links=True
+):
+    bpy.ops.objex.material_build_nodes(
+        target_material_name=material.name,
+        init=init, reset=reset,
+        create=create, update_groups_of_existing=update_groups_of_existing,
+        set_looks=set_looks, set_basic_links=set_basic_links
+    )
+
 class OBJEX_OT_material_build_nodes(bpy.types.Operator):
 
     bl_idname = 'objex.material_build_nodes'
@@ -693,21 +707,23 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
     # if set, use the material with this name instead of the context one
     target_material_name = bpy.props.StringProperty()
 
+    # defaults for following bool properties are handled by draw_build_nodes_operator and exec_build_nodes_operator
+
     # indicates the material is becoming an objex material for the first time
     # soft resets by removing nodes that serve no purpose (meant to remove default nodes),
     # add default combiner links, and infer texel0 from face textures
-    init = bpy.props.BoolProperty(default=False)
+    init = bpy.props.BoolProperty()
     # clear all nodes before building
-    reset = bpy.props.BoolProperty(default=False)
+    reset = bpy.props.BoolProperty()
     # create missing nodes (disabling may cause unchecked errors, set_looks and set_basic_links should be disabled too when create is disabled)
-    create = bpy.props.BoolProperty(default=True)
+    create = bpy.props.BoolProperty()
     # for existing group nodes, set the used group to the latest
     # in the end, should have no effect unless updating a material
-    update_groups_of_existing = bpy.props.BoolProperty(default=True)
+    update_groups_of_existing = bpy.props.BoolProperty()
     # set locations, dimensions
-    set_looks = bpy.props.BoolProperty(default=True)
+    set_looks = bpy.props.BoolProperty()
     # create basic links (eg vanilla RGB node OBJEX_PrimColorRGB to RGB pipe node OBJEX_PrimColor)
-    set_basic_links = bpy.props.BoolProperty(default=True)
+    set_basic_links = bpy.props.BoolProperty()
 
     def execute(self, context):
         log = getLogger('OBJEX_OT_material_build_nodes')
