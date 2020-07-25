@@ -101,7 +101,7 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
     
     # 421todo force 20 fps somewhere?
     scene_fps = scene.render.fps / scene.render.fps_base
-    if scene_fps != 20:
+    if scene_fps != 20 and any(armature_actions for _0, _1, _2, armature_actions in armatures):
         log.warning('animations are being viewed at {:.1f} fps (change this in render settings), but will be used at 20 fps', scene_fps)
 
     # armatures is built in ObjexWriter#write_object in export_objex.py (look for self.armatures)
