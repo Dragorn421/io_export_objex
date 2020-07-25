@@ -338,11 +338,17 @@ def menu_func_export(self, context):
 class OBJEX_AddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
+    # see view3d_copybuffer_patch.py
     monkeyPatch_view3d_copybuffer = bpy.props.EnumProperty(
         items=[
-            ('AUTO','Auto','Disable "Ctrl+C" (for now)',1),
+            ('AUTO','Auto','Default to "Wrap copying - delete" (for now)',1),
             ('NOTHING','Do nothing','Do not disable "Ctrl+C" (or any other or change anything else',2),
             ('DISABLE','Disable Ctrl+C','Disable "Ctrl+C", the key combo will do nothing',3),
+            ('WRAPPER_DELETE','Wrap copying - delete',
+                'Disable vanilla copy operator shortcut (usually Ctrl+C) and remap it to '
+                'an operator that deletes the data causing issues before copying',4),
+            # 421todo cf comments in OBJEX_OT_view3d_copybuffer_wrapper in view3d_copybuffer_patch.py
+            #('WRAPPER_PACK','Wrap copying - pack','Disable vanilla copy operator shortcut (usually Ctrl+C) and remap it to an operator that encodes the data causing issues before copying, and also wrap the paste operator to decode that data',5),
         ],
         name='"Fix" copy',
         # Specifically, the addon-defined sockets *seem* to be at fault
