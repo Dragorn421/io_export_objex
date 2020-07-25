@@ -407,6 +407,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             # the name used for writing the image path (quoted)
             return texture_name_q
 
+        # mind the continue used in this loop to skip writing most stuff for empty materials
         for name, name_q, material, face_img in mtl_dict.values():
             log.trace('Writing name={!r} name_q={!r} material={!r} face_img={!r}', name, name_q, material, face_img)
             util.detect_zztag(log, name)
@@ -422,6 +423,23 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             if objex_data and objex_data.is_objex_material:
                 # raises ObjexExportAbort if the material version doesn't match the current addon material version
                 data_updater.assert_material_at_current_version(material, util.ObjexExportAbort)
+                # 421todo attrib, collision/colliders
+                # zzconvert detects "empty." on its own, making it explicit here doesn't hurt
+                if objex_data.empty or name.startswith('empty.'):
+                    fw('newmtl %s\n' % name_q)
+                    fw('empty\n')
+                    if objex_data.branch_to_object: # branch_to_object is a MESH object
+                        # use .bone in branched-to _group if mesh is rigged and split
+                        if objex_data.branch_to_object.find_armature() and not objex_data.branch_to_object.data.objex_bonus.attrib_NOSPLIT:
+                            if not objex_data.branch_to_object_bone:
+                                log.warning('No branch-to bone set for empty material {}, '
+                                    'but mesh object {} is rigged to {} and does not set NOSPLIT',
+                                    name, objex_data.branch_to_object.name, objex_data.branch_to_object.find_armature().name)
+                            branch_to_group_path = '%s.%s' % (objex_data.branch_to_object.name, objex_data.branch_to_object_bone)
+                        else:
+                            branch_to_group_path = objex_data.branch_to_object.name
+                        fw('gbi gsSPDisplayList(_group=%s)\n' % util.quote(branch_to_group_path))
+                    continue # empty materials do not need anything else written
                 # 421todo compare face_img with texel0/1
                 if not material.use_nodes:
                     raise util.ObjexExportAbort('Material {0!r} {0.name} is_objex_material but not use_nodes (was "Use Nodes" unchecked after adding objex nodes to it?)'.format(material))
@@ -447,8 +465,8 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                                 '(only image textures can be exported)'
                                 % (name, tex.type))
                         texelData['texture_name_q'] = writeTexture(tex.image, tex.name)
+                # write newmtl after any newtex block
                 fw('newmtl %s\n' % name_q)
-                # 421todo attrib, collision/colliders
                 if 'shade' in data:
                     shadingType = data['shade']['type']
                 else:
@@ -464,20 +482,6 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                         fw('vertexshading color\n')
                 if objex_data.standalone:
                     fw('standalone\n')
-                # zzconvert detects "empty." on its own, making it explicit here doesn't hurt
-                if objex_data.empty or name.startswith('empty.'):
-                    fw('empty\n')
-                    if objex_data.branch_to_object: # branch_to_object is a MESH object
-                        # use .bone in branched-to _group if mesh is rigged and split
-                        if objex_data.branch_to_object.find_armature() and not objex_data.branch_to_object.data.objex_bonus.attrib_NOSPLIT:
-                            if not objex_data.branch_to_object_bone:
-                                log.warning('No branch-to bone set for empty material {}, '
-                                    'but mesh object {} is rigged to {} and does not set NOSPLIT',
-                                    name, objex_data.branch_to_object.name, objex_data.branch_to_object.find_armature().name)
-                            branch_to_group_path = '%s.%s' % (objex_data.branch_to_object.name, objex_data.branch_to_object_bone)
-                        else:
-                            branch_to_group_path = objex_data.branch_to_object.name
-                        fw('gbi gsSPDisplayList(_group=%s)\n' % util.quote(branch_to_group_path))
                 if objex_data.force_write:
                     fw('forcewrite\n')
                 if texel0data:
