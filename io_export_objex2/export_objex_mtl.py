@@ -484,6 +484,8 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     fw('standalone\n')
                 if objex_data.force_write:
                     fw('forcewrite\n')
+                if objex_data.priority != 0:
+                    fw('priority %d\n' % objex_data.priority)
                 if texel0data:
                     fw('texel0 %s\n' % texel0data['texture_name_q'])
                 if texel1data:

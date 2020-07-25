@@ -300,6 +300,11 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Write this material even if it is not used',
             default=False
         )
+    priority = bpy.props.IntProperty(
+            name='Priority',
+            description='Geometry using materials with higher priority is written first',
+            default=0
+        )
     geometrymode_G_FOG = bpy.props.EnumProperty(
             items=[
                 ('YES','Set','Set G_FOG',1),

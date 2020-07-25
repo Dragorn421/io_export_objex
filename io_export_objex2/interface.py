@@ -1045,6 +1045,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         self.layout.prop(data, 'empty') # (at this point, material isn't empty)
         self.layout.prop(data, 'standalone')
         self.layout.prop(data, 'force_write')
+        self.layout.prop(data, 'priority')
         # other mode, lower half (blender settings)
         box = self.layout.box()
         box.label(text='Render mode')
