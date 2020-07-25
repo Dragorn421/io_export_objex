@@ -44,6 +44,11 @@ def setConsoleLevel(level):
     global root_logger_stream_handler
     root_logger_stream_handler.setLevel(level)
 
+def setConsoleLevelDefault(level):
+    global default_level_console
+    default_level_console = level
+    setConsoleLevel(level)
+
 def setLogFile(path):
     global root_logger, root_logger_formatter, root_logger_file_handler
     if root_logger_file_handler:
