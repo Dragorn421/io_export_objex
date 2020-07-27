@@ -1069,6 +1069,7 @@ class OBJEX_PT_material(bpy.types.Panel):
             row = box.row()
             row.label(text='Texture bank:')
             row.template_ID(imdata, 'texture_bank', open='image.open')
+        self.layout.operator('objex.set_pixels_along_uv_from_image_dimensions', text='Fix clamping')
         # less used properties
         self.layout.prop(data, 'empty') # (at this point, material isn't empty)
         self.layout.prop(data, 'standalone')
@@ -1178,6 +1179,33 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
         ac1.inputs['D'].input_flags_A_D = 'G_ACMUX_0'
         return {'FINISHED'}
 
+class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
+
+    bl_idname = 'objex.set_pixels_along_uv_from_image_dimensions'
+    bl_label = 'Set Pixels along U/V socket values to image width/height for improved clamping accuracy'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        for material in bpy.data.materials:
+            if not material.objex_bonus.is_objex_material:
+                continue
+            for node in material.node_tree.nodes:
+                if node.type != 'GROUP':
+                    continue
+                if node.node_tree.name != 'OBJEX_UV_pipe':
+                    continue
+                textureNode = node.outputs['UV'].links[0].to_node
+                if not textureNode.texture:
+                    continue
+                image = textureNode.texture.image
+                # putting *2 here is simpler than modifying the uv pipe and math nodes again
+                # it halves the clamp start offset which becomes eg along U: 1/(width*2) instead of 1/width
+                # it makes the offset half a pixel instead of a full pixel (in uv space)
+                # so it starts clamping in the "middle" of a pixel instead of the side
+                node.inputs['Pixels along U'].default_value = image.size[0] * 2
+                node.inputs['Pixels along V'].default_value = image.size[1] * 2
+        return {'FINISHED'}
+
 classes = (
     OBJEX_PT_mesh,
 
@@ -1194,6 +1222,7 @@ classes = (
 
     OBJEX_OT_material_build_nodes,
     OBJEX_OT_material_multitexture,
+    OBJEX_OT_set_pixels_along_uv_from_image_dimensions,
     OBJEX_PT_material,
 )
 
