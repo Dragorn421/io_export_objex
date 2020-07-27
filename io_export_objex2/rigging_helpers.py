@@ -167,7 +167,7 @@ def restoreSavedPose(armature, saved_bones, invert=False):
     """
     Set the armature's pose from the provided saved bones
     names of armature pose bones should match the names of saved bones (this doesn't check)
-    invert=True inverts the rotations
+    invert=True inverts the pose before setting it on the armature
     """
     # 421fixme test setting .location when not 0,0,0 , test if order of setting it matters
     for saved_bone in saved_bones:
@@ -176,6 +176,7 @@ def restoreSavedPose(armature, saved_bones, invert=False):
         location = mathutils.Vector(saved_bone.location)
         rotation_quaternion = mathutils.Quaternion(saved_bone.rotation_quaternion)
         if invert:
+            location *= (-1)
             rotation_quaternion.invert()
         bone.location = location
         rotation_mode_prev = bone.rotation_mode
