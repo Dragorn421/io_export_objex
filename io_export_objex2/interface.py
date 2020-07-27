@@ -67,13 +67,15 @@ class OBJEX_PT_mesh(bpy.types.Panel):
         return object.type == 'MESH'
 
     def draw(self, context):
+        scene = context.scene
         object = context.object
         data = object.data.objex_bonus # ObjexMeshProperties
         self.layout.prop(data, 'priority')
         self.layout.prop(data, 'write_origin')
         self.layout.prop(data, 'attrib_billboard')
         self.layout.prop(data, 'attrib_POSMTX')
-        if object.find_armature():
+        armature = object.find_armature()
+        if armature:
             self.layout.prop(data, 'attrib_PROXY')
             self.layout.prop(data, 'attrib_NOSPLIT')
             if data.attrib_NOSPLIT:
@@ -84,6 +86,28 @@ class OBJEX_PT_mesh(bpy.types.Panel):
             self.layout.operator('objex.mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
             self.layout.operator('objex.mesh_find_unassigned_vertices', text='Find unassigned vertices')
             self.layout.operator('objex.mesh_list_vertex_groups', text='List groups of selected vertex')
+            # folding/unfolding
+            # 421fixme ... does this belong in mesh data tab? may want to (also) put it in armature data tab
+            # or make a new panel showing for both armature and mesh
+            self.layout.separator()
+            self.layout.label(text='Folding')
+            # 421todo make it easier/more obvious to use...
+            # 421todo export/import saved poses
+            row = self.layout.row()
+            row.operator('objex.autofold_save_pose', text='Save pose')
+            row.operator('objex.autofold_restore_pose', text='Restore pose')
+            row = self.layout.row()
+            row.operator('objex.autofold_fold_unfold', text='Fold').action = 'FOLD'
+            row.operator('objex.autofold_fold_unfold', text='Unfold').action = 'UNFOLD'
+            row.operator('objex.autofold_fold_unfold', text='Switch').action = 'SWITCH'
+            # 421todo better saved poses management (delete)
+            # 'OBJEX_SavedPose' does not refer to any addon-defined class. see documentation
+            self.layout.label(text='Default saved pose to use for folding:')
+            self.layout.template_list('UI_UL_list', 'OBJEX_SavedPose', scene.objex_bonus, 'saved_poses', armature.data.objex_bonus, 'fold_unfold_saved_pose_index', rows=2)
+            """
+            self.layout.prop(armature, 'fold_unfold_saved_pose_index')
+            self.layout.prop_search(armature, 'fold_unfold_saved_pose_name', scene, 'saved_poses')
+            """
 
 
 # armature

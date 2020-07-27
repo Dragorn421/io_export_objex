@@ -5,6 +5,22 @@ from .logging_util import getLogger
 
 # scene
 
+class SavedPoseBone(bpy.types.PropertyGroup):
+    bone_name = bpy.props.StringProperty()
+    location = bpy.props.FloatVectorProperty(size=3)
+    rotation_quaternion = bpy.props.FloatVectorProperty(size=4)
+
+class SavedPose(bpy.types.PropertyGroup):
+    name = bpy.props.StringProperty()
+    type = bpy.props.EnumProperty(
+            items=[
+                ('UNFOLDEDpose_foldedRest','','',1),
+                ('foldedPose_UNFOLDEDrest','','',2),
+            ],
+            default='UNFOLDEDpose_foldedRest'
+        )
+    bones = bpy.props.CollectionProperty(type=SavedPoseBone)
+
 class ObjexSceneProperties(bpy.types.PropertyGroup):
     write_primitive_color = bpy.props.BoolProperty(
             name='Set prim color (global)',
@@ -16,6 +32,8 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
             description='Scene property, shared by materials',
             default=True
         )
+
+    saved_poses = bpy.props.CollectionProperty(type=SavedPose)
 
 
 # mesh
@@ -127,6 +145,20 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
             description='',
             default=False
         )
+
+    fold_unfold_saved_pose_index = bpy.props.IntProperty()
+    """
+    def fold_unfold_saved_pose_name_update(self, context):
+        my_saved_poses = context.scene.my_saved_poses
+        saved_pose = my_saved_poses.get(self.fold_unfold_saved_pose_name)
+        if saved_pose:
+            self.fold_unfold_saved_pose_index = my_saved_poses.values().index(saved_pose)
+        else:
+            self.fold_unfold_saved_pose_index = -1
+    fold_unfold_saved_pose_name = bpy.props.StringProperty(
+        update=fold_unfold_saved_pose_name_update
+    )
+    """
 
 # material
 
@@ -392,6 +424,9 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
 
 
 classes = (
+    SavedPoseBone,
+    SavedPose,
+
     ObjexSceneProperties,
 
     ObjexMeshProperties,
