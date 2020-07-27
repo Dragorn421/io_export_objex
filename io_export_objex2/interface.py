@@ -1041,9 +1041,10 @@ class OBJEX_PT_material(bpy.types.Panel):
             else:
                 self.layout.prop(data, prop)
         # texel0/1 image properties
+        images_used = set() # avoid writing the same properties twice if texel0 and texel1 use the same image
         for textureNode in (n for n in material.node_tree.nodes if n.bl_idname == 'ShaderNodeTexture' and n.texture):
-            box = self.layout.box()
             if textureNode.texture.type != 'IMAGE':
+                box = self.layout.box()
                 box.label(text='Texture used by node', icon='ERROR')
                 box.label(text='"%s"' % textureNode.label, icon='ERROR')
                 box.label(text='is of type %s.' % textureNode.texture.type, icon='ERROR')
@@ -1053,6 +1054,9 @@ class OBJEX_PT_material(bpy.types.Panel):
             image = textureNode.texture.image
             if not image:
                 continue
+            images_used.add(image)
+        for image in images_used:
+            box = self.layout.box()
             box.label(text=image.filepath if image.filepath else 'Image without filepath?')
             box.prop(textureNode.texture, 'image')
             imdata = image.objex_bonus
