@@ -115,7 +115,7 @@ node_setup = {
     'OBJEX_TransformUV0': {
         'group': 'OBJEX_UV_pipe',
         'label': 'UV transform 0',
-        'location': (-110, 50),
+        'location': (-110, 30),
         'width': 180, # optional
         'inputs': {
             'U Scale Exponent': 0,
@@ -132,6 +132,8 @@ node_setup = {
             'Wrap V (0/1)',
             'Mirror U (0/1)',
             'Mirror V (0/1)',
+            'Pixels along U',
+            'Pixels along V',
         ],
         'links': {
             'UV': ('OBJEX_TransformUV_Main', 'UV'),
@@ -140,7 +142,7 @@ node_setup = {
     'OBJEX_TransformUV1': {
         'group': 'OBJEX_UV_pipe',
         'label': 'UV transform 1',
-        'location': (-110, -250),
+        'location': (-110, -270),
         'width': 180,
         'inputs': {
             'U Scale Exponent': 0,
@@ -157,6 +159,8 @@ node_setup = {
             'Wrap V (0/1)',
             'Mirror U (0/1)',
             'Mirror V (0/1)',
+            'Pixels along U',
+            'Pixels along V',
         ],
         'links': {
             'UV': ('OBJEX_TransformUV_Main', 'UV'),
