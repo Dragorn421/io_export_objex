@@ -150,7 +150,9 @@ def is_folded_guess(armature):
     Returns True if all bones in rest position have head_local.x >= 0,
     which seems to be a common factor of folded skeletons
     """
-    return all(bone.head_local.x >= 0 for bone in armature.data.bones)
+    xMin = min(bone.head_local.x for bone in armature.data.bones)
+    logging_util.getLogger('rigging_helpers').debug('xMin = {}', xMin)
+    return xMin > -1e-5 # allow a small error
 
 def checkSaveCompatibitility(armature, saved_pose):
     """
