@@ -61,6 +61,7 @@ class ObjexWriter():
         'APPLY_MODIFIERS': True,
         'APPLY_MODIFIERS_RENDER': False,
         'APPLY_UNUSED_ARMATURE_DEFORM':False,
+        'APPLY_MODIFIERS_AFTER_ARMATURE_DEFORM': False,
         'KEEP_VERTEX_ORDER': False,
         'EXPORT_PACKED_IMAGES': False,
         'EXPORT_PACKED_IMAGES_DIR': '//objex_textures',
@@ -223,16 +224,27 @@ class ObjexWriter():
                 # or if the armature deform should be applied for armatures that aren't exported ("UNUSED")
                 rigged_to_armature in self.objects or not self.options['APPLY_UNUSED_ARMATURE_DEFORM']
             ):
+                found_armature_deform = False
                 for modifier in ob.modifiers:
+                    disable_modifier = False
+                    if found_armature_deform and not self.options['APPLY_MODIFIERS_AFTER_ARMATURE_DEFORM']:
+                        log.info('Skipped modifier {} which is down of the armature deform modifier', modifier.name)
+                        disable_modifier = True
                     if modifier.type == 'ARMATURE':
                         if modifier.object == rigged_to_armature:
+                            if found_armature_deform:
+                                log.warning('Found several armature deform modifiers on object {} using armature {}',
+                                    ob.name, rigged_to_armature.name)
+                            found_armature_deform = True
                             # 421todo not sure armature deform could be used for anything other than main animation?
-                            user_show_armature_modifiers.append((modifier, modifier.show_viewport, modifier.show_render))
-                            modifier.show_viewport = False
-                            modifier.show_render = False
+                            disable_modifier = True
                         else:
                             log.warning('Object {} was found to be rigged to {} but it also has an armature deform modifier using {}',
                                 ob.name, rigged_to_armature.name, modifier.object.name if modifier.object else None)
+                    if disable_modifier:
+                        user_show_armature_modifiers.append((modifier, modifier.show_viewport, modifier.show_render))
+                        modifier.show_viewport = False
+                        modifier.show_render = False
             try:
                 me = ob.to_mesh(scene, apply_modifiers, calc_tessface=False,
                                 settings='RENDER' if self.options['APPLY_MODIFIERS_RENDER'] else 'PREVIEW')
@@ -653,6 +665,7 @@ def save(context,
          use_mesh_modifiers=None,
          use_mesh_modifiers_render=None,
          apply_unused_armature_deform=None,
+         apply_modifiers_after_armature_deform=None,
          keep_vertex_order=None,
          use_vertex_groups=None,
          export_packed_images=None,
@@ -679,6 +692,7 @@ def save(context,
         'APPLY_MODIFIERS':use_mesh_modifiers,
         'APPLY_MODIFIERS_RENDER':use_mesh_modifiers_render,
         'APPLY_UNUSED_ARMATURE_DEFORM':apply_unused_armature_deform,
+        'APPLY_MODIFIERS_AFTER_ARMATURE_DEFORM':apply_modifiers_after_armature_deform,
         'KEEP_VERTEX_ORDER':keep_vertex_order,
         'EXPORT_PACKED_IMAGES':export_packed_images,
         'EXPORT_PACKED_IMAGES_DIR':export_packed_images_dir,

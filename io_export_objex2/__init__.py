@@ -127,6 +127,14 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             description='Apply armature deform modifiers when the armature is not being exported',
             default=export_objex.ObjexWriter.default_options['APPLY_UNUSED_ARMATURE_DEFORM'],
             )
+    apply_modifiers_after_armature_deform = BoolProperty(
+            name='Apply modifiers after deform',
+            description='Apply modifiers after the armature deform modifier.\n'
+                        'If they are applied, it would be as if the armature deform was '
+                        'last in the stack, since it would only be "applied" later (for example, '
+                        'in-game) when the mesh is displayed animated.',
+            default=export_objex.ObjexWriter.default_options['APPLY_MODIFIERS_AFTER_ARMATURE_DEFORM'],
+            )
 
     # extra data group
     use_smooth_groups = BoolProperty(
@@ -264,6 +272,7 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             box.prop(self, 'use_mesh_modifiers')
             box.prop(self, 'use_mesh_modifiers_render')
             box.prop(self, 'apply_unused_armature_deform')
+            box.prop(self, 'apply_modifiers_after_armature_deform')
         else:
             self.layout.prop(self, 'use_mesh_modifiers')
         self.layout.prop(self, 'use_uvs')
