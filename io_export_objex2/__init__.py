@@ -69,7 +69,7 @@ loc = locals()
 for n in (
     'export_objex', 'export_objex_mtl', 'export_objex_anim',
     'properties', 'interface', 'const_data', 'util', 'logging_util',
-    'helper_ops', 'data_updater', 'view3d_copybuffer_patch',
+    'rigging_helpers', 'data_updater', 'view3d_copybuffer_patch',
 ):
     if n in loc:
         importlib.reload(loc[n])
@@ -80,7 +80,7 @@ from . import properties
 from . import data_updater
 from . import interface
 from . import logging_util
-from . import helper_ops
+from . import rigging_helpers
 from . import view3d_copybuffer_patch
 
 IOOBJOrientationHelper = orientation_helper_factory('IOOBJOrientationHelper', axis_forward='-Z', axis_up='Y')
@@ -435,7 +435,7 @@ def register():
 
     bpy.types.INFO_MT_file_export.append(menu_func_export)
 
-    helper_ops.register()
+    rigging_helpers.register()
     properties.register_properties()
     data_updater.register()
     interface.register_interface()
@@ -447,7 +447,7 @@ def unregister():
     interface.unregister_interface()
     data_updater.unregister()
     properties.unregister_properties()
-    helper_ops.unregister()
+    rigging_helpers.unregister()
     
     bpy.types.INFO_MT_file_export.remove(menu_func_export)
 

@@ -186,7 +186,7 @@ def restoreSavedPose(armature, saved_bones, invert=False):
 
 def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
     if not log:
-        log = logging_util.getLogger('helper_ops')
+        log = logging_util.getLogger('rigging_helpers')
 
     meshs = (obj for obj in scene.objects
         if obj.type == 'MESH' and obj.find_armature() == armature)
