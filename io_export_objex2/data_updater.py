@@ -1,10 +1,11 @@
 import bpy
 
 from . import interface
+from . import logging_util
 
 # materials
 
-def material_from_0(material, data):
+def material_from_0(material, data, log):
     """
     0 -> 1
     add OBJEX_TransformUV_Main between Geometry and UV pipe nodes
@@ -23,7 +24,7 @@ def material_from_0(material, data):
 
 # update_material_function factory for when a material version bump is only due to a node group version bump
 def node_groups_internal_change_update_material_function(to_version):
-    def update_material_function(material, data):
+    def update_material_function(material, data, log):
         interface.exec_build_nodes_operator(material, create=False, set_looks=False, set_basic_links=False)
         data.objex_version = to_version
     return update_material_function
@@ -34,8 +35,9 @@ def node_groups_internal_change_update_material_function(to_version):
 - version should be bumped when properties, node setup or node groups change
 - an update function makes material go from version a to any version b
   (a < b <= addon_material_objex_version), and sets objex_version accordingly
-- update functions expect (material, material.objex_bonus) as arguments
+- update functions expect (material, material.objex_bonus, log) as arguments
   with material using the intended version
+  and log being a logger object such as logging_util.getLogger('')
 - node groups as created by update_node_groups are expected to be up-to-date
   (material nodes can still be using _old-like groups)
 """
@@ -87,36 +89,41 @@ class OBJEX_OT_material_update(bpy.types.Operator):
     update_all = bpy.props.BoolProperty()
 
     def execute(self, context):
-        if self.update_all:
-            materials = (
-                m for m in bpy.data.materials
-                if m.objex_bonus.is_objex_material
-                    and m.objex_bonus.objex_version != addon_material_objex_version
-            )
-        else:
-            materials = (context.material,)
-        interface.update_node_groups()
-        failures = 0
-        material_count = 0
-        for material in materials:
-            material_count += 1
-            data = material.objex_bonus
-            if data.objex_version > addon_material_objex_version:
-                self.report({'WARNING'}, 'Skipped material %s which uses a newer version' % material.name)
-                failures += 1
-                continue
-            while data.objex_version < addon_material_objex_version:
-                update_func = update_material_functions.get(data.objex_version)
-                if not update_func:
-                    self.report({'ERROR'}, 'Skipping material %s which uses unknown version %d' % (material.name, data.objex_version))
+        log = logging_util.getLogger(self.bl_idname)
+        logging_util.setLogOperator(self, user_friendly_formatter=True)
+        try:
+            if self.update_all:
+                materials = (
+                    m for m in bpy.data.materials
+                    if m.objex_bonus.is_objex_material
+                        and m.objex_bonus.objex_version != addon_material_objex_version
+                )
+            else:
+                materials = (context.material,)
+            interface.update_node_groups()
+            failures = 0
+            material_count = 0
+            for material in materials:
+                material_count += 1
+                data = material.objex_bonus
+                if data.objex_version > addon_material_objex_version:
+                    log.warn('Skipped material {} which uses a newer version', material.name)
                     failures += 1
-                    break
-                update_func(material, data)
-        if failures:
-            self.report({'ERROR'}, 'Failed to update %d of %d materials' % (failures, material_count))
-        else:
-            self.report({'INFO'}, 'Successfully updated %d materials' % material_count)
-        return {'FINISHED'}
+                    continue
+                while data.objex_version < addon_material_objex_version:
+                    update_func = update_material_functions.get(data.objex_version)
+                    if not update_func:
+                        log.error('Skipping material {} which uses unknown version {}', material.name, data.objex_version)
+                        failures += 1
+                        break
+                    update_func(material, data, log)
+            if failures:
+                log.error('Failed to update {} of {} materials', failures, material_count)
+            else:
+                log.info('Successfully updated {} materials', material_count)
+            return {'FINISHED'}
+        finally:
+            logging_util.setLogOperator(None)
 
 classes = (
     OBJEX_OT_material_update,
