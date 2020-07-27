@@ -160,7 +160,7 @@ def checkSaveCompatibitility(armature, saved_pose):
     # check if armature and saved_pose have bones with the same names
     return (
         set(bone.name for bone in armature.pose.bones)
-            == set(bone.name for bone in saved_pose.bones)
+            == set(bone.bone_name for bone in saved_pose.bones)
     )
 
 def restoreSavedPose(armature, saved_bones, invert=False):
