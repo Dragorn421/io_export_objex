@@ -92,7 +92,7 @@ def handle_material(material, layout):
         layout.label('This material was created', icon='INFO')
         layout.label('with an older addon version,')
         layout.label('and needs to be updated.')
-        layout.operator('objex.material_update', text='Update this material')
+        layout.operator('objex.material_update', text='Update this material').update_all = False
         layout.operator('objex.material_update', text='Update ALL objex materials').update_all = True
     return True
 
