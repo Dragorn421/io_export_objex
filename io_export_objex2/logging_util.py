@@ -84,14 +84,18 @@ class OperatorReportLogHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
-def setLogOperator(operator, level=logging.INFO):
+def setLogOperator(operator, level=logging.INFO, user_friendly_formatter=False):
     global root_logger, root_logger_formatter, root_logger_operator_report_handler
     if root_logger_operator_report_handler:
         root_logger.removeHandler(root_logger_operator_report_handler)
         root_logger_operator_report_handler = None
     if operator:
         root_logger_operator_report_handler = OperatorReportLogHandler(operator)
-        root_logger_operator_report_handler.setFormatter(root_logger_formatter)
+        if user_friendly_formatter:
+            root_logger_operator_report_handler.setFormatter(
+                logging.Formatter('{message:s}', style='{'))
+        else:
+            root_logger_operator_report_handler.setFormatter(root_logger_formatter)
         root_logger_operator_report_handler.setLevel(level)
         root_logger.addHandler(root_logger_operator_report_handler)
 
