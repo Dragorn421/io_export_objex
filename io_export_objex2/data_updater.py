@@ -22,7 +22,36 @@ def material_from_0(material, data, log):
     uvTransformMain.inputs['V Scale'].default_value = scaleT
     data.objex_version = 1
 
+def material_from_2(material, data, log):
+    """
+    2 -> 3
+    recreate OBJEX_TransformUV0, OBJEX_TransformUV1 nodes
+    """
+    nodes = material.node_tree.nodes
+    names = ('OBJEX_TransformUV0', 'OBJEX_TransformUV1',)
+    copy_inputs = ('U Scale Exponent','V Scale Exponent','Wrap U','Wrap V','Mirror U','Mirror V',)
+    socket_data = dict()
+    for name in names:
+        if name not in nodes:
+            log.warn('Could not find node {}, skipping node', name)
+            continue
+        node = nodes[name]
+        socket_data[name] = input_values = dict()
+        for input_socket_name in copy_inputs:
+            if input_socket_name not in node.inputs:
+                log.warn('Could not find "{}" on {}, skipping socket', input_socket_name, name)
+                continue
+            input_values[input_socket_name] = node.inputs[input_socket_name].default_value
+        nodes.remove(node)
+    interface.exec_build_nodes_operator(material)
+    for name, input_values in socket_data.items():
+        node = nodes[name]
+        for input_socket_name, default_value in input_values.items():
+            node.inputs[input_socket_name].default_value = default_value
+    data.objex_version = 3
+
 # update_material_function factory for when a material version bump is only due to a node group version bump
+# if socket inputs/outputs change something like material_from_2 would be more appropriate, this is only for purely group-internal changes
 def node_groups_internal_change_update_material_function(to_version):
     def update_material_function(material, data, log):
         interface.exec_build_nodes_operator(material, create=False, set_looks=False, set_basic_links=False)
@@ -44,8 +73,9 @@ def node_groups_internal_change_update_material_function(to_version):
 update_material_functions = {
     0: material_from_0,
     1: node_groups_internal_change_update_material_function(2), # OBJEX_UV_pipe 1 -> 2
+    2: material_from_2,
 }
-addon_material_objex_version = 2
+addon_material_objex_version = 3
 
 # called by OBJEX_PT_material#draw
 def handle_material(material, layout):
