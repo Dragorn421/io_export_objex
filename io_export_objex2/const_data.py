@@ -1,3 +1,5 @@
+import bpy
+
 COLOR_OK = (0,1,0,1) # green
 COLOR_BAD = (1,0,0,1) # red
 COLOR_RGBA_COLOR = (1,1,0,1) # yellow
@@ -90,7 +92,7 @@ COMBINER_FLAGS_SUPPORT = {
 
 node_setup = {
     'Geometry': {
-        'type': 'ShaderNodeGeometry',
+        'type': 'ShaderNodeGeometry' if hasattr(bpy.types, 'ShaderNodeGeometry') else 'ShaderNodeNewGeometry',
         'location': (-520, -100),
     },
     'OBJEX_TransformUV_Main': {
@@ -183,7 +185,7 @@ node_setup = {
         },
     },
     'OBJEX_Texel0Texture': {
-        'type': 'ShaderNodeTexture',
+        'type': 'ShaderNodeTexture' if hasattr(bpy.types, 'ShaderNodeTexture') else 'ShaderNodeTexImage',
         'label': 'Texel 0 Texture',
         'location': (100, 50),
         'links': {
@@ -191,7 +193,7 @@ node_setup = {
         },
     },
     'OBJEX_Texel1Texture': {
-        'type': 'ShaderNodeTexture',
+        'type': 'ShaderNodeTexture' if hasattr(bpy.types, 'ShaderNodeTexture') else 'ShaderNodeTexImage',
         'label': 'Texel 1 Texture',
         'location': (100, -250),
         'links': {
@@ -316,7 +318,7 @@ node_setup = {
         },
     },
     'Output': {
-        'type': 'ShaderNodeOutput',
+        'type': 'ShaderNodeOutput' if hasattr(bpy.types, 'ShaderNodeOutput') else 'ShaderNodeOutputMaterial',
         'location': (1000, 100),
     },
     # frames
@@ -326,3 +328,39 @@ node_setup = {
         'children': ('OBJEX_PrimColor', 'OBJEX_EnvColor', 'OBJEX_Texel0', 'OBJEX_Texel1', 'OBJEX_Shade', 'OBJEX_Color0', 'OBJEX_Color1'),
     },
 }
+
+if hasattr(bpy.types, 'ShaderNodeUVMap'): # 2.80+
+    node_setup['UV Map'] = {
+        'type': 'ShaderNodeUVMap',
+        'location': (-520, 50),
+    }
+    node_setup['OBJEX_TransformUV_Main']['links']['UV'] = ('UV Map', 'UV')
+
+if not hasattr(bpy.types, 'ShaderNodeTexture'): # 2.80+
+    # ShaderNodeTexImage sockets are Color then Alpha, not Alpha ("Value") then Color like on old ShaderNodeTexture
+    for node_texel_texture, node_texel in (
+        ('OBJEX_Texel0Texture', 'OBJEX_Texel0'),
+        ('OBJEX_Texel1Texture', 'OBJEX_Texel1'),
+    ):
+        for i in (0,1,):
+            node_setup[node_texel]['links'][i] = (node_texel_texture, i)
+    # ShaderNodeTexImage is larger
+    for node_name in (
+        'UV Map', 'Geometry',
+        'OBJEX_TransformUV_Main',
+        'OBJEX_TransformUV0', 'OBJEX_TransformUV1',
+        'OBJEX_Texel0Texture', 'OBJEX_Texel1Texture',
+    ):
+        if node_name in node_setup:
+            x, y = node_setup[node_name]['location']
+            node_setup[node_name]['location'] = x - 100, y
+
+if not hasattr(bpy.types, 'ShaderNodeOutput'): # 2.80+
+    # add principled bsdf shader before ShaderNodeOutputMaterial
+    node_setup['Principled BSDF'] = {
+        'type': 'ShaderNodeBsdfPrincipled',
+        'location': (1000,300),
+    }
+    x, y = node_setup['Output']['location']
+    node_setup['Output']['location'] = x + 300, y
+    node_setup['Output']['links'] = {'Surface': ('Principled BSDF', 0)}

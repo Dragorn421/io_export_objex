@@ -1,3 +1,5 @@
+from . import blender_version_compatibility
+
 import bpy
 
 from . import interface
@@ -161,6 +163,7 @@ classes = (
 
 def register():
     for clazz in classes:
+        blender_version_compatibility.make_annotations(clazz)
         bpy.utils.register_class(clazz)
 
 def unregister():

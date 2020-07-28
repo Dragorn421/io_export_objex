@@ -1,3 +1,5 @@
+from . import blender_version_compatibility
+
 import bpy
 import mathutils
 
@@ -136,11 +138,11 @@ def var_armature_pose(obj):
     """Compute variance of x,y,z coordinates in world space of bones center in pose position"""
     sum = mathutils.Vector()
     for b in obj.pose.bones:
-        sum += obj.matrix_world * b.center
+        sum += blender_version_compatibility.matmul(obj.matrix_world, b.center)
     mean = sum / len(obj.pose.bones)
     var = mathutils.Vector()
     for b in obj.pose.bones:
-        delta = obj.matrix_world * b.center - mean
+        delta = blender_version_compatibility.matmul(obj.matrix_world, b.center) - mean
         var += mathutils.Vector(d*d for d in delta)
     var /= len(obj.pose.bones)
     return var
@@ -204,7 +206,10 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
         restoreSavedPose(armature, saved_pose.bones, invert=saved_pose.type != 'UNFOLDEDpose_foldedRest')
 
     # if not called, modifiers are applied with the wrong pose by to_mesh
-    scene.update()
+    if hasattr(scene, 'update'): # < 2.80
+        scene.update()
+    else: # 2.80+
+        pass # 421FIXME_UPDATE hopefully the applied modifiers use updated depsgraph (?) on their own
 
     # (UN)fold rigged meshs
     for mesh in meshs:
@@ -279,7 +284,15 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
             temporarily_disabled_modifiers.show_viewport = False
         armature_deform_modifier.show_viewport = True
         # replace mesh data by mesh with modifier-applied
-        mesh.data = mesh.to_mesh(scene, True, calc_tessface=False, settings='PREVIEW')
+        if not hasattr(mesh, 'evaluated_get'): # < 2.80
+            mesh.data = mesh.to_mesh(scene, True, calc_tessface=False, settings='PREVIEW')
+        else: # 2.80+
+            # 421FIXME_UPDATE 2.80+ to_mesh: The result is temporary and can not be used by objects from the main database
+            # 421fixme I have no idea what I'm doing
+            depsgraph = bpy.context.evaluated_depsgraph_get()
+            mesh_evaluated = mesh.evaluated_get(depsgraph)
+            mesh.data = mesh_evaluated.to_mesh().copy()
+            mesh_evaluated.to_mesh_clear()
         # restore modifier visibility
         for modifier in temporarily_disabled_modifiers:
             temporarily_disabled_modifiers.show_viewport = True
@@ -289,23 +302,23 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
     # store current context
     armature_mode_user = armature.mode
     selected_objects_user = bpy.context.selected_objects[:]
-    active_object_user = bpy.context.scene.objects.active
+    active_object_user = blender_version_compatibility.get_active_object(bpy.context)
     # switch context to only armature active/selected and in pose mode
     while bpy.context.selected_objects:
-        bpy.context.selected_objects[0].select = False
-    armature.select = True
+        blender_version_compatibility.set_object_select(bpy.context.selected_objects[0], False)
+    blender_version_compatibility.set_object_select(armature, True)
     # use bpy.context.scene instead of scene
-    bpy.context.scene.objects.active = armature
+    blender_version_compatibility.set_active_object(bpy.context, armature)
     bpy.ops.object.mode_set(mode='POSE')
     # call "Apply Pose as Rest Pose" operator
     bpy.ops.pose.armature_apply()
     # restore context
     bpy.ops.object.mode_set(mode=armature_mode_user)
-    armature.select = False
+    blender_version_compatibility.set_object_select(armature, False)
     # everything is deselected, now select what was previously selected
     for obj in selected_objects_user:
-        obj.select = True
-    bpy.context.scene.objects.active = active_object_user
+        blender_version_compatibility.set_object_select(obj, True)
+    blender_version_compatibility.set_active_object(bpy.context, active_object_user)
 
 class AutofoldOperator():
 
@@ -399,13 +412,22 @@ class OBJEX_OT_autofold_save_pose(bpy.types.Operator, AutofoldOperator):
             try:
                 # 421todo c'est très gadget (useless feature), but could be improved by
                 # taking into account modifier keys and other hotkey features
-                toolbar_hotkey = (bpy.context.window_manager.keyconfigs.user
-                                    .keymaps['3D View Generic']
-                                    .keymap_items['view3d.toolshelf'].type)
+                keymap_items = (bpy.context.window_manager.keyconfigs.user
+                                .keymaps['3D View Generic'].keymap_items)
+                if 'view3d.toolshelf' in keymap_items: # < 2.80
+                    redo_in_toolbar = True
+                    toolbar_hotkey = keymap_items['view3d.toolshelf'].type
+                else: # 2.80+
+                    redo_in_toolbar = False
             except:
                 log.exception('Failed to get toolbar hotkey')
+                redo_in_toolbar = True # 421FIXME_UPDATE
                 toolbar_hotkey = 'T'
-            log.info('Please set a pose name in the toolbar (left of 3D view, hotkey {})', toolbar_hotkey)
+            if redo_in_toolbar: # < 2.80
+                log.info('Please set a pose name in the toolbar (left of 3D view, hotkey {})', toolbar_hotkey)
+            else: # 2.80+
+                # 421FIXME_UPDATE not sure where the redo panel should show in 2.82
+                return context.window_manager.invoke_props_dialog(self)
             return {'FINISHED'}
         finally:
             self.endLogging()
@@ -611,6 +633,7 @@ classes = (
 
 def register():
     for clazz in classes:
+        blender_version_compatibility.make_annotations(clazz)
         bpy.utils.register_class(clazz)
 
 def unregister():

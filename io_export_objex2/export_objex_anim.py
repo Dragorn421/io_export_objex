@@ -1,3 +1,5 @@
+from . import blender_version_compatibility
+
 import bpy
 import mathutils
 
@@ -27,16 +29,17 @@ def write_skeleton(file_write_skel, global_matrix, object_transform, armature, a
         fw('\n')
     indent = 0
     stack = [None]
+    transform = blender_version_compatibility.matmul(global_matrix, object_transform)
     for bone in bones_ordered:
         #print('indent=%d bone=%s parent=%s stack=%r' % (indent, bone.name, bone.parent.name if bone.parent else 'None', stack))
         while bone.parent != stack[-1]:
             indent -= 1
             fw('%s-\n' % (' ' * indent))
             stack.pop()
-        pos = global_matrix * object_transform * bone.head_local
+        pos = blender_version_compatibility.matmul(transform, bone.head_local)
         if bone.parent:
             pos = pos.copy()
-            pos -= global_matrix * object_transform * bone.parent.head_local
+            pos -= blender_version_compatibility.matmul(transform, bone.parent.head_local)
         # 421todo this warning looks very outdated now that we use object transform
         # 421todo confirm that bone root position is always assumed to be 0 by oot, if yes make sure WYSIWYG applies with the edit-mode location being accounted for in write_action_from_pose_bones
         else:
@@ -134,7 +137,7 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
         if armature.animation_data:
             armature.animation_data.action = user_armature_action
     
-    scene.frame_set(user_frame_current, user_frame_subframe)
+    scene.frame_set(user_frame_current, subframe=user_frame_subframe)
 
 def write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, actions):
     fw = file_write_anim
@@ -149,7 +152,7 @@ def write_animations(file_write_anim, scene, global_matrix, object_transform, ar
 
 def write_action(fw, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count):
     log = getLogger('anim')
-    transform = global_matrix * object_transform
+    transform = blender_version_compatibility.matmul(global_matrix, object_transform)
     transform3 = transform.to_3x3()
     transform3_inv = transform3.inverted()
 
@@ -191,7 +194,7 @@ def write_action(fw, scene, global_matrix, object_transform, armature, root_bone
         so if root bone is not at 0,0,0 in edit mode (aka root_bone.head != 0) it may cause issues if loc and root_bone.head are summed
         """
         root_loc = root_pose_bone.head # armature space
-        root_loc = transform * root_loc
+        root_loc = blender_version_compatibility.matmul(transform, root_loc)
         fw('loc %.6f %.6f %.6f\n' % (root_loc.x, root_loc.y, root_loc.z)) # 421todo what about "ms"
         for bone in bones_ordered:
             pose_bone = pose_bones[bone.name]
@@ -210,11 +213,15 @@ def write_action(fw, scene, global_matrix, object_transform, armature, root_bone
             if parent_pose_bone:
                 # we only care about the 3x3 rotation part
                 # for rotations, .transposed() is the same as .inverted()
-                rot_matrix = parent_pose_bone.matrix_channel.to_3x3().transposed() * pose_bone.matrix_channel.to_3x3()
+                rot_matrix = blender_version_compatibility.matmul(
+                                parent_pose_bone.matrix_channel.to_3x3().transposed(),
+                                pose_bone.matrix_channel.to_3x3())
             else:
                 # without a parent, transform can stay relative to armature (as if parent_pose_bone.matrix_channel = Identity)
                 rot_matrix = pose_bone.matrix_channel.to_3x3()
-            rot_matrix = transform3 * rot_matrix * transform3_inv
+            rot_matrix = blender_version_compatibility.matmul(
+                            blender_version_compatibility.matmul(transform3, rot_matrix),
+                            transform3_inv)
 
             # OoT actually uses XYZ Euler angles.
             rotation_euler_zyx = rot_matrix.to_euler('XYZ')

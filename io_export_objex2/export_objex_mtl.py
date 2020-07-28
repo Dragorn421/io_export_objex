@@ -413,6 +413,9 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             util.detect_zztag(log, name)
             objex_data = material.objex_bonus if material else None
             if objex_data and material.use_nodes and not objex_data.is_objex_material:
+                # 421FIXME_UPDATE this warning is irrelevant in 2.80+ as materials use nodes by default
+                # the warning could be improved for 2.79 too, check if node tree has objex nodes
+                # but then exporting textures from node tree should be implemented in 2.79 ...
                 log.warning('Material {!r} use_nodes but not is_objex_material\n'
                     '(did you copy-paste nodes from another material instead of clicking the "Init..." button?),\n'
                     'nodes will be ignored and the face image will be used\n'
@@ -702,7 +705,9 @@ count  P              A              M              B            comment
                 # face_img.filepath may be '' for generated images
                 if face_img and face_img.filepath: # We have an image on the face!
                     image = face_img
-                elif material:  # No face image. if we have a material search for MTex image.
+                elif (material  # No face image. if we have a material search for MTex image.
+                    and hasattr(material, 'texture_slots') # < 2.80
+                ):
                     # backwards so topmost are highest priority (421todo ... sure about that?)
                     for mtex in reversed(material.texture_slots):
                         if mtex and mtex.texture and mtex.texture.type == 'IMAGE':
@@ -720,6 +725,9 @@ count  P              A              M              B            comment
                                 break
                             else:
                                 image = None
+                elif material: # 2.80+
+                    # 421FIXME_UPDATE todo: find image to export
+                    pass
 
                 if image:
                     texture_name_q = writeTexture(image, image.name)

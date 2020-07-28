@@ -1,3 +1,5 @@
+from . import blender_version_compatibility
+
 import bpy
 
 from . import interface
@@ -443,6 +445,7 @@ def register_properties():
     log = getLogger('properties')
     for clazz in classes:
         try:
+            blender_version_compatibility.make_annotations(clazz)
             bpy.utils.register_class(clazz)
         except:
             log.exception('Failed to register {!r}', clazz)

@@ -1,3 +1,5 @@
+from . import blender_version_compatibility
+
 import bpy
 import io
 import contextlib
@@ -115,7 +117,11 @@ def monkeyPatch_view3d_copybuffer_update(addon_preferences, context):
 
 # (un)registering
 
-handlers = (bpy.app.handlers.load_post, bpy.app.handlers.scene_update_pre)
+handlers = (
+    bpy.app.handlers.load_post,
+    # 421fixme in 2.82 depsgraph_update_pre runs much less often, would need to use the new handler stuff
+    bpy.app.handlers.scene_update_pre if hasattr(bpy.app.handlers, 'scene_update_pre') else bpy.app.handlers.depsgraph_update_pre,
+)
 
 def remove_from_handlers():
     for handler in handlers:
@@ -155,7 +161,7 @@ def monkeyPatch_view3d_copybuffer_handler(_):
         km_view3d_copybuffer_wrapper = km
         kmi_view3d_copybuffer_wrapper = kmi
 
-        addon_preferences = bpy.context.user_preferences.addons[__package__].preferences
+        addon_preferences = blender_version_compatibility.get_preferences(bpy.context).addons[__package__].preferences
         monkeyPatch_view3d_copybuffer_update(addon_preferences, bpy.context)
     else:
         log.info('Ignored patching, no keyconfig available (Blender is likely in background mode)')
@@ -192,7 +198,7 @@ def unregister():
     # in the seemingly unlikely event monkeyPatch_view3d_copybuffer_handler isn't called and doesn't remove itself, remove it here
     remove_from_handlers()
     # restore view3d.copybuffer key mapping if needed
-    addon_preferences = bpy.context.user_preferences.addons[__package__].preferences
+    addon_preferences = blender_version_compatibility.get_preferences(bpy.context).addons[__package__].preferences
     if addon_preferences.monkeyPatch_view3d_copybuffer_active_user != 'None':
         set_view3d_copybuffer_keymap_item_active(addon_preferences.monkeyPatch_view3d_copybuffer_active_user == 'True')
 

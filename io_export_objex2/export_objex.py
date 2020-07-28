@@ -16,6 +16,8 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+from . import blender_version_compatibility
+
 import os
 import time
 
@@ -23,7 +25,10 @@ import bpy
 import mathutils
 import bpy_extras.io_utils
 
-from progress_report import ProgressReport, ProgressReportSubstep
+try:
+    from progress_report import ProgressReport, ProgressReportSubstep
+except ImportError:
+    from bpy_extras.wm_utils.progress_report import ProgressReport, ProgressReportSubstep
 
 from . import export_objex_mtl
 from . import export_objex_anim
@@ -245,9 +250,23 @@ class ObjexWriter():
                         user_show_armature_modifiers.append((modifier, modifier.show_viewport, modifier.show_render))
                         modifier.show_viewport = False
                         modifier.show_render = False
+
+            ob_for_convert = None
+            if hasattr(ob, 'evaluated_get'): # 2.80+
+                # 421FIXME_UPDATE may have to update depsgraph after editing modifier properties?
+                # if I understood correctly evaluated_depsgraph_get does the updating
+                depsgraph = self.context.evaluated_depsgraph_get()
+                ob_for_convert = ob.evaluated_get(depsgraph) if apply_modifiers else ob.original
+                del depsgraph
+
             try:
-                me = ob.to_mesh(scene, apply_modifiers, calc_tessface=False,
-                                settings='RENDER' if self.options['APPLY_MODIFIERS_RENDER'] else 'PREVIEW')
+                if not ob_for_convert: # < 2.80
+                    me = ob.to_mesh(scene, apply_modifiers, calc_tessface=False,
+                                    settings='RENDER' if self.options['APPLY_MODIFIERS_RENDER'] else 'PREVIEW')
+                else: # 2.80+
+                    # 421FIXME_UPDATE use APPLY_MODIFIERS_RENDER where? may have to disable them in the disable-modifiers-loop
+                    # 421FIXME_UPDATE should to_mesh really be called without any argument? (like 2.82 obj exporter does)
+                    me = ob_for_convert.to_mesh()
             except RuntimeError:
                 me = None
             finally:
@@ -279,15 +298,20 @@ class ObjexWriter():
             ?
             -> 2 checkboxes? first "always apply object transform when writing mesh data of an animated mesh" (default unchecked) if unchecked 2nd appears "apply object transform to animations instead" (default checked)
             """
-            me.transform(self.options['GLOBAL_MATRIX'] * ob_mat)
+            me.transform(blender_version_compatibility.matmul(self.options['GLOBAL_MATRIX'], ob_mat))
             # If negative scaling, we have to invert the normals...
             if ob_mat.determinant() < 0.0:
                 me.flip_normals()
 
             if self.options['EXPORT_UV']:
-                has_uvs = len(me.uv_textures) > 0
-                if has_uvs:
-                    uv_texture = me.uv_textures.active.data[:]
+                if hasattr(me, 'uv_textures'): # < 2.79
+                    has_uvs = len(me.uv_textures) > 0
+                    has_uv_textures = has_uvs
+                    if has_uv_textures:
+                        uv_texture = me.uv_textures.active.data[:]
+                else: # 2.80+
+                    has_uvs = len(me.uv_layers) > 0
+                    has_uv_textures = False
             else:
                 has_uvs = False
             
@@ -299,7 +323,10 @@ class ObjexWriter():
 
             if not (len(face_index_pairs) + len(vertices)):  # Make sure there is something to write
                 # clean up
-                bpy.data.meshes.remove(me)
+                if not ob_for_convert: # < 2.80
+                    bpy.data.meshes.remove(me)
+                else: # 2.80+
+                    ob_for_convert.to_mesh_clear()
                 return  # dont bother with this mesh.
 
             if self.options['EXPORT_NORMALS'] and face_index_pairs:
@@ -321,7 +348,7 @@ class ObjexWriter():
             if self.options['KEEP_VERTEX_ORDER']:
                 pass
             else:
-                if has_uvs:
+                if has_uv_textures:
                     if smooth_groups:
                         sort_func = lambda a: (a[0].material_index,
                                                hash(uv_texture[a[1]].image),
@@ -359,7 +386,8 @@ class ObjexWriter():
                     objex_data.write_origin == 'AUTO'
                     and objex_data.attrib_billboard != 'NONE'
                 ):
-                    fw('origin %.6f %.6f %.6f\n' % tuple(self.options['GLOBAL_MATRIX'] * ob.location))
+                    fw('origin %.6f %.6f %.6f\n'
+                        % tuple(blender_version_compatibility.matmul(self.options['GLOBAL_MATRIX'], ob.location)))
                 if objex_data.attrib_billboard != 'NONE':
                     fw('attrib %s\n' % objex_data.attrib_billboard)
                 for attrib in ('LIMBMTX', 'POSMTX', 'NOSPLIT', 'NOSKEL', 'PROXY'):
@@ -440,9 +468,6 @@ class ObjexWriter():
             else:
                 has_vertex_colors = False
                 vc_unique_count = 0
-            
-            if not has_uvs:
-                f_image = None
 
             subprogress2.step()
 
@@ -457,7 +482,7 @@ class ObjexWriter():
                     f_smooth = smooth_groups[f_index]
 
                 face_material = materials[f.material_index] if use_materials else None
-                face_image = uv_texture[f_index].image if has_uvs else None
+                face_image = uv_texture[f_index].image if has_uv_textures else None
 
                 # 421fixme we do not need to switch context when the face image changes if
                 # the (objex) material doesn't change, as the face image is completely ignored
@@ -536,7 +561,10 @@ class ObjexWriter():
             self.total_vertex_color += vc_unique_count
             
             # clean up
-            bpy.data.meshes.remove(me)
+            if not ob_for_convert: # < 2.80
+                bpy.data.meshes.remove(me)
+            else: # 2.80+
+                ob_for_convert.to_mesh_clear()
     
     def write(self, filepath):
         """
@@ -580,29 +608,45 @@ class ObjexWriter():
                     subprogress1.enter_substeps(len(self.objects))
                     for ob_main in self.objects:
                         # 421todo I don't know what this dupli stuff is about
+                        # ("instancer" stuff in 2.80+)
+                        use_old_dupli = hasattr(ob_main, 'dupli_type') # True in < 2.80
                         # ignore dupli children
-                        if ob_main.parent and ob_main.parent.dupli_type in {'VERTS', 'FACES'}:
-                            # XXX
+                        if (ob_main.parent
+                            and (ob_main.parent.dupli_type if use_old_dupli else ob_main.parent.instance_type)
+                                    in {'VERTS', 'FACES'}
+                        ):
                             subprogress1.step("Ignoring %s, dupli child..." % ob_main.name)
                             continue
 
                         obs = [(ob_main, ob_main.matrix_world)]
-                        if ob_main.dupli_type != 'NONE':
+                        added_dupli_children = True
+                        if use_old_dupli and ob_main.dupli_type != 'NONE':
                             # XXX
                             log.info('creating dupli_list on {}', ob_main.name)
                             ob_main.dupli_list_create(scene)
 
                             obs += [(dob.object, dob.matrix) for dob in ob_main.dupli_list]
-
-                            # XXX
+                        elif not use_old_dupli and ob_main.is_instancer:
+                            # 421FIXME_UPDATE assuming depsgraph must be re-get every time since evaluated_depsgraph_get
+                            # may be called in-between this line executing, ie in write_object when evaluating mesh data
+                            depsgraph = self.context.evaluated_depsgraph_get()
+                            obs += [(dup.instance_object.original, dup.matrix_world.copy())
+                                    for dup in depsgraph.object_instances
+                                    if dup.parent and dup.parent.original == ob_main]
+                            del depsgraph
+                        else:
+                            added_dupli_children = False
+                        if added_dupli_children:
                             log.debug('{} has {:d} dupli children', ob_main.name, len(obs) - 1)
 
                         subprogress1.enter_substeps(len(obs))
                         for ob, ob_mat in obs:
                             self.write_object(subprogress1, ob, ob_mat)
 
-                        if ob_main.dupli_type != 'NONE':
+                        if use_old_dupli and ob_main.dupli_type != 'NONE':
                             ob_main.dupli_list_clear()
+                        elif not use_old_dupli:
+                            pass # no clean-up needed
 
                         subprogress1.leave_substeps("Finished writing geometry of '%s'." % ob_main.name)
                     subprogress1.leave_substeps()

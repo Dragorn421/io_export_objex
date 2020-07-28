@@ -1,3 +1,5 @@
+from . import blender_version_compatibility
+
 import bpy
 import mathutils
 import re
@@ -887,9 +889,17 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             # infer texel0 texture from face textures
             try:
                 obj = mesh = None
-                if (hasattr(context, 'object') and context.object
+                context_object_is_mesh = (
+                    hasattr(context, 'object')
+                    and context.object
                     and context.object.type == 'MESH'
-                    and context.object.data.uv_textures.active
+                )
+                if (context_object_is_mesh
+                        and not hasattr(context.object.data, 'uv_textures')
+                ):
+                    pass # no face textures (Blender 2.80+)
+                elif (context_object_is_mesh
+                        and context.object.data.uv_textures.active
                 ):
                     obj = context.object
                     mesh = obj.data
@@ -948,9 +958,14 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             node_tree.links.new(ac0.outputs[0], ac1.inputs['A'])
             ac1.inputs['C'].input_flags_A_C = 'G_ACMUX_SHADE'
             # combiners output
-            output = nodes['Output']
-            node_tree.links.new(cc1.outputs[0], output.inputs[0])
-            node_tree.links.new(ac1.outputs[0], output.inputs[1])
+            if hasattr(bpy.types, 'ShaderNodeOutput'): # < 2.80
+                output = nodes['Output']
+                node_tree.links.new(cc1.outputs[0], output.inputs[0])
+                node_tree.links.new(ac1.outputs[0], output.inputs[1])
+            else: # 2.80+
+                principledBSDF = nodes['Principled BSDF']
+                node_tree.links.new(cc1.outputs[0], principledBSDF.inputs['Base Color'])
+                node_tree.links.new(ac1.outputs[0], principledBSDF.inputs['Alpha'])
 
         material.objex_bonus.is_objex_material = True
         material.objex_bonus.objex_version = data_updater.addon_material_objex_version
@@ -1230,6 +1245,7 @@ def register_interface():
     log = getLogger('interface')
     for clazz in classes:
         try:
+            blender_version_compatibility.make_annotations(clazz)
             bpy.utils.register_class(clazz)
         except:
             log.exception('Failed to register {!r}', clazz)
@@ -1257,7 +1273,9 @@ def register_interface():
             (bpy.types.NodeSocket, mixin),
             {'target_socket_name': target_socket_name}
         )
+        blender_version_compatibility.make_annotations(socket_interface_class)
         bpy.utils.register_class(socket_interface_class)
+        blender_version_compatibility.make_annotations(socket_class)
         bpy.utils.register_class(socket_class)
 
 def unregister_interface():

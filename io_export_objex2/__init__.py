@@ -37,7 +37,7 @@ bl_info = {
     'name': 'Objex Exporter for N64 romhacking',
     'author': 'Campbell Barton, Bastien Montagne, OoT modding community',
     'version': (1, 0, 0),
-    'blender': (2, 79, 0),
+    'blender': (2, 80, 0),
     'location': 'File > Export',
     'description': 'Allows to export to objex and provides new features for further customization',
     'warning': '',
@@ -55,13 +55,26 @@ from bpy.props import (
         )
 from bpy_extras.io_utils import (
         ExportHelper,
-        orientation_helper_factory,
         path_reference_mode,
         axis_conversion,
         )
 
+try:
+    # < 2.80
+    from bpy_extras.io_utils import orientation_helper_factory
+    def orientation_helper(clazz, axis_forward=None, axis_up=None):
+        return clazz
+except ImportError:
+    # 2.80+
+    def orientation_helper_factory(name, axis_forward=None, axis_up=None):
+        return object
+    from bpy_extras.io_utils import orientation_helper
+
 import os
-import progress_report
+try:
+    import progress_report
+except ImportError:
+    import bpy_extras.wm_utils.progress_report as progress_report
 
 # reload files
 import importlib
@@ -70,10 +83,13 @@ for n in (
     'export_objex', 'export_objex_mtl', 'export_objex_anim',
     'properties', 'interface', 'const_data', 'util', 'logging_util',
     'rigging_helpers', 'data_updater', 'view3d_copybuffer_patch',
+    'blender_version_compatibility',
 ):
     if n in loc:
         importlib.reload(loc[n])
 del importlib
+
+from . import blender_version_compatibility
 
 from . import export_objex
 from . import properties
@@ -83,9 +99,12 @@ from . import logging_util
 from . import rigging_helpers
 from . import view3d_copybuffer_patch
 
-IOOBJOrientationHelper = orientation_helper_factory('IOOBJOrientationHelper', axis_forward='-Z', axis_up='Y')
+axis_forward = '-Z'
+axis_up='Y'
 
+IOOBJOrientationHelper = orientation_helper_factory('IOOBJOrientationHelper', axis_forward=axis_forward, axis_up=axis_up)
 
+@orientation_helper(axis_forward=axis_forward, axis_up=axis_up)
 class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
     """Save an OBJEX File"""
 
@@ -328,7 +347,8 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
                                             'logging_file_path',
                                             ))
 
-        global_matrix = (Matrix.Scale(self.global_scale, 4) *
+        global_matrix = blender_version_compatibility.matmul(
+                         Matrix.Scale(self.global_scale, 4),
                          axis_conversion(to_forward=self.axis_forward,
                                          to_up=self.axis_up,
                                          ).to_4x4())
@@ -374,10 +394,11 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
                 for area in bpy.context.screen.areas:
                     if area.type == 'VIEW_3D':
                         for space in area.spaces:
-                            if space.type == 'VIEW_3D' and space.viewport_shade != 'MATERIAL':
+                            shading_type = space.viewport_shade if hasattr(space, 'viewport_shade') else space.shading.type
+                            if space.type == 'VIEW_3D' and shading_type != 'MATERIAL':
                                 log.warning('There is a 3d view area in the current screen which is using {} '
                                     'shading and not MATERIAL shading. MATERIAL shading is required to correctly '
-                                    'preview objex-enabled materials', space.viewport_shade)
+                                    'preview objex-enabled materials', shading_type)
 
             return export_objex.save(context, **keywords)
         except util.ObjexExportAbort as abort:
@@ -440,9 +461,11 @@ def register():
     logging_util.registerLogging('objex')
 
     for cls in classes:
+        blender_version_compatibility.make_annotations(cls)
         bpy.utils.register_class(cls)
 
-    bpy.types.INFO_MT_file_export.append(menu_func_export)
+    _MT_file_export = bpy.types.INFO_MT_file_export if hasattr(bpy.types, 'INFO_MT_file_export') else bpy.types.TOPBAR_MT_file_export
+    _MT_file_export.append(menu_func_export)
 
     rigging_helpers.register()
     properties.register_properties()
@@ -457,8 +480,9 @@ def unregister():
     data_updater.unregister()
     properties.unregister_properties()
     rigging_helpers.unregister()
-    
-    bpy.types.INFO_MT_file_export.remove(menu_func_export)
+
+    _MT_file_export = bpy.types.INFO_MT_file_export if hasattr(bpy.types, 'INFO_MT_file_export') else bpy.types.TOPBAR_MT_file_export
+    _MT_file_export.remove(menu_func_export)
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
