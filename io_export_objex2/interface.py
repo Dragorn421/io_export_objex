@@ -218,141 +218,156 @@ class OBJEX_NodeSocketInterface_Dummy():
 
 # NodeSocket
 
-class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,0,0), min=0, max=1, subtype='COLOR')
+if bpy.app.version < (2, 80, 0):
 
-    flagColorCycle = bpy.props.StringProperty(default='')
-    flagAlphaCycle = bpy.props.StringProperty(default='')
+    class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
+        default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,0,0), min=0, max=1, subtype='COLOR')
 
-    def draw(self, context, layout, node, text):
-        layout.label(text=text)
-        #layout.label(text='%s/%s' % (stripPrefix(self.flagColorCycle, 'G_CCMUX_'), stripPrefix(self.flagAlphaCycle, 'G_ACMUX_')))
-        # todo "show compat" operator which makes A/B/C/D blink when they support this output?
+        flagColorCycle = bpy.props.StringProperty(default='')
+        flagAlphaCycle = bpy.props.StringProperty(default='')
 
-    def draw_color(self, context, node):
-        return CST.COLOR_OK
-
-class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,1,0), min=0, max=1, subtype='COLOR')
-
-    def linkToFlag(self):
-        """
-        returns a (flag, error) tuple
-        flag standing for what is linked to this socket
-        and error being an error message string
-        success: flag is a string and error is None
-        failure: flag is None and error is a string
-        Note that flag may be an empty string '' to
-        indicate lack of support for the cycle
-        This does not check if the input can be used for
-        this socket's variable (A,B,C,D)
-        """
-        cycle = self.node.get('cycle')
-        if cycle not in (CST.CYCLE_COLOR, CST.CYCLE_ALPHA):
-            return None, 'Unknown cycle %s' % cycle
-        # default to 0 (allowed everywhere)
-        if not self.links:
-            return CST.COMBINER_FLAGS_0[cycle], None
-        otherSocket = self.links[0].from_socket
-        if otherSocket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
-            return None, 'Bad link to %s' % otherSocket.bl_idname
-        if cycle == CST.CYCLE_COLOR:
-            return otherSocket.flagColorCycle, None
-        else: # CST.CYCLE_ALPHA
-            return otherSocket.flagAlphaCycle, None
-
-    def draw(self, context, layout, node, text):
-        # don't do anything fancy in node group "inside" view
-        if node.bl_idname == 'NodeGroupInput':
+        def draw(self, context, layout, node, text):
             layout.label(text=text)
-            return
-        cycle = self.node.get('cycle')
-        name = self.name # A,B,C,D
-        flag, warnMsg = self.linkToFlag()
-        if flag is None:
-            value = '?'
-        elif flag == '':
-            value = 'XXX'
-            warnMsg = 'Not for cycle %s' % cycle
-        else:
-            value = stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle])
-            if flag not in CST.COMBINER_FLAGS_SUPPORT[cycle][name]:
-                warnMsg = 'Only for %s, not %s' % (','.join(var for var,flags in CST.COMBINER_FLAGS_SUPPORT[cycle].items() if flag in flags), name)
-        input_flags_prop_name = 'input_flags_%s_%s' % (cycle, name)
-        col = layout.column()
-        if warnMsg:
-            col = layout.column()
-            col.label(text=warnMsg, icon='ERROR')
-        col.label(text='%s = %s' % (name, value))
-        col.prop(self, input_flags_prop_name, text='')
+            #layout.label(text='%s/%s' % (stripPrefix(self.flagColorCycle, 'G_CCMUX_'), stripPrefix(self.flagAlphaCycle, 'G_ACMUX_')))
+            # todo "show compat" operator which makes A/B/C/D blink when they support this output?
 
-    def draw_color(self, context, node):
-        if node.bl_idname == 'NodeGroupInput':
+        def draw_color(self, context, node):
             return CST.COLOR_OK
-        flag, warnMsg = self.linkToFlag()
-        return CST.COLOR_BAD if warnMsg else CST.COLOR_OK
 
-def input_flag_list_choose_get(variable):
-    def input_flag_list_choose(self, context):
-        log = getLogger('interface')
-        input_flags_prop_name = 'input_flags_%s_%s' % (self.node['cycle'], variable)
-        flag = getattr(self, input_flags_prop_name)
-        if flag == '_':
-            return
-        tree = self.id_data
-        matching_socket = None
-        for n in tree.nodes:
-            for s in n.outputs:
-                if s.bl_idname == 'OBJEX_NodeSocket_CombinerOutput':
-                    if flag == (s.flagColorCycle if self.node['cycle'] == CST.CYCLE_COLOR else s.flagAlphaCycle):
-                        if matching_socket:
-                            log.error('Found several sockets for flag {}: {!r} {!r}', flag, matching_socket, s)
-                        matching_socket = s
-        if not matching_socket:
-            log.error('Did not find any socket for flag {}', flag)
-        while self.links:
-            tree.links.remove(self.links[0])
-        tree.links.new(matching_socket, self)
-        setattr(self, input_flags_prop_name, '_')
-    return input_flag_list_choose
-for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
-    for variable in ('A','B','C','D'):
-        setattr(
-            OBJEX_NodeSocket_CombinerInput,
-            'input_flags_%s_%s' % (cycle, variable),
-            bpy.props.EnumProperty(
-                items=sorted(
-                    (flag, stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle]), flag)
-                        for flag in CST.COMBINER_FLAGS_SUPPORT[cycle][variable]
-                        # 421todo can't implement these without using cycle number:
-                        if flag not in ('G_CCMUX_COMBINED','G_CCMUX_COMBINED_ALPHA','G_ACMUX_COMBINED')
-                ) + [('_','...','')],
-                name='%s' % variable,
-                default='_',
-                update=input_flag_list_choose_get(variable)
-            )
-        )
-del input_flag_list_choose_get
+    class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
+        default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,1,0), min=0, max=1, subtype='COLOR')
 
-class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket):
-    default_value = bpy.props.FloatVectorProperty(
-        name='default_value', default=(1,1,1),
-        min=0, max=1, subtype='COLOR',
-    )
+        def linkToFlag(self):
+            """
+            returns a (flag, error) tuple
+            flag standing for what is linked to this socket
+            and error being an error message string
+            success: flag is a string and error is None
+            failure: flag is None and error is a string
+            Note that flag may be an empty string '' to
+            indicate lack of support for the cycle
+            This does not check if the input can be used for
+            this socket's variable (A,B,C,D)
+            """
+            cycle = self.node.get('cycle')
+            if cycle not in (CST.CYCLE_COLOR, CST.CYCLE_ALPHA):
+                return None, 'Unknown cycle %s' % cycle
+            # default to 0 (allowed everywhere)
+            if not self.links:
+                return CST.COMBINER_FLAGS_0[cycle], None
+            otherSocket = self.links[0].from_socket
+            if otherSocket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
+                return None, 'Bad link to %s' % otherSocket.bl_idname
+            if cycle == CST.CYCLE_COLOR:
+                return otherSocket.flagColorCycle, None
+            else: # CST.CYCLE_ALPHA
+                return otherSocket.flagAlphaCycle, None
 
-    def draw(self, context, layout, node, text):
-        if self.is_linked:
-            layout.label(text=text)
-        else:
+        def draw(self, context, layout, node, text):
+            # don't do anything fancy in node group "inside" view
+            if node.bl_idname == 'NodeGroupInput':
+                layout.label(text=text)
+                return
+            cycle = self.node.get('cycle')
+            name = self.name # A,B,C,D
+            flag, warnMsg = self.linkToFlag()
+            if flag is None:
+                value = '?'
+            elif flag == '':
+                value = 'XXX'
+                warnMsg = 'Not for cycle %s' % cycle
+            else:
+                value = stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle])
+                if flag not in CST.COMBINER_FLAGS_SUPPORT[cycle][name]:
+                    warnMsg = 'Only for %s, not %s' % (','.join(var for var,flags in CST.COMBINER_FLAGS_SUPPORT[cycle].items() if flag in flags), name)
+            input_flags_prop_name = 'input_flags_%s_%s' % (cycle, name)
             col = layout.column()
-            col.label(text=text,icon='ERROR')
-            col.label(text='MUST BE LINKED',icon='ERROR')
+            if warnMsg:
+                col = layout.column()
+                col.label(text=warnMsg, icon='ERROR')
+            col.label(text='%s = %s' % (name, value))
+            col.prop(self, input_flags_prop_name, text='')
 
-    def draw_color(self, context, node):
-        return CST.COLOR_RGBA_COLOR if self.is_linked else CST.COLOR_BAD
+        def draw_color(self, context, node):
+            if node.bl_idname == 'NodeGroupInput':
+                return CST.COLOR_OK
+            flag, warnMsg = self.linkToFlag()
+            return CST.COLOR_BAD if warnMsg else CST.COLOR_OK
 
-    def text(self, txt):
-        return txt
+    def input_flag_list_choose_get(variable):
+        def input_flag_list_choose(self, context):
+            log = getLogger('interface')
+            input_flags_prop_name = 'input_flags_%s_%s' % (self.node['cycle'], variable)
+            flag = getattr(self, input_flags_prop_name)
+            if flag == '_':
+                return
+            tree = self.id_data
+            matching_socket = None
+            for n in tree.nodes:
+                for s in n.outputs:
+                    if s.bl_idname == 'OBJEX_NodeSocket_CombinerOutput':
+                        if flag == (s.flagColorCycle if self.node['cycle'] == CST.CYCLE_COLOR else s.flagAlphaCycle):
+                            if matching_socket:
+                                log.error('Found several sockets for flag {}: {!r} {!r}', flag, matching_socket, s)
+                            matching_socket = s
+            if not matching_socket:
+                log.error('Did not find any socket for flag {}', flag)
+            while self.links:
+                tree.links.remove(self.links[0])
+            tree.links.new(matching_socket, self)
+            setattr(self, input_flags_prop_name, '_')
+        return input_flag_list_choose
+    for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
+        for variable in ('A','B','C','D'):
+            setattr(
+                OBJEX_NodeSocket_CombinerInput,
+                'input_flags_%s_%s' % (cycle, variable),
+                bpy.props.EnumProperty(
+                    items=sorted(
+                        (flag, stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle]), flag)
+                            for flag in CST.COMBINER_FLAGS_SUPPORT[cycle][variable]
+                            # 421todo can't implement these without using cycle number:
+                            if flag not in ('G_CCMUX_COMBINED','G_CCMUX_COMBINED_ALPHA','G_ACMUX_COMBINED')
+                    ) + [('_','...','')],
+                    name='%s' % variable,
+                    default='_',
+                    update=input_flag_list_choose_get(variable)
+                )
+            )
+    del input_flag_list_choose_get
+
+    class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket):
+        default_value = bpy.props.FloatVectorProperty(
+            name='default_value', default=(1,1,1),
+            min=0, max=1, subtype='COLOR',
+        )
+
+        def draw(self, context, layout, node, text):
+            if self.is_linked:
+                layout.label(text=text)
+            else:
+                col = layout.column()
+                col.label(text=text,icon='ERROR')
+                col.label(text='MUST BE LINKED',icon='ERROR')
+
+        def draw_color(self, context, node):
+            return CST.COLOR_RGBA_COLOR if self.is_linked else CST.COLOR_BAD
+
+        def text(self, txt):
+            return txt
+
+    combinerOutputClassName = 'OBJEX_NodeSocket_CombinerOutput'
+    combinerInputClassName = 'OBJEX_NodeSocket_CombinerInput'
+    rgbaColorClassName = 'OBJEX_NodeSocket_RGBA_Color'
+else: # 2.80+
+    # 421FIXME_UPDATE this could use refactoring?
+    # I have no idea how to do custom color sockets in 2.80+...
+    OBJEX_NodeSocket_CombinerOutput = None
+    OBJEX_NodeSocket_CombinerInput = None
+    OBJEX_NodeSocket_RGBA_Color = None
+    combinerOutputClassName = 'NodeSocketColor'
+    combinerInputClassName = 'NodeSocketColor'
+    rgbaColorClassName = 'NodeSocketColor'
 
 class OBJEX_NodeSocket_IntProperty():
     def update_prop(self, context):
@@ -389,10 +404,10 @@ def create_node_group_cycle(group_name):
 
     inputs_node = tree.nodes.new('NodeGroupInput')
     inputs_node.location = (-450,0)
-    tree.inputs.new('OBJEX_NodeSocket_CombinerInput', 'A')
-    tree.inputs.new('OBJEX_NodeSocket_CombinerInput', 'B')
-    tree.inputs.new('OBJEX_NodeSocket_CombinerInput', 'C')
-    tree.inputs.new('OBJEX_NodeSocket_CombinerInput', 'D')
+    tree.inputs.new(combinerInputClassName, 'A')
+    tree.inputs.new(combinerInputClassName, 'B')
+    tree.inputs.new(combinerInputClassName, 'C')
+    tree.inputs.new(combinerInputClassName, 'D')
 
     A_minus_B = addMixRGBnode('SUBTRACT')
     A_minus_B.location = (-250,150)
@@ -411,7 +426,7 @@ def create_node_group_cycle(group_name):
 
     outputs_node = tree.nodes.new('NodeGroupOutput')
     outputs_node.location = (350,0)
-    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'Result')
+    tree.outputs.new(combinerOutputClassName, 'Result')
     tree.links.new(plus_D.outputs[0], outputs_node.inputs['Result'])
     tree.outputs['Result'].name = '(A-B)*C+D' # rename from 'Result' to formula
 
@@ -426,7 +441,7 @@ def create_node_group_color_static(group_name, colorValue, colorValueName):
 
     outputs_node = tree.nodes.new('NodeGroupOutput')
     outputs_node.location = (150,50)
-    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', colorValueName)
+    tree.outputs.new(combinerOutputClassName, colorValueName)
     tree.links.new(rgb.outputs[0], outputs_node.inputs[colorValueName])
 
     return tree
@@ -639,14 +654,14 @@ def create_node_group_uv_pipe(group_name):
 def create_node_group_rgba_pipe(group_name):
     """
     "Casts" input for use as cycle inputs
-    Inputs: OBJEX_NodeSocket_RGBA_Color 'Color', NodeSocketFloat 'Alpha'
-    Outputs: OBJEX_NodeSocket_CombinerOutput 'Color', OBJEX_NodeSocket_CombinerOutput 'Alpha'
+    Inputs: {rgbaColorClassName} 'Color', NodeSocketFloat 'Alpha'
+    Outputs: {combinerOutputClassName} 'Color', {combinerOutputClassName} 'Alpha'
     """
     tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
 
     inputs_node = tree.nodes.new('NodeGroupInput')
     inputs_node.location = (-100,50)
-    tree.inputs.new('OBJEX_NodeSocket_RGBA_Color', 'Color')
+    tree.inputs.new(rgbaColorClassName, 'Color')
     alpha_input_socket = tree.inputs.new('NodeSocketFloat', 'Alpha')
     alpha_input_socket.default_value = 1
     alpha_input_socket.min_value = 0
@@ -658,8 +673,8 @@ def create_node_group_rgba_pipe(group_name):
 
     outputs_node = tree.nodes.new('NodeGroupOutput')
     outputs_node.location = (100,50)
-    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'Color')
-    tree.outputs.new('OBJEX_NodeSocket_CombinerOutput', 'Alpha')
+    tree.outputs.new(combinerOutputClassName, 'Color')
+    tree.outputs.new(combinerOutputClassName, 'Alpha')
     tree.links.new(inputs_node.outputs[0], outputs_node.inputs['Color'])
     tree.links.new(alpha_3d.outputs[0], outputs_node.inputs['Alpha'])
 
@@ -825,8 +840,9 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                     node.outputs[output_socket_key].default_value = default_value
                 for output_socket_key, flags in node_outputs_combiner_flags.items():
                     color_flag, alpha_flag = flags
-                    node.outputs[output_socket_key].flagColorCycle = color_flag if color_flag else ''
-                    node.outputs[output_socket_key].flagAlphaCycle = alpha_flag if alpha_flag else ''
+                    if OBJEX_NodeSocket_CombinerOutput:
+                        node.outputs[output_socket_key].flagColorCycle = color_flag if color_flag else ''
+                        node.outputs[output_socket_key].flagAlphaCycle = alpha_flag if alpha_flag else ''
                 for k, v in node_properties_dict.items():
                     node[k] = v
             elif node_type_group and self.update_groups_of_existing:
@@ -946,17 +962,29 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             # cycle 0: (TEXEL0 - 0) * PRIM  + 0
             cc0 = nodes['OBJEX_ColorCycle0']
             ac0 = nodes['OBJEX_AlphaCycle0']
-            cc0.inputs['A'].input_flags_C_A = 'G_CCMUX_TEXEL0'
-            cc0.inputs['C'].input_flags_C_C = 'G_CCMUX_PRIMITIVE'
-            ac0.inputs['A'].input_flags_A_A = 'G_ACMUX_TEXEL0'
-            ac0.inputs['C'].input_flags_A_C = 'G_ACMUX_PRIMITIVE'
+            if OBJEX_NodeSocket_CombinerInput: # < 2.80
+                # the 2.80+ code would work in both versions assuming the node names are correct,
+                # but setting input_flags_ is more lenient and more readable when possible
+                cc0.inputs['A'].input_flags_C_A = 'G_CCMUX_TEXEL0'
+                cc0.inputs['C'].input_flags_C_C = 'G_CCMUX_PRIMITIVE'
+                ac0.inputs['A'].input_flags_A_A = 'G_ACMUX_TEXEL0'
+                ac0.inputs['C'].input_flags_A_C = 'G_ACMUX_PRIMITIVE'
+            else: # 2.80+
+                node_tree.links.new(nodes['OBJEX_Texel0'].outputs[0], cc0.inputs['A'])
+                node_tree.links.new(nodes['OBJEX_PrimColor'].outputs[0], cc0.inputs['C'])
+                node_tree.links.new(nodes['OBJEX_Texel0'].outputs[1], ac0.inputs['A'])
+                node_tree.links.new(nodes['OBJEX_PrimColor'].outputs[1], ac0.inputs['C'])
             # cycle 1: (RESULT - 0) * SHADE + 0
             cc1 = nodes['OBJEX_ColorCycle1']
             ac1 = nodes['OBJEX_AlphaCycle1']
             node_tree.links.new(cc0.outputs[0], cc1.inputs['A'])
-            cc1.inputs['C'].input_flags_C_C = 'G_CCMUX_SHADE'
             node_tree.links.new(ac0.outputs[0], ac1.inputs['A'])
-            ac1.inputs['C'].input_flags_A_C = 'G_ACMUX_SHADE'
+            if OBJEX_NodeSocket_CombinerInput: # < 2.80
+                cc1.inputs['C'].input_flags_C_C = 'G_CCMUX_SHADE'
+                ac1.inputs['C'].input_flags_A_C = 'G_ACMUX_SHADE'
+            else: # 2.80+
+                node_tree.links.new(nodes['OBJEX_Shade'].outputs[0], cc1.inputs['C'])
+                node_tree.links.new(nodes['OBJEX_Shade'].outputs[1], ac1.inputs['C'])
             # combiners output
             if hasattr(bpy.types, 'ShaderNodeOutput'): # < 2.80
                 output = nodes['Output']
@@ -1244,6 +1272,8 @@ classes = (
 def register_interface():
     log = getLogger('interface')
     for clazz in classes:
+        if clazz is None:
+            continue
         try:
             blender_version_compatibility.make_annotations(clazz)
             bpy.utils.register_class(clazz)
@@ -1281,6 +1311,8 @@ def register_interface():
 def unregister_interface():
     log = getLogger('interface')
     for clazz in reversed(classes):
+        if clazz is None:
+            continue
         try:
             bpy.utils.unregister_class(clazz)
         except:
