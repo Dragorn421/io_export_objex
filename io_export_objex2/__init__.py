@@ -83,7 +83,7 @@ for n in (
     'export_objex', 'export_objex_mtl', 'export_objex_anim',
     'properties', 'interface', 'const_data', 'util', 'logging_util',
     'rigging_helpers', 'data_updater', 'view3d_copybuffer_patch',
-    'blender_version_compatibility',
+    'addon_updater', 'addon_updater_ops', 'blender_version_compatibility',
 ):
     if n in loc:
         importlib.reload(loc[n])
@@ -98,6 +98,7 @@ from . import interface
 from . import logging_util
 from . import rigging_helpers
 from . import view3d_copybuffer_patch
+from . import addon_updater_ops
 
 axis_forward = '-Z'
 axis_up='Y'
@@ -416,7 +417,7 @@ def menu_func_export(self, context):
     self.layout.operator(OBJEX_OT_export.bl_idname, text='Extended OBJ (new WIP) (.objex)')
 
 
-class OBJEX_AddonPreferences(bpy.types.AddonPreferences):
+class OBJEX_AddonPreferences(bpy.types.AddonPreferences, addon_updater_ops.AddonUpdaterPreferences):
     bl_idname = __package__
 
     # see view3d_copybuffer_patch.py
@@ -448,7 +449,10 @@ class OBJEX_AddonPreferences(bpy.types.AddonPreferences):
     )
 
     def draw(self, context):
+        addon_updater_ops.check_for_update_background()
         self.layout.prop(self, 'monkeyPatch_view3d_copybuffer')
+        addon_updater_ops.update_settings_ui(self, context)
+        addon_updater_ops.update_notice_box_ui(self, context)
 
 
 classes = (
@@ -458,6 +462,8 @@ classes = (
 
 
 def register():
+    addon_updater_ops.register(bl_info)
+
     logging_util.registerLogging('objex')
 
     for cls in classes:
@@ -488,6 +494,8 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
     logging_util.unregisterLogging()
+
+    addon_updater_ops.unregister()
 
 
 if __name__ == '__main__':
