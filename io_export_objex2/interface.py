@@ -1058,7 +1058,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         for image in images_used:
             box = self.layout.box()
             box.label(text=image.filepath if image.filepath else 'Image without filepath?')
-            box.prop(textureNode.texture, 'image')
+            #box.prop(textureNode.texture, 'image') # 421fixme using textureNode here doesn't make sense
             imdata = image.objex_bonus
             box.prop(imdata, 'format')
             if imdata.format[:2] == 'CI':
