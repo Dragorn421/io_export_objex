@@ -1088,8 +1088,12 @@ class OBJEX_PT_material(bpy.types.Panel):
                 self.layout.prop(data, prop)
         # texel0/1 image properties
         images_used = set() # avoid writing the same properties twice if texel0 and texel1 use the same image
-        for textureNode in (n for n in material.node_tree.nodes if n.bl_idname == 'ShaderNodeTexture' and n.texture):
-            if textureNode.texture.type != 'IMAGE':
+        for textureNode in (
+            n for n in material.node_tree.nodes
+                if (n.bl_idname == 'ShaderNodeTexture' and n.texture) # < 2.80
+                    or (n.bl_idname == 'ShaderNodeTexImage' and n.image) # 2.80+
+        ):
+            if textureNode.bl_idname == 'ShaderNodeTexture' and textureNode.texture.type != 'IMAGE': # < 2.80
                 box = self.layout.box()
                 box.label(text='Texture used by node', icon='ERROR')
                 box.label(text='"%s"' % textureNode.label, icon='ERROR')
@@ -1097,7 +1101,10 @@ class OBJEX_PT_material(bpy.types.Panel):
                 box.label(text='Only image textures', icon='ERROR')
                 box.label(text='should be used.', icon='ERROR')
                 continue
-            image = textureNode.texture.image
+            if textureNode.bl_idname == 'ShaderNodeTexture': # < 2.80
+                image = textureNode.texture.image
+            else: # 2.80+
+                image = textureNode.image
             if not image:
                 continue
             images_used.add(image)
@@ -1241,9 +1248,14 @@ class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
                 if node.node_tree.name != 'OBJEX_UV_pipe':
                     continue
                 textureNode = node.outputs['UV'].links[0].to_node
-                if not textureNode.texture:
-                    continue
-                image = textureNode.texture.image
+                if textureNode.bl_idname == 'ShaderNodeTexture': # < 2.80
+                    if not textureNode.texture:
+                        continue
+                    image = textureNode.texture.image
+                else: # 2.80+ assume ShaderNodeTexImage
+                    if not textureNode.image:
+                        continue
+                    image = textureNode.image
                 # putting *2 here is simpler than modifying the uv pipe and math nodes again
                 # it halves the clamp start offset which becomes eg along U: 1/(width*2) instead of 1/width
                 # it makes the offset half a pixel instead of a full pixel (in uv space)
