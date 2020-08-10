@@ -63,17 +63,6 @@ from bpy_extras.io_utils import (
         axis_conversion,
         )
 
-try:
-    # < 2.80
-    from bpy_extras.io_utils import orientation_helper_factory
-    def orientation_helper(clazz, axis_forward=None, axis_up=None):
-        return clazz
-except ImportError:
-    # 2.80+
-    def orientation_helper_factory(name, axis_forward=None, axis_up=None):
-        return object
-    from bpy_extras.io_utils import orientation_helper
-
 import os
 try:
     import progress_report
@@ -104,13 +93,7 @@ from . import rigging_helpers
 from . import view3d_copybuffer_patch
 from . import addon_updater_ops
 
-axis_forward = '-Z'
-axis_up='Y'
-
-IOOBJOrientationHelper = orientation_helper_factory('IOOBJOrientationHelper', axis_forward=axis_forward, axis_up=axis_up)
-
-@orientation_helper(axis_forward=axis_forward, axis_up=axis_up)
-class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
+class OBJEX_OT_export_base():
     """Save an OBJEX File"""
 
     bl_idname = 'objex.export'
@@ -416,6 +399,21 @@ class OBJEX_OT_export(bpy.types.Operator, ExportHelper, IOOBJOrientationHelper):
             progress_report.print = print
             logging_util.resetLoggingSettings()
 
+axis_forward = '-Z'
+axis_up='Y'
+
+try:
+    # < 2.80
+    from bpy_extras.io_utils import orientation_helper_factory
+    IOOBJOrientationHelper = orientation_helper_factory('IOOBJOrientationHelper', axis_forward=axis_forward, axis_up=axis_up)
+    class OBJEX_OT_export(bpy.types.Operator, OBJEX_OT_export_base, ExportHelper, IOOBJOrientationHelper):
+        pass
+except ImportError:
+    # 2.80+
+    from bpy_extras.io_utils import orientation_helper
+    @orientation_helper(axis_forward=axis_forward, axis_up=axis_up)
+    class OBJEX_OT_export(bpy.types.Operator, OBJEX_OT_export_base, ExportHelper):
+        pass
 
 def menu_func_export(self, context):
     self.layout.operator(OBJEX_OT_export.bl_idname, text='Extended OBJ (new WIP) (.objex)')
