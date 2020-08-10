@@ -86,14 +86,14 @@ def handle_material(material, layout):
     if v == addon_material_objex_version:
         return False
     if v > addon_material_objex_version:
-        layout.label('This material was created', icon='ERROR')
-        layout.label('with a newer addon version,')
-        layout.label('you should update the addon')
-        layout.label('used in your installation.')
+        layout.label(text='This material was created', icon='ERROR')
+        layout.label(text='with a newer addon version,')
+        layout.label(text='you should update the addon')
+        layout.label(text='used in your installation.')
     if v < addon_material_objex_version:
-        layout.label('This material was created', icon='INFO')
-        layout.label('with an older addon version,')
-        layout.label('and needs to be updated.')
+        layout.label(text='This material was created', icon='INFO')
+        layout.label(text='with an older addon version,')
+        layout.label(text='and needs to be updated.')
         layout.operator('objex.material_update', text='Update this material').update_all = False
         layout.operator('objex.material_update', text='Update ALL objex materials').update_all = True
     return True
