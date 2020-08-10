@@ -439,7 +439,7 @@ class OBJEX_AddonPreferences(bpy.types.AddonPreferences, addon_updater_ops.Addon
         name='"Fix" copy',
         # Specifically, the addon-defined sockets *seem* to be at fault
         description='Method to use for "fixing" (read: circumventing an issue) "Ctrl+C" (or any shortcut mapped to the copy operator view3d.copybuffer) which crashed Blender when copying objects using Objex-enabled materials',
-        default='AUTO',
+        default='AUTO' if bpy.app.version < (2, 80, 0) else 'NOTHING',
         update=view3d_copybuffer_patch.monkeyPatch_view3d_copybuffer_update
     )
     # what were the user settings for view3d.copybuffer before the addon changed it
