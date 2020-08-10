@@ -69,7 +69,7 @@ try:
 except ImportError:
     import bpy_extras.wm_utils.progress_report as progress_report
 
-# reload files
+# import/reload files
 import importlib
 loc = locals()
 for n in (
@@ -80,19 +80,10 @@ for n in (
 ):
     if n in loc:
         importlib.reload(loc[n])
+    else:
+        importlib.import_module('.%s' % n, __package__)
 del importlib
 
-from . import blender_version_compatibility
-
-from . import export_objex
-from . import properties
-from . import data_updater
-from . import interface
-from . import logging_util
-from . import rigging_helpers
-from . import view3d_copybuffer_patch
-from . import addon_updater_ops
-from . import util
 
 class OBJEX_OT_export_base():
     """Save an OBJEX File"""
