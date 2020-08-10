@@ -776,7 +776,7 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
 
         # let the user choose, as use_transparency is used when
         # exporting to distinguish opaque and translucent geometry
-        #material.use_transparency = True
+        #material.use_transparency = True # < 2.80
         material.use_nodes = True
         update_node_groups()
         node_tree = material.node_tree
@@ -841,9 +841,14 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                     node.outputs[output_socket_key].default_value = default_value
                 for output_socket_key, flags in node_outputs_combiner_flags.items():
                     color_flag, alpha_flag = flags
-                    if OBJEX_NodeSocket_CombinerOutput:
-                        node.outputs[output_socket_key].flagColorCycle = color_flag if color_flag else ''
-                        node.outputs[output_socket_key].flagAlphaCycle = alpha_flag if alpha_flag else ''
+                    socket = node.outputs[output_socket_key]
+                    if OBJEX_NodeSocket_CombinerOutput: # < 2.80 (421FIXME_UPDATE)
+                        socket.flagColorCycle = color_flag if color_flag else ''
+                        socket.flagAlphaCycle = alpha_flag if alpha_flag else ''
+                    else: # 2.80+
+                        # 421FIXME_UPDATE not sure how bad/hacky this is
+                        node['flagColorCycle %s' % socket.identifier] = color_flag if color_flag else ''
+                        node['flagAlphaCycle %s' % socket.identifier] = alpha_flag if alpha_flag else ''
                 for k, v in node_properties_dict.items():
                     node[k] = v
             elif node_type_group and self.update_groups_of_existing:

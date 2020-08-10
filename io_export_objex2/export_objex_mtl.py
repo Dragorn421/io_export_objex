@@ -48,9 +48,10 @@ class ObjexMaterialNodeTreeExplorer():
                 flags.append(self.defaulFlagColorCycle)
                 continue
             socket = cc.inputs[i].links[0].from_socket
-            if socket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
-                log.error('What is this socket? not combiner output! {!r}', socket)
-            flag = socket.flagColorCycle
+            if socket.bl_idname == 'OBJEX_NodeSocket_CombinerOutput': # < 2.80 (421FIXME_UPDATE would still be nice if custom color sockets could work in 2.80+)
+                flag = socket.flagColorCycle
+            else: # 2.80+
+                flag = socket.node['flagColorCycle %s' % socket.identifier]
             if not flag:
                 log.error('Unsupported flag {} for input {} of {!r}', flag, 'ABCD'[i], cc)
             flags.append(flag)
@@ -85,9 +86,10 @@ class ObjexMaterialNodeTreeExplorer():
                 flags.append(self.defaulFlagAlphaCycle)
                 continue
             socket = ac.inputs[i].links[0].from_socket
-            if socket.bl_idname != 'OBJEX_NodeSocket_CombinerOutput':
-                log.error('What is this socket? not combiner output! {!r}', socket)
-            flag = socket.flagAlphaCycle
+            if socket.bl_idname == 'OBJEX_NodeSocket_CombinerOutput': # < 2.80 (421FIXME_UPDATE same as buildFromColorCycle)
+                flag = socket.flagAlphaCycle
+            else: # 2.80+
+                flag = socket.node['flagAlphaCycle %s' % socket.identifier]
             if not flag:
                 log.error('Unsupported flag {} for input {} of {!r}', flag, 'ABCD'[i], ac)
             flags.append(flag)
@@ -107,9 +109,16 @@ class ObjexMaterialNodeTreeExplorer():
     def buildCyclesFromOutput(self, output):
         log = self.log
         # 421todo a lot of checks
+        if output.bl_idname == 'ShaderNodeOutput': # < 2.80
+            lastAlphaCycleNode = output.inputs[1].links[0].from_node
+            lastColorCycleNode = output.inputs[0].links[0].from_node
+        else: # 2.80+ ShaderNodeOutputMaterial
+            principledBsdfNode = output.inputs['Surface'].links[0].from_node
+            lastAlphaCycleNode = principledBsdfNode.inputs['Alpha'].links[0].from_node
+            lastColorCycleNode = principledBsdfNode.inputs['Base Color'].links[0].from_node
         # build alpha cycles first because color cycle 1 may use alpha cycle 0
-        self.buildFromAlphaCycle(output.inputs[1].links[0].from_node)
-        self.buildFromColorCycle(output.inputs[0].links[0].from_node)
+        self.buildFromAlphaCycle(lastAlphaCycleNode)
+        self.buildFromColorCycle(lastColorCycleNode)
         # check the cycles make sense
         self.colorCycles.reverse()
         self.alphaCycles.reverse()
@@ -131,7 +140,7 @@ class ObjexMaterialNodeTreeExplorer():
         log = self.log
         output = None
         for n in self.tree.nodes:
-            if n.bl_idname == 'ShaderNodeOutput':
+            if n.bl_idname in ('ShaderNodeOutput', 'ShaderNodeOutputMaterial'):
                 if output:
                     log.error('Several output nodes found {!r} {!r}', output, n)
                 output = n
@@ -270,36 +279,32 @@ class ObjexMaterialNodeTreeExplorer():
     def buildTexelDataFromTextureNode(self, textureNode):
         log = self.log
         # FIXME
-        if textureNode.type != 'TEXTURE':
-            log.error('Expected a texture node but this is {} of type {}', textureNode, textureNode.type)
+        if textureNode.bl_idname == 'ShaderNodeTexture': # < 2.80
+            if textureNode.texture.type != 'IMAGE':
+                raise util.ObjexExportAbort(
+                    'Material tree {} uses non-image texture type {} '
+                    '(only image textures can be exported)'
+                    .format(self.tree.name, tex.type))
+            image = textureNode.texture.image
+        elif textureNode.bl_idname == 'ShaderNodeTexImage': # 2.80+
+            image = textureNode.image
+        else:
+            log.error('Expected a texture node but this is {} {}', textureNode.bl_idname, textureNode)
         if not textureNode.inputs[0].links:
-            log.error('First input of texture node {} {} has no links', textureNode, textureNode.inputs[0])
-            return {
-                # 421fixme ... until logic rewrite
-                'texture': textureNode.texture,
-                'uv_scale_u': 0,
-                'uv_scale_v': 0,
-                'uv_wrap_u': True,
-                'uv_wrap_v': True,
-                'uv_mirror_u': False,
-                'uv_mirror_v': False,
-                'uv_layer': None,
-                'texgen': False,
-                'texgen_linear': False,
-                'uv_scale_u_main': 1,
-                'uv_scale_v_main': 1,
-            }
+            raise util.ObjexExportAbort('First input of texture node {} {} has no links'.format(textureNode, textureNode.inputs[0]))
         scaleUVnode = textureNode.inputs[0].links[0].from_node
         mainUVtransformNode = scaleUVnode.inputs[0].links[0].from_node
+        uvSourceNode = mainUVtransformNode.inputs[0].links[0].from_node
         return {
-            'texture': textureNode.texture,
+            'image': image,
             'uv_scale_u': scaleUVnode.inputs[1].default_value,
             'uv_scale_v': scaleUVnode.inputs[2].default_value,
             'uv_wrap_u': scaleUVnode.inputs[3].default_value,
             'uv_wrap_v': scaleUVnode.inputs[4].default_value,
             'uv_mirror_u': scaleUVnode.inputs[5].default_value,
             'uv_mirror_v': scaleUVnode.inputs[6].default_value,
-            'uv_layer': mainUVtransformNode.inputs[0].links[0].from_node.uv_layer,
+            'uv_layer': uvSourceNode.uv_layer if uvSourceNode.bl_idname == 'ShaderNodeGeometry' else False, # < 2.80
+            'uv_map': uvSourceNode.uv_map if uvSourceNode.bl_idname == 'ShaderNodeUVMap' else False, # 2.80+
             'texgen': mainUVtransformNode.inputs[2].default_value,
             'texgen_linear': mainUVtransformNode.inputs[3].default_value,
             'uv_scale_u_main': mainUVtransformNode.inputs[4].default_value,
@@ -309,18 +314,21 @@ class ObjexMaterialNodeTreeExplorer():
     def buildShadingDataFromColorSocket(self, k, socket):
         # FIXME
         n = socket.node.inputs[0].links[0].from_node
-        if n.bl_idname == 'ShaderNodeGeometry':
-            self.data[k] = {'type':'vertex_colors','vertex_color_layer':n.color_layer}
-        else:
-            self.data[k] = {'type':'normals'}
+        self.data[k] = self.buildShadingDataFromShadeSourceNode(n)
 
     def buildShadingDataFromAlphaSocket(self, k, socket):
         # FIXME
         n = socket.node.inputs[1].links[0].from_node
-        if n.bl_idname == 'ShaderNodeGeometry':
-            self.data[k] = {'type':'vertex_colors','vertex_color_layer':n.color_layer}
+        self.data[k] = self.buildShadingDataFromShadeSourceNode(n)
+
+    def buildShadingDataFromShadeSourceNode(self, n):
+        # FIXME
+        if n.bl_idname == 'ShaderNodeGeometry': # < 2.80
+            return {'type':'vertex_colors', 'vertex_color_layer':n.color_layer}
+        elif n.bl_idname == 'ShaderNodeVertexColor': # 2.80+
+            return {'type':'vertex_colors', 'vertex_color_layer':n.layer_name}
         else:
-            self.data[k] = {'type':'normals'}
+            return {'type':'normals'}
 
 # fixme this is going to end up finding uv/vcolor layers from node (or default to active I guess), if several layers, may write the wrong layer in .objex ... should call write_mtl and get uvs/vcolor data this way before writing the .objex?
 def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
@@ -458,16 +466,12 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     texel1data = data['texel1']
                 for texelData in (texel0data,texel1data):
                     if texelData:
-                        tex = texelData['texture']
-                        if not tex:
-                            raise util.ObjexExportAbort('Material %s uses texel data %r without a texture '
-                                '(make sure texel0 and texel1 have a texture set if they are used in the combiner)'
+                        image = texelData['image']
+                        if not image:
+                            raise util.ObjexExportAbort('Material %s uses texel data %r without a texture/image '
+                                '(make sure texel0 and texel1 have a texture/image set if they are used in the combiner)'
                                 % (name, texelData))
-                        if tex.type != 'IMAGE':
-                            raise util.ObjexExportAbort('Material %s uses non-image texture type %s '
-                                '(only image textures can be exported)'
-                                % (name, tex.type))
-                        texelData['texture_name_q'] = writeTexture(tex.image, tex.name)
+                        texelData['texture_name_q'] = writeTexture(image, image.name)
                 # write newmtl after any newtex block
                 fw('newmtl %s\n' % name_q)
                 if 'shade' in data:
@@ -522,20 +526,33 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     otherModeLowerHalfFlags.append('CVG_DST_CLAMP')
                 else:
                     otherModeLowerHalfFlags.append(objex_data.rendermode_blender_flag_CVG_DST_)
+                if hasattr(material, 'use_transparency'): # < 2.80
+                    use_transparency = material.use_transparency
+                else: # 2.80+
+                    if material.blend_method == 'OPAQUE':
+                        use_transparency = False
+                    elif material.blend_method in ('BLEND', 'HASHED'):
+                        use_transparency = True
+                    elif material.blend_method == 'CLIP':
+                        log.warning('Material {} uses Blend Mode "Alpha Clip", assuming no transparency for the Auto settings', name)
+                        use_transparency = False
+                    else:
+                        log.warning('Material {} uses unknown Blend Mode blend_method={!r}, assuming no transparency', name, material.blend_method)
+                        use_transparency = False
                 if objex_data.rendermode_zmode == 'AUTO':
-                    otherModeLowerHalfFlags.append('ZMODE_XLU' if material.use_transparency else 'ZMODE_OPA')
+                    otherModeLowerHalfFlags.append('ZMODE_XLU' if use_transparency else 'ZMODE_OPA')
                 else:
                     otherModeLowerHalfFlags.append('ZMODE_%s' % objex_data.rendermode_zmode)
                 if (objex_data.rendermode_blender_flag_CVG_X_ALPHA == 'YES'
                     or (objex_data.rendermode_blender_flag_CVG_X_ALPHA == 'AUTO'
-                        and material.use_transparency)
+                        and use_transparency)
                 ):
                     otherModeLowerHalfFlags.append('CVG_X_ALPHA')
                 if objex_data.rendermode_blender_flag_ALPHA_CVG_SEL:
                     otherModeLowerHalfFlags.append('ALPHA_CVG_SEL')
                 if (objex_data.rendermode_forceblending == 'YES'
                     or (objex_data.rendermode_forceblending == 'AUTO'
-                        and material.use_transparency)
+                        and use_transparency)
                 ):
                     otherModeLowerHalfFlags.append('FORCE_BL')
                 # blender cycles
@@ -554,9 +571,9 @@ count  P              A              M              B            comment
                 rm_bl_c0 = objex_data.rendermode_blending_cycle0
                 rm_bl_c1 = objex_data.rendermode_blending_cycle1
                 if rm_bl_c0 == 'AUTO':
-                    rm_bl_c0 = 'PASS' if material.use_transparency else 'FOG_SHADE'
+                    rm_bl_c0 = 'PASS' if use_transparency else 'FOG_SHADE'
                 if rm_bl_c1 == 'AUTO':
-                    rm_bl_c1 = 'XLU' if material.use_transparency else 'OPA'
+                    rm_bl_c1 = 'XLU' if use_transparency else 'OPA'
                 presets = {
                     'FOG_PRIM': ('G_BL_CLR_FOG','G_BL_A_FOG',  'G_BL_CLR_IN', 'G_BL_1MA'),
                     'FOG_SHADE':('G_BL_CLR_FOG','G_BL_A_SHADE','G_BL_CLR_IN', 'G_BL_1MA'),
