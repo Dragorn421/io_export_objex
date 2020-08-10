@@ -552,6 +552,7 @@ def create_node_group_uv_pipe(group_name):
     #tree.inputs.new('NodeSocketInt', 'Scale Exponent')
     # blender 2.79 fails to transfer data somewhere when linking int socket to float socket of math node, same for booleans
     # those sockets wrap the float ones that are actually used for calculations
+    # this trick also seems to work fine in 2.82 though I'm not sure if it is required then
     tree.inputs.new('OBJEX_NodeSocket_UVpipe_ScaleU', 'U Scale Exponent')
     tree.inputs.new('OBJEX_NodeSocket_UVpipe_ScaleV', 'V Scale Exponent')
     tree.inputs.new('OBJEX_NodeSocket_UVpipe_WrapU', 'Wrap U')
@@ -588,9 +589,14 @@ def create_node_group_uv_pipe(group_name):
     final = {}
     for uv, i, y in (('U',0,400),('V',1,-600)):
         # looking at the nodes in blender is probably better than trying to understand the code here
-        # (-1 ; 1) -> (0 ; 1)
-        ranged02 = addMathNode('ADD', (-600,200+y), separateXYZ.outputs[i], 1)
-        ranged01 = addMathNode('DIVIDE', (-400,200+y), ranged02, 2)
+        # 421FIXME_UPDATE detect the -1;1 / 0;1 uv range in a cleaner way? not sure the break was exactly at 2.80
+        blenderNodesUvRangeIsMinusOneToOne = bpy.app.version < (2, 80, 0)
+        if blenderNodesUvRangeIsMinusOneToOne: # < 2.80
+            # (-1 ; 1) -> (0 ; 1)
+            ranged02 = addMathNode('ADD', (-600,200+y), separateXYZ.outputs[i], 1)
+            ranged01 = addMathNode('DIVIDE', (-400,200+y), ranged02, 2)
+        else: # 2.80+
+            ranged01 = separateXYZ.outputs[i]
         # blender uses bottom left as (u,v)=(0,0) but oot uses top left as (0,0),
         # so we mirror v around 1/2
         if uv == 'V':
@@ -627,13 +633,17 @@ def create_node_group_uv_pipe(group_name):
         clamped = addMathNode('MULTIPLY', (2700,200+y), upperLowerClamped, notWrap)
         #
         final64space = addMathNode('ADD', (2900,300+y), wrapped, clamped)
-        # (0 ; 1) -> (-1 ; 1)
+        # mirror v back around 1/2
         if uv == 'V':
             final01range = addMathNode('SUBTRACT', (3000,500+y), 1, final64space)
         else:
             final01range = final64space
-        final02range = addMathNode('MULTIPLY', (3100,300+y), final01range, 2)
-        final[uv] = addMathNode('SUBTRACT', (3300,300+y), final02range, 1)
+        if blenderNodesUvRangeIsMinusOneToOne: # < 2.80
+            # (0 ; 1) -> (-1 ; 1)
+            final02range = addMathNode('MULTIPLY', (3100,300+y), final01range, 2)
+            final[uv] = addMathNode('SUBTRACT', (3300,300+y), final02range, 1)
+        else: # 2.80+
+            final[uv] = final01range
     finalU = final['U']
     finalV = final['V']
 
