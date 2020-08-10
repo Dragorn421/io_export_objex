@@ -648,6 +648,11 @@ count  P              A              M              B            comment
                 421todo
                 G_SHADING_SMOOTH ?
                 """
+                if hasattr(material, 'use_backface_culling') and material.use_backface_culling != objex_data.backface_culling: # 2.80+
+                    log.warning('Material {} has backface culling {} in objex properties (used for exporting) '
+                                'but {} in the Blender material settings (used for viewport rendering)',
+                                name, 'ON' if objex_data.backface_culling else 'OFF',
+                                'ON' if material.use_backface_culling else 'OFF')
                 geometryModeFlagsClear = []
                 geometryModeFlagsSet = []
                 for flag, set_flag in (
