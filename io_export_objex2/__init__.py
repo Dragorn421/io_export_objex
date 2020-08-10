@@ -92,6 +92,7 @@ from . import logging_util
 from . import rigging_helpers
 from . import view3d_copybuffer_patch
 from . import addon_updater_ops
+from . import util
 
 class OBJEX_OT_export_base():
     """Save an OBJEX File"""
