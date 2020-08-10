@@ -329,7 +329,8 @@ node_setup = {
     },
 }
 
-if hasattr(bpy.types, 'ShaderNodeUVMap'): # 2.80+
+# not checking if bpy.types.ShaderNodeUVMap exists because that node also exists in (at least) 2.79b
+if bpy.app.version >= (2, 80, 0): # 2.80+
     node_setup['UV Map'] = {
         'type': 'ShaderNodeUVMap',
         'location': (-520, 50),
