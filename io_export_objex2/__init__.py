@@ -47,6 +47,10 @@ bl_info = {
 
 
 import bpy
+
+if bpy.app.version < (2, 80, 0):
+    bl_info['blender'] = (2, 79, 0)
+
 from bpy.props import (
         BoolProperty,
         IntProperty,
