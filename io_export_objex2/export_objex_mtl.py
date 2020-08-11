@@ -495,10 +495,10 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     scaleT = data['uv_main']['uv_scale_v_main']
                     for uv,scale in (('U',scaleS),('V',scaleT)):
                         if scale < 0 or scale > 1:
-                            log.warning('UV scale {} (the one next to texgen settings) {}\n'
+                            log.warning('In material {}, UV scale {} (the one next to texgen settings) {}\n'
                                 'is not in the range (0;1) and will be clamped to that range.\n'
                                 'Use per-texel scales for larger scale values.',
-                                uv, scale)
+                                name, uv, scale)
                     scaleS = max(0, min(0xFFFF/0x10000, scaleS))
                     scaleT = max(0, min(0xFFFF/0x10000, scaleT))
                     fw('gbi gsSPTexture(qu016(%f), qu016(%f), 0, G_TX_RENDERTILE, G_ON)\n' % (scaleS, scaleT))
