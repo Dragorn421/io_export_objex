@@ -36,7 +36,7 @@ Added a draw function to export operator
 bl_info = {
     'name': 'Objex Exporter for N64 romhacking',
     'author': 'Campbell Barton, Bastien Montagne, OoT modding community',
-    'version': (1, 0, 0),
+    'version': (2, 0, 0),
     'blender': (2, 80, 0),
     'location': 'File > Export',
     'description': 'Allows to export to objex and provides new features for further customization',
