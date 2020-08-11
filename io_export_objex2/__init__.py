@@ -380,6 +380,19 @@ class OBJEX_OT_export_base():
                                     'shading and not MATERIAL shading. MATERIAL shading is required to correctly '
                                     'preview objex-enabled materials', shading_type)
 
+            view_transform = scene.view_settings.view_transform
+            if bpy.app.version < (2, 80, 0):
+                view_transform_ok = ('Default',)
+            else:
+                view_transform_ok = ('Standard',)
+            if view_transform not in view_transform_ok:
+                log.warning('Scene uses view_transform={!r} which changes how colors are '
+                            'displayed in the viewport, reducing the preview accuracy.\n'
+                            'This can be changed under Color Management in {} properties.\n'
+                            'Recommended values: {}',
+                            view_transform, 'Scene' if bpy.app.version < (2, 80, 0) else 'Render',
+                            ', '.join(view_transform_ok))
+
             return export_objex.save(context, **keywords)
         except util.ObjexExportAbort as abort:
             log.error('Export abort: {}', abort.reason)
