@@ -375,8 +375,10 @@ class OBJEX_OT_export_base():
                 for area in bpy.context.screen.areas:
                     if area.type == 'VIEW_3D':
                         for space in area.spaces:
+                            if space.type != 'VIEW_3D':
+                                continue
                             shading_type = space.viewport_shade if hasattr(space, 'viewport_shade') else space.shading.type
-                            if space.type == 'VIEW_3D' and shading_type != 'MATERIAL':
+                            if shading_type != 'MATERIAL':
                                 log.warning('There is a 3d view area in the current screen which is using {} '
                                     'shading and not MATERIAL shading. MATERIAL shading is required to correctly '
                                     'preview objex-enabled materials', shading_type)
