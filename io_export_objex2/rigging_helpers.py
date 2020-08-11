@@ -197,6 +197,7 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
         if obj.type == 'MESH' and obj.find_armature() == armature)
 
     # set pose
+    log.trace('restoreSavedPose')
     if do_folding:
         # armature/mesh are UNFOLDED, set folded pose
         # saved_pose.type can only be 'UNFOLDEDpose_foldedRest' or 'foldedPose_UNFOLDEDrest'
@@ -283,17 +284,21 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
         for modifier in temporarily_disabled_modifiers:
             modifier.show_viewport = False
         armature_deform_modifier.show_viewport = True
+        log.trace('{} to_mesh...', mesh.name)
         # replace mesh data by mesh with modifier-applied
         if not hasattr(mesh, 'evaluated_get'): # < 2.80
             mesh.data = mesh.to_mesh(scene, True, calc_tessface=False, settings='PREVIEW')
         else: # 2.80+
-            # 421FIXME_UPDATE 2.80+ to_mesh: The result is temporary and can not be used by objects from the main database
-            # 421fixme I have no idea what I'm doing
+            # 2.80+ to_mesh: The result is temporary and can not be used by objects from the main database
+            # using new_from_object instead (with evaluated_get's result /!\, not mesh directly) works
+            log.trace('evaluated_depsgraph_get')
             depsgraph = bpy.context.evaluated_depsgraph_get()
+            log.trace('evaluated_get')
             mesh_evaluated = mesh.evaluated_get(depsgraph)
-            mesh.data = mesh_evaluated.to_mesh().copy()
-            mesh_evaluated.to_mesh_clear()
+            log.trace('new_from_object')
+            mesh.data = bpy.data.meshes.new_from_object(mesh_evaluated)
         # restore modifier visibility
+        log.trace('to_mesh done')
         for modifier in temporarily_disabled_modifiers:
             modifier.show_viewport = True
         armature_deform_modifier.show_viewport = armature_deform_modifier_show_viewport_user
