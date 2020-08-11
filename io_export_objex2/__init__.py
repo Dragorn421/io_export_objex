@@ -77,6 +77,7 @@ for n in (
     'properties', 'interface', 'const_data', 'util', 'logging_util',
     'rigging_helpers', 'data_updater', 'view3d_copybuffer_patch',
     'addon_updater', 'addon_updater_ops', 'blender_version_compatibility',
+    'node_setup_helpers',
 ):
     if n in loc:
         importlib.reload(loc[n])
@@ -484,11 +485,13 @@ def register():
     properties.register_properties()
     data_updater.register()
     interface.register_interface()
+    node_setup_helpers.register()
     view3d_copybuffer_patch.register()
 
 
 def unregister():
     view3d_copybuffer_patch.unregister()
+    node_setup_helpers.unregister()
     interface.unregister_interface()
     data_updater.unregister()
     properties.unregister_properties()
