@@ -422,7 +422,7 @@ except ImportError:
         pass
 
 def menu_func_export(self, context):
-    self.layout.operator(OBJEX_OT_export.bl_idname, text='Extended OBJ (new WIP) (.objex)')
+    self.layout.operator(OBJEX_OT_export.bl_idname, text='Objex2 (.objex)')
 
 
 class OBJEX_AddonPreferences(bpy.types.AddonPreferences, addon_updater_ops.AddonUpdaterPreferences):
