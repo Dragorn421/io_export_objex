@@ -90,6 +90,8 @@ COMBINER_FLAGS_SUPPORT = {
     },
 }
 
+color0 = (0,0,0) if bpy.app.version < (2, 80, 0) else (0,0,0,0)
+
 node_setup = {
     'Geometry': {
         'type': 'ShaderNodeGeometry' if hasattr(bpy.types, 'ShaderNodeGeometry') else 'ShaderNodeNewGeometry',
@@ -288,19 +290,19 @@ node_setup = {
         },
         'force-inputs-attributes': { # optional, input_socket_key: {key: value} -> input_socket.key = value
             'A': {
-                'default_value': (0,0,0,0), # just to make sure
+                'default_value': color0, # just to make sure
                 'hide_value': True, # only useful in 2.80+ where ColorSockets show the default_value color
             },
             'B': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'C': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'D': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
         },
@@ -315,19 +317,19 @@ node_setup = {
         },
         'force-inputs-attributes': {
             'A': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'B': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'C': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'D': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
         },
@@ -345,19 +347,19 @@ node_setup = {
         },
         'force-inputs-attributes': {
             'A': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'B': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'C': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'D': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
         },
@@ -372,19 +374,19 @@ node_setup = {
         },
         'force-inputs-attributes': {
             'A': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'B': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'C': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
             'D': {
-                'default_value': (0,0,0,0),
+                'default_value': color0,
                 'hide_value': True,
             },
         },
