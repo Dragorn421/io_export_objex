@@ -1051,9 +1051,15 @@ class Singleton_updater(object):
 
 		# not allowed in restricted context, such as register module
 		# toggle to refresh
-		bpy.ops.wm.addon_disable(module=self._addon_package)
-		bpy.ops.wm.addon_refresh()
-		bpy.ops.wm.addon_enable(module=self._addon_package)
+		try:
+			# < 2.80
+			bpy.ops.wm.addon_disable(module=self._addon_package)
+			bpy.ops.wm.addon_refresh()
+			bpy.ops.wm.addon_enable(module=self._addon_package)
+		except AttributeError: # 2.80+
+			bpy.ops.preferences.addon_disable(module=self._addon_package)
+			bpy.ops.preferences.addon_refresh()
+			bpy.ops.preferences.addon_enable(module=self._addon_package)
 
 
 	# -------------------------------------------------------------------------
