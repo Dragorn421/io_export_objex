@@ -281,7 +281,7 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
                 if modifier != armature_deform_modifier
                     and modifier.show_viewport]
         for modifier in temporarily_disabled_modifiers:
-            temporarily_disabled_modifiers.show_viewport = False
+            modifier.show_viewport = False
         armature_deform_modifier.show_viewport = True
         # replace mesh data by mesh with modifier-applied
         if not hasattr(mesh, 'evaluated_get'): # < 2.80
@@ -295,7 +295,7 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
             mesh_evaluated.to_mesh_clear()
         # restore modifier visibility
         for modifier in temporarily_disabled_modifiers:
-            temporarily_disabled_modifiers.show_viewport = True
+            modifier.show_viewport = True
         armature_deform_modifier.show_viewport = armature_deform_modifier_show_viewport_user
 
     # (UN)fold armature, apply pose as rest pose
