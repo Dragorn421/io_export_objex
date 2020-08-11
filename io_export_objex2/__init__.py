@@ -381,7 +381,7 @@ class OBJEX_OT_export_base():
                                     'shading and not MATERIAL shading. MATERIAL shading is required to correctly '
                                     'preview objex-enabled materials', shading_type)
 
-            view_transform = scene.view_settings.view_transform
+            view_transform = context.scene.view_settings.view_transform
             if bpy.app.version < (2, 80, 0):
                 view_transform_ok = ('Default',)
             else:
