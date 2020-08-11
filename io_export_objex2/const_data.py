@@ -286,6 +286,24 @@ node_setup = {
         'properties-dict': { # optional, key: value -> node[key] = value
             'cycle': CYCLE_COLOR,
         },
+        'force-inputs-attributes': { # optional, input_socket_key: {key: value} -> input_socket.key = value
+            'A': {
+                'default_value': (0,0,0,0), # just to make sure
+                'hide_value': True, # only useful in 2.80+ where ColorSockets show the default_value color
+            },
+            'B': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'C': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'D': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+        },
     },
     'OBJEX_ColorCycle1': {
         'group': 'OBJEX_Cycle',
@@ -294,6 +312,24 @@ node_setup = {
         'width': 160,
         'properties-dict': {
             'cycle': CYCLE_COLOR,
+        },
+        'force-inputs-attributes': {
+            'A': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'B': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'C': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'D': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
         },
     },
     'OBJEX_AlphaCycle0': {
@@ -307,6 +343,24 @@ node_setup = {
         'properties-dict': {
             'cycle': CYCLE_ALPHA,
         },
+        'force-inputs-attributes': {
+            'A': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'B': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'C': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'D': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+        },
     },
     'OBJEX_AlphaCycle1': {
         'group': 'OBJEX_Cycle',
@@ -315,6 +369,24 @@ node_setup = {
         'width': 160,
         'properties-dict': {
             'cycle': CYCLE_ALPHA,
+        },
+        'force-inputs-attributes': {
+            'A': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'B': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'C': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
+            'D': {
+                'default_value': (0,0,0,0),
+                'hide_value': True,
+            },
         },
     },
     'Output': {
