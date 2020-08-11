@@ -188,27 +188,34 @@ def stripPrefix(s, prefix):
 
 # NodeSocketInterface
 
-class OBJEX_NodeSocketInterface_CombinerIO():
-    def draw(self, context, layout):
-        pass
-    def draw_color(self, context):
-        return CST.COLOR_OK
+# registering NodeSocketInterface classes without registering their NodeSocket classes
+# led to many EXCEPTION_ACCESS_VIOLATION crashs, so don't do that
+if bpy.app.version < (2, 80, 0):
+    class OBJEX_NodeSocketInterface_CombinerIO():
+        def draw(self, context, layout):
+            pass
+        def draw_color(self, context):
+            return CST.COLOR_OK
 
-class OBJEX_NodeSocketInterface_CombinerOutput(bpy.types.NodeSocketInterface, OBJEX_NodeSocketInterface_CombinerIO):
-    bl_socket_idname = 'OBJEX_NodeSocket_CombinerOutput'
+    class OBJEX_NodeSocketInterface_CombinerOutput(bpy.types.NodeSocketInterface, OBJEX_NodeSocketInterface_CombinerIO):
+        bl_socket_idname = 'OBJEX_NodeSocket_CombinerOutput'
 
-class OBJEX_NodeSocketInterface_CombinerInput(bpy.types.NodeSocketInterface, OBJEX_NodeSocketInterface_CombinerIO):
-    bl_socket_idname = 'OBJEX_NodeSocket_CombinerInput'
+    class OBJEX_NodeSocketInterface_CombinerInput(bpy.types.NodeSocketInterface, OBJEX_NodeSocketInterface_CombinerIO):
+        bl_socket_idname = 'OBJEX_NodeSocket_CombinerInput'
 
-class OBJEX_NodeSocketInterface_RGBA_Color(bpy.types.NodeSocketInterface):
-    bl_socket_idname = 'OBJEX_NodeSocket_RGBA_Color'
-    # 421fixme COLOR_GAMMA or COLOR for the different uses in this file?
-    # 421fixme is default_value in interface used at all?
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1), min=0, max=1, subtype='COLOR')
-    def draw(self, context, layout):
-        pass
-    def draw_color(self, context):
-        return CST.COLOR_RGBA_COLOR
+    class OBJEX_NodeSocketInterface_RGBA_Color(bpy.types.NodeSocketInterface):
+        bl_socket_idname = 'OBJEX_NodeSocket_RGBA_Color'
+        # 421fixme COLOR_GAMMA or COLOR for the different uses in this file?
+        # 421fixme is default_value in interface used at all?
+        default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1), min=0, max=1, subtype='COLOR')
+        def draw(self, context, layout):
+            pass
+        def draw_color(self, context):
+            return CST.COLOR_RGBA_COLOR
+else: # 2.80+
+    OBJEX_NodeSocketInterface_CombinerOutput = None
+    OBJEX_NodeSocketInterface_CombinerInput = None
+    OBJEX_NodeSocketInterface_RGBA_Color = None
 
 class OBJEX_NodeSocketInterface_Dummy():
     def draw(self, context, layout):
