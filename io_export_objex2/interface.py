@@ -807,7 +807,7 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             if not node_type and node_type_group:
                 node_type = 'ShaderNodeGroup'
             node_inputs = node_data.get('inputs', EMPTY_DICT)
-            node_force_inputs = node_data.get('force-inputs', EMPTY_DICT)
+            node_force_inputs_attributes = node_data.get('force-inputs-attributes', EMPTY_DICT)
             node_outputs = node_data.get('outputs', EMPTY_DICT)
             node_outputs_combiner_flags = node_data.get('outputs-combiner-flags', EMPTY_DICT)
             node_properties_dict = node_data.get('properties-dict', EMPTY_DICT)
@@ -863,8 +863,10 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                     node[k] = v
             elif node_type_group and self.update_groups_of_existing:
                 node.node_tree = bpy.data.node_groups[node_type_group]
-            for input_socket_key, default_value in node_force_inputs.items():
-                node.inputs[input_socket_key].default_value = default_value
+            for input_socket_key, socket_attributes in node_force_inputs_attributes.items():
+                socket = node.inputs[input_socket_key]
+                for k, v in socket_attributes.items():
+                    setattr(socket, k, v)
             node.name = node_name # todo set unconditionally? won't set the name if already taken. rename others first? (set exact name needed for 2nd pass with links)
             if self.set_looks:
                 if node_label:

@@ -361,8 +361,10 @@ if not hasattr(bpy.types, 'ShaderNodeOutput'): # 2.80+
     node_setup['Principled BSDF'] = {
         'type': 'ShaderNodeBsdfPrincipled',
         'location': (1000,300),
-        'force-inputs': { # like inputs but also set when the node already exists
-            'Specular': 0,
+        'force-inputs-attributes': { # like inputs but also set when the node already exists
+            'Specular': {
+                'default_value': 0,
+            },
         },
     }
     x, y = node_setup['Output']['location']
