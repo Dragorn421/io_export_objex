@@ -213,7 +213,10 @@ class ObjexWriter():
                     if objex_data.export_all_actions:
                         actions = bpy.data.actions
                     else:
-                        actions = [item.action for item in objex_data.export_actions if item.action]
+                        if blender_version_compatibility.no_ID_PointerProperty:
+                            actions = [bpy.data.actions[item.action] for item in objex_data.export_actions if item.action]
+                        else:
+                            actions = [item.action for item in objex_data.export_actions if item.action]
                 else:
                     actions = []
                 self.armatures.append((util.quote(ob.name), ob, ob_mat, actions))

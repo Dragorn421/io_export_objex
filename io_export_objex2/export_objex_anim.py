@@ -25,7 +25,11 @@ def write_skeleton(file_write_skel, global_matrix, object_transform, armature, a
         fw('pbody')
         if objex_data.pbody_parent_object:
             # 421todo escape, make sure name written here is same as in target's newskel
-            fw(' parent %s %s' % (util.quote(objex_data.pbody_parent_object.name), util.quote(objex_data.pbody_parent_bone)))
+            if blender_version_compatibility.no_ID_PointerProperty:
+                pbody_parent_object_name = objex_data.pbody_parent_object
+            else:
+                pbody_parent_object_name = objex_data.pbody_parent_object.name
+            fw(' parent %s %s' % (util.quote(pbody_parent_object_name), util.quote(objex_data.pbody_parent_bone)))
         fw('\n')
     indent = 0
     stack = [None]

@@ -133,7 +133,10 @@ def armature_export_actions_change(self, context):
 
 class OBJEX_UL_actions(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
-        layout.prop(item, 'action', text='')
+        if blender_version_compatibility.no_ID_PointerProperty:
+            layout.prop_search(item, 'action', bpy.data, 'actions', text='')
+        else:
+            layout.prop(item, 'action', text='')
 
 class OBJEX_PT_armature(bpy.types.Panel):
     bl_label = 'Objex'
@@ -160,18 +163,27 @@ class OBJEX_PT_armature(bpy.types.Panel):
         if data.pbody:
             box = self.layout.box()
             box.prop(data, 'pbody')
+            def prop_pbody_parent_object(layout, icon='NONE'):
+                if blender_version_compatibility.no_ID_PointerProperty:
+                    layout.prop_search(data, 'pbody_parent_object', bpy.data, 'objects', icon=icon)
+                else:
+                    layout.prop(data, 'pbody_parent_object', icon=icon)
             if data.pbody_parent_object:
-                if hasattr(data.pbody_parent_object, 'type') and data.pbody_parent_object.type == 'ARMATURE':
-                    box.prop(data, 'pbody_parent_object')
-                    valid_bone = data.pbody_parent_bone in data.pbody_parent_object.data.bones
-                    box.prop_search(data, 'pbody_parent_bone', data.pbody_parent_object.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
+                if blender_version_compatibility.no_ID_PointerProperty:
+                    pbody_parent_object = bpy.data.objects[data.pbody_parent_object]
+                else:
+                    pbody_parent_object = data.pbody_parent_object
+                if hasattr(pbody_parent_object, 'type') and pbody_parent_object.type == 'ARMATURE':
+                    prop_pbody_parent_object(box)
+                    valid_bone = data.pbody_parent_bone in pbody_parent_object.data.bones
+                    box.prop_search(data, 'pbody_parent_bone', pbody_parent_object.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
                     if not valid_bone:
                         box.label(text='A bone must be picked')
                 else:
-                    box.prop(data, 'pbody_parent_object', icon='ERROR')
+                    prop_pbody_parent_object(box, icon='ERROR')
                     box.label(text='If set, parent must be an armature')
             else:
-                box.prop(data, 'pbody_parent_object')
+                prop_pbody_parent_object(box)
         else:
             self.layout.prop(data, 'pbody')
         # segment
@@ -1081,18 +1093,27 @@ class OBJEX_PT_material(bpy.types.Panel):
                 self.layout.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
             else:
                 self.layout.prop(data, 'empty')
-            self.layout.prop(data, 'branch_to_object')
+            if blender_version_compatibility.no_ID_PointerProperty:
+                box = self.layout.box()
+                box.prop_search(data, 'branch_to_object', bpy.data, 'objects')
+                box.label(text='(mesh objects only)')
+            else:
+                self.layout.prop(data, 'branch_to_object')
             if data.branch_to_object: # branch_to_object is a MESH object
-                branch_to_object_armature = data.branch_to_object.find_armature()
+                if blender_version_compatibility.no_ID_PointerProperty:
+                    branch_to_object = bpy.data.objects[data.branch_to_object]
+                else:
+                    branch_to_object = data.branch_to_object
+                branch_to_object_armature = branch_to_object.find_armature()
                 if branch_to_object_armature:
-                    if data.branch_to_object.data.objex_bonus.attrib_NOSPLIT:
-                        self.layout.label('%s is marked NOSPLIT' % data.branch_to_object.name, icon='INFO')
+                    if branch_to_object.data.objex_bonus.attrib_NOSPLIT:
+                        self.layout.label('%s is marked NOSPLIT' % branch_to_object.name, icon='INFO')
                     else:
                         valid_bone = data.branch_to_object_bone in branch_to_object_armature.data.bones
                         self.layout.prop_search(data, 'branch_to_object_bone', branch_to_object_armature.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
                         if not valid_bone:
                             self.layout.label('A bone must be picked', icon='ERROR')
-                            self.layout.label('NOSPLIT is off on %s' % data.branch_to_object.name, icon='INFO')
+                            self.layout.label('NOSPLIT is off on %s' % branch_to_object.name, icon='INFO')
             return
         # node operators
         row = self.layout.row()
@@ -1144,8 +1165,12 @@ class OBJEX_PT_material(bpy.types.Panel):
             box.prop(imdata, 'priority')
             box.prop(imdata, 'force_write')
             row = box.row()
-            row.label(text='Texture bank:')
-            row.template_ID(imdata, 'texture_bank', open='image.open')
+            if blender_version_compatibility.no_ID_PointerProperty:
+                row.prop_search(imdata, 'texture_bank', bpy.data, 'images')
+                row.operator('image.open')
+            else:
+                row.label(text='Texture bank:')
+                row.template_ID(imdata, 'texture_bank', open='image.open')
         self.layout.operator('objex.set_pixels_along_uv_from_image_dimensions', text='Fix clamping')
         # less used properties
         self.layout.prop(data, 'empty') # (at this point, material isn't empty)

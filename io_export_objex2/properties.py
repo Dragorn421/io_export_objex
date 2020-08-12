@@ -445,6 +445,7 @@ def register_properties():
     log = getLogger('properties')
     for clazz in classes:
         try:
+            blender_version_compatibility.adapt_ID_PointerProperty(clazz)
             blender_version_compatibility.make_annotations(clazz)
             bpy.utils.register_class(clazz)
         except:

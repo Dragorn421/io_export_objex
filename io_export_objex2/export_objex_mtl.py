@@ -16,6 +16,8 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
+from . import blender_version_compatibility
+
 import os
 
 import bpy
@@ -409,7 +411,11 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 elif tod.force_write == 'DO_NOT_WRITE':
                     fw('forcenowrite\n')
                 if tod.texture_bank:
-                    texturebank_filepath = getImagePath(tod.texture_bank)
+                    if blender_version_compatibility.no_ID_PointerProperty:
+                        texture_bank = bpy.data.images[tod.texture_bank]
+                    else:
+                        texture_bank = tod.texture_bank
+                    texturebank_filepath = getImagePath(texture_bank)
                     fw('texturebank %s\n' % texturebank_filepath)
             # texture_name_q is input name if new texture, or
             # the name used for writing the image path (quoted)
@@ -440,15 +446,19 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     fw('newmtl %s\n' % name_q)
                     fw('empty\n')
                     if objex_data.branch_to_object: # branch_to_object is a MESH object
+                        if blender_version_compatibility.no_ID_PointerProperty:
+                            branch_to_object = bpy.data.objects[objex_data.branch_to_object]
+                        else:
+                            branch_to_object = objex_data.branch_to_object
                         # use .bone in branched-to _group if mesh is rigged and split
-                        if objex_data.branch_to_object.find_armature() and not objex_data.branch_to_object.data.objex_bonus.attrib_NOSPLIT:
+                        if branch_to_object.find_armature() and not branch_to_object.data.objex_bonus.attrib_NOSPLIT:
                             if not objex_data.branch_to_object_bone:
                                 log.warning('No branch-to bone set for empty material {}, '
                                     'but mesh object {} is rigged to {} and does not set NOSPLIT',
-                                    name, objex_data.branch_to_object.name, objex_data.branch_to_object.find_armature().name)
-                            branch_to_group_path = '%s.%s' % (objex_data.branch_to_object.name, objex_data.branch_to_object_bone)
+                                    name, branch_to_object.name, branch_to_object.find_armature().name)
+                            branch_to_group_path = '%s.%s' % (branch_to_object.name, objex_data.branch_to_object_bone)
                         else:
-                            branch_to_group_path = objex_data.branch_to_object.name
+                            branch_to_group_path = branch_to_object.name
                         fw('gbi gsSPDisplayList(_group=%s)\n' % util.quote(branch_to_group_path))
                     continue # empty materials do not need anything else written
                 # 421todo compare face_img with texel0/1
