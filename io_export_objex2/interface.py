@@ -1121,7 +1121,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         row = self.layout.row()
         draw_build_nodes_operator(row, 'Reset nodes', init=True, reset=True)
         draw_build_nodes_operator(row, 'Fix nodes')
-        self.layout.operator('objex.material_multitexture', text='Multitexture')
+        self.layout.operator('objex.material_multitexture', text='Multitexture Setup')
         # 421todo more quick-setup operators
         # often-used options
         self.layout.prop(data, 'backface_culling')

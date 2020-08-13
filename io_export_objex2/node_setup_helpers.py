@@ -2,6 +2,48 @@ import bpy
 
 from . import blender_version_compatibility
 
+def clearLinks(tree, socket):
+    while socket.links:
+        tree.links.remove(socket.links[0])
+
+def setLinks_multiply_by(tree, colorSocket, alphaSocket, multiply_by):
+    if multiply_by == 'LIGHTING':
+        if bpy.app.version < (2, 80, 0):
+            colorSocket.input_flags_C_C = 'G_CCMUX_SHADE'
+            alphaSocket.input_flags_A_C = 'G_ACMUX_SHADE'
+        else: # 2.80+
+            tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Color'], colorSocket)
+            tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Alpha'], alphaSocket)
+        tree.links.new(tree.nodes['OBJEX_Color1'].outputs[0], tree.nodes['OBJEX_Shade'].inputs['Color'])
+        tree.links.new(tree.nodes['OBJEX_Color1'].outputs[0], tree.nodes['OBJEX_Shade'].inputs['Alpha'])
+    elif multiply_by == 'VERTEX_COLORS':
+        if bpy.app.version < (2, 80, 0):
+            colorSocket.input_flags_C_C = 'G_CCMUX_SHADE'
+            alphaSocket.input_flags_A_C = 'G_ACMUX_SHADE'
+        else: # 2.80+
+            tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Color'], colorSocket)
+            tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Alpha'], alphaSocket)
+        if 'Vertex Color' in tree.nodes['Geometry'].outputs: # < 2.80
+            tree.links.new(tree.nodes['Geometry'].outputs['Vertex Color'], tree.nodes['OBJEX_Shade'].inputs['Color'])
+            tree.links.new(tree.nodes['Geometry'].outputs['Vertex Alpha'], tree.nodes['OBJEX_Shade'].inputs['Alpha'])
+        else: # 2.80+
+            tree.links.new(tree.nodes['Vertex Color'].outputs['Color'], tree.nodes['OBJEX_Shade'].inputs['Color'])
+            tree.links.new(tree.nodes['Vertex Color'].outputs['Alpha'], tree.nodes['OBJEX_Shade'].inputs['Alpha'])
+    elif multiply_by == 'ENV_COLOR':
+        if bpy.app.version < (2, 80, 0):
+            colorSocket.input_flags_C_C = 'G_CCMUX_ENVIRONMENT'
+            alphaSocket.input_flags_A_C = 'G_ACMUX_ENVIRONMENT'
+        else: # 2.80+
+            tree.links.new(tree.nodes['OBJEX_EnvColor'].outputs['Color'], colorSocket)
+            tree.links.new(tree.nodes['OBJEX_EnvColor'].outputs['Alpha'], alphaSocket)
+    elif multiply_by == 'PRIM_COLOR':
+        if bpy.app.version < (2, 80, 0):
+            colorSocket.input_flags_C_C = 'G_CCMUX_PRIMITIVE'
+            alphaSocket.input_flags_A_C = 'G_ACMUX_PRIMITIVE'
+        else: # 2.80+
+            tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Color'], colorSocket)
+            tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Alpha'], alphaSocket)
+
 class OBJEX_OT_material_multitexture(bpy.types.Operator):
 
     bl_idname = 'objex.material_multitexture'
@@ -94,10 +136,8 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
             tree.links.new(tree.nodes['OBJEX_Texel1'].outputs['Color'], cc0.inputs['B'])
             tree.links.new(tree.nodes['OBJEX_Texel1'].outputs['Color'], cc0.inputs['D'])
             tree.links.new(cc0.outputs[0], cc1.inputs['A'])
-            while cc1.inputs['B'].links:
-                tree.links.remove(cc1.inputs['B'].links[0])
-            while cc1.inputs['D'].links:
-                tree.links.remove(cc1.inputs['D'].links[0])
+            clearLinks(tree, cc1.inputs['B'])
+            clearLinks(tree, cc1.inputs['D'])
         # alpha cycles
         if bpy.app.version < (2, 80, 0):
             ac0.inputs['A'].input_flags_A_A = 'G_ACMUX_TEXEL0'
@@ -112,10 +152,8 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
             tree.links.new(tree.nodes['OBJEX_Texel1'].outputs['Alpha'], ac0.inputs['B'])
             tree.links.new(tree.nodes['OBJEX_Texel1'].outputs['Alpha'], ac0.inputs['D'])
             tree.links.new(ac0.outputs[0], ac1.inputs['A'])
-            while ac1.inputs['B'].links:
-                tree.links.remove(ac1.inputs['B'].links[0])
-            while ac1.inputs['D'].links:
-                tree.links.remove(ac1.inputs['D'].links[0])
+            clearLinks(tree, ac1.inputs['B'])
+            clearLinks(tree, ac1.inputs['D'])
         # set C of first color/alpha cycle according to self.alpha_source
         if self.alpha_source == 'ENV':
             tree.nodes['OBJEX_EnvColor'].inputs['Alpha'].default_value = self.alpha
@@ -134,42 +172,7 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
                 tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Alpha'], cc0.inputs['C'])
                 tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Alpha'], ac0.inputs['C'])
         # set C of second color/alpha cycle according to self.multiply_by
-        if self.multiply_by == 'LIGHTING':
-            if bpy.app.version < (2, 80, 0):
-                cc1.inputs['C'].input_flags_C_C = 'G_CCMUX_SHADE'
-                ac1.inputs['C'].input_flags_A_C = 'G_ACMUX_SHADE'
-            else: # 2.80+
-                tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Color'], cc1.inputs['C'])
-                tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Alpha'], ac1.inputs['C'])
-            tree.links.new(tree.nodes['OBJEX_Color1'].outputs[0], tree.nodes['OBJEX_Shade'].inputs['Color'])
-            tree.links.new(tree.nodes['OBJEX_Color1'].outputs[0], tree.nodes['OBJEX_Shade'].inputs['Alpha'])
-        elif self.multiply_by == 'VERTEX_COLORS':
-            if bpy.app.version < (2, 80, 0):
-                cc1.inputs['C'].input_flags_C_C = 'G_CCMUX_SHADE'
-                ac1.inputs['C'].input_flags_A_C = 'G_ACMUX_SHADE'
-            else: # 2.80+
-                tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Color'], cc1.inputs['C'])
-                tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Alpha'], ac1.inputs['C'])
-            if 'Vertex Color' in tree.nodes['Geometry'].outputs: # < 2.80
-                tree.links.new(tree.nodes['Geometry'].outputs['Vertex Color'], tree.nodes['OBJEX_Shade'].inputs['Color'])
-                tree.links.new(tree.nodes['Geometry'].outputs['Vertex Alpha'], tree.nodes['OBJEX_Shade'].inputs['Alpha'])
-            else: # 2.80+
-                tree.links.new(tree.nodes['Vertex Color'].outputs['Color'], tree.nodes['OBJEX_Shade'].inputs['Color'])
-                tree.links.new(tree.nodes['Vertex Color'].outputs['Alpha'], tree.nodes['OBJEX_Shade'].inputs['Alpha'])
-        elif self.multiply_by == 'ENV_COLOR':
-            if bpy.app.version < (2, 80, 0):
-                cc1.inputs['C'].input_flags_C_C = 'G_CCMUX_ENVIRONMENT'
-                ac1.inputs['C'].input_flags_A_C = 'G_ACMUX_ENVIRONMENT'
-            else: # 2.80+
-                tree.links.new(tree.nodes['OBJEX_EnvColor'].outputs['Color'], cc1.inputs['C'])
-                tree.links.new(tree.nodes['OBJEX_EnvColor'].outputs['Alpha'], ac1.inputs['C'])
-        elif self.multiply_by == 'PRIM_COLOR':
-            if bpy.app.version < (2, 80, 0):
-                cc1.inputs['C'].input_flags_C_C = 'G_CCMUX_PRIMITIVE'
-                ac1.inputs['C'].input_flags_A_C = 'G_ACMUX_PRIMITIVE'
-            else: # 2.80+
-                tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Color'], cc1.inputs['C'])
-                tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Alpha'], ac1.inputs['C'])
+        setLinks_multiply_by(tree, cc1.inputs['C'], ac1.inputs['C'], self.multiply_by)
         return {'FINISHED'}
 
 classes = (
