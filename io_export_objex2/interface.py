@@ -8,6 +8,7 @@ from math import pi
 from . import const_data as CST
 from . import data_updater
 from .logging_util import getLogger
+from . import rigging_helpers
 
 """
 useful reference for UI
@@ -93,19 +94,34 @@ class OBJEX_PT_mesh(bpy.types.Panel):
             # or make a new panel showing for both armature and mesh
             self.layout.separator()
             self.layout.label(text='Folding')
-            # 421todo make it easier/more obvious to use...
-            # 421todo export/import saved poses
-            row = self.layout.row()
-            row.operator('objex.autofold_save_pose', text='Save pose')
-            row.operator('objex.autofold_restore_pose', text='Restore pose')
-            row = self.layout.row()
-            row.operator('objex.autofold_fold_unfold', text='Fold').action = 'FOLD'
-            row.operator('objex.autofold_fold_unfold', text='Unfold').action = 'UNFOLD'
-            row.operator('objex.autofold_fold_unfold', text='Switch').action = 'SWITCH'
-            # 421todo better saved poses management (delete)
-            # 'OBJEX_SavedPose' does not refer to any addon-defined class. see documentation
-            self.layout.label(text='Default saved pose to use for folding:')
-            self.layout.template_list('UI_UL_list', 'OBJEX_SavedPose', scene.objex_bonus, 'saved_poses', armature.data.objex_bonus, 'fold_unfold_saved_pose_index', rows=2)
+            OBJEX_PT_folding.draw(self, context)
+
+class OBJEX_PT_folding(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'Objex'
+    bl_label = 'Folding'
+
+    @classmethod
+    def poll(self, context):
+        return rigging_helpers.AutofoldOperator.poll(context)
+
+    def draw(self, context):
+        scene = context.scene
+        armature = rigging_helpers.AutofoldOperator.get_armature(self, context)
+        # 421todo make it easier/more obvious to use...
+        # 421todo export/import saved poses
+        row = self.layout.row()
+        row.operator('objex.autofold_save_pose', text='Save pose')
+        row.operator('objex.autofold_restore_pose', text='Restore pose')
+        row = self.layout.row()
+        row.operator('objex.autofold_fold_unfold', text='Fold').action = 'FOLD'
+        row.operator('objex.autofold_fold_unfold', text='Unfold').action = 'UNFOLD'
+        row.operator('objex.autofold_fold_unfold', text='Switch').action = 'SWITCH'
+        # 421todo better saved poses management (delete)
+        self.layout.label(text='Default saved pose to use for folding:')
+        # 'OBJEX_SavedPose' does not refer to any addon-defined class. see documentation of template_list
+        self.layout.template_list('UI_UL_list', 'OBJEX_SavedPose', scene.objex_bonus, 'saved_poses', armature.data.objex_bonus, 'fold_unfold_saved_pose_index', rows=2)
 
 
 # armature
@@ -1238,6 +1254,7 @@ class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
 
 classes = (
     OBJEX_PT_mesh,
+    OBJEX_PT_folding,
 
     OBJEX_UL_actions,
     OBJEX_PT_armature,
