@@ -411,7 +411,7 @@ class ObjexWriter():
                     # Create a dictionary keyed by vertex id and listing, for each vertex, the name of the vertex groups it belongs to, and its associated weight
                     vertex_groups = [[] for _i in range(len(vertices))]
                     for v_idx, v_ls in enumerate(vertex_groups):
-                        v_ls[:] = [(vertGroupNames[g.group], g.weight) for g in vertices[v_idx].groups]
+                        v_ls[:] = [(vertGroupNames[g.group], util.quote(vertGroupNames[g.group]), g.weight) for g in vertices[v_idx].groups]
                 del vertGroupNames
 
             # Vert
@@ -423,8 +423,7 @@ class ObjexWriter():
                 # only write vertex groups named after actual bones
                 bone_names = [bone.name for bone in rigged_to_armature.data.bones]
                 bone_vertex_groups = [
-                    # Store group_name_q = util.quote(group_name) for performance
-                    [(util.quote(group_name), weight) for group_name, weight in vertex_vertex_groups if group_name in bone_names]
+                    [(group_name_q, weight) for group_name, group_name_q, weight in vertex_vertex_groups if group_name in bone_names]
                     for vertex_vertex_groups in vertex_groups
                 ]
                 # only group of maximum weight, with weight 1
