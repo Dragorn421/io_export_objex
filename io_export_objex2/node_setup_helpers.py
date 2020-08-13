@@ -44,6 +44,98 @@ def setLinks_multiply_by(tree, colorSocket, alphaSocket, multiply_by):
             tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Color'], colorSocket)
             tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Alpha'], alphaSocket)
 
+class OBJEX_OT_material_single_texture(bpy.types.Operator):
+
+    bl_idname = 'objex.material_single_texture'
+    bl_label = 'Configures nodes of an objex material for a single texture'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    # Cannot use PointerProperty in operators unfortunately...
+    texel = bpy.props.StringProperty(
+            name='Image',
+            description='The image to use'
+        )
+    multiply_by0 = bpy.props.EnumProperty(
+            items=[
+                ('LIGHTING','Lighting','Use shading from lighting',1),
+                ('VERTEX_COLORS','Vertex Colors','Use shading from vertex colors',2),
+                ('ENV_COLOR','Environment Color','Use environment color',3),
+                ('PRIM_COLOR','Primitive Color','Use primitive color',4),
+            ],
+            name='With',
+            description='What to combine (multiply) the texture with.',
+            default='PRIM_COLOR'
+        )
+    multiply_by1 = bpy.props.EnumProperty(
+            items=[
+                ('LIGHTING','Lighting','Use shading from lighting',1),
+                ('VERTEX_COLORS','Vertex Colors','Use shading from vertex colors',2),
+                ('ENV_COLOR','Environment Color','Use environment color',3),
+                ('PRIM_COLOR','Primitive Color','Use primitive color',4),
+            ],
+            name='With',
+            description='What to combine (multiply) the texture with.',
+            default='LIGHTING'
+        )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator('image.open')
+        layout.prop_search(self, 'texel', bpy.data, 'images')
+        layout.prop(self, 'multiply_by0')
+        layout.prop(self, 'multiply_by1')
+        if set((self.multiply_by0, self.multiply_by1,)) == set(('LIGHTING', 'VERTEX_COLORS',)):
+            layout.label(text='Lighting and Vertex Colors', icon='ERROR')
+            layout.label(text='cannot be used together', icon='ERROR')
+
+    @classmethod
+    def poll(self, context):
+        material = context.material if hasattr(context, 'material') else None
+        return material and material.objex_bonus.is_objex_material
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def execute(self, context):
+        material = context.material
+        tree = material.node_tree
+        if not self.texel or self.texel not in bpy.data.images:
+            self.report({'WARNING'}, 'No image set')
+            return {'CANCELLED'}
+        if set((self.multiply_by0, self.multiply_by1,)) == set(('LIGHTING', 'VERTEX_COLORS',)):
+            self.report({'WARNING'}, 'Lighting and Vertex Colors cannot be used together')
+            return {'CANCELLED'}
+        textureNode = tree.nodes['OBJEX_Texel0Texture']
+        if textureNode.bl_idname == 'ShaderNodeTexture': # < 2.80
+            texture = bpy.data.textures.new(self.texel, 'IMAGE')
+            texture.image = bpy.data.images[self.texel]
+            textureNode.texture = texture
+        else: # 2.80+ assume ShaderNodeTexImage
+            textureNode.image = bpy.data.images[self.texel]
+        cc0 = tree.nodes['OBJEX_ColorCycle0']
+        cc1 = tree.nodes['OBJEX_ColorCycle1']
+        ac0 = tree.nodes['OBJEX_AlphaCycle0']
+        ac1 = tree.nodes['OBJEX_AlphaCycle1']
+        # color cycles
+        tree.links.new(tree.nodes['OBJEX_Texel0'].outputs['Color'], cc0.inputs['A'])
+        clearLinks(tree, cc0.inputs['B'])
+        clearLinks(tree, cc0.inputs['D'])
+        tree.links.new(cc0.outputs[0], cc1.inputs['A'])
+        clearLinks(tree, cc1.inputs['B'])
+        clearLinks(tree, cc1.inputs['D'])
+        # alpha cycles
+        tree.links.new(tree.nodes['OBJEX_Texel0'].outputs['Alpha'], ac0.inputs['A'])
+        clearLinks(tree, ac0.inputs['B'])
+        clearLinks(tree, ac0.inputs['D'])
+        tree.links.new(ac0.outputs[0], ac1.inputs['A'])
+        clearLinks(tree, ac1.inputs['B'])
+        clearLinks(tree, ac1.inputs['D'])
+        # set C of first color/alpha cycle
+        setLinks_multiply_by(tree, cc0.inputs['C'], ac0.inputs['C'], self.multiply_by0)
+        # set C of second color/alpha cycle according to self.multiply_by
+        setLinks_multiply_by(tree, cc1.inputs['C'], ac1.inputs['C'], self.multiply_by1)
+        return {'FINISHED'}
+
 class OBJEX_OT_material_multitexture(bpy.types.Operator):
 
     bl_idname = 'objex.material_multitexture'
@@ -176,6 +268,7 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
         return {'FINISHED'}
 
 classes = (
+    OBJEX_OT_material_single_texture,
     OBJEX_OT_material_multitexture,
 )
 
