@@ -356,17 +356,18 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
         # used for writing exportid
         append_header(fw)
 
-        # maps a file path to (texture_name, texture_name_q),
+        # maps an image to (texture_name, texture_name_q),
         # to avoid duplicate newtex declarations
-        # 421fixme is this still expected behavior?
-        texture_names = {}
+        # does not prevent duplicate file paths because different images
+        # (with same file path) may have different properties set
+        declared_textures = {}
 
         def getImagePath(image, filename=None):
             image_filepath = image.filepath
             if image.packed_files:
                 if export_packed_images:
                     if not filename:
-                        filename = '%s_%d' % (os.path.basename(image_filepath), len(texture_names))
+                        filename = '%s_%d' % (os.path.basename(image_filepath), len(declared_textures))
                     # save externally a packed image
                     image_filepath = '%s/%s' % (export_packed_images_dir, filename)
                     image_filepath = bpy.path.abspath(image_filepath)
@@ -377,23 +378,22 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             return bpy_extras.io_utils.path_reference(image_filepath, source_dir, dest_dir,
                                                       path_mode, '', copy_set, image.library)
 
-        def writeTexture(image, name):
-            image_filepath = image.filepath
-            data = texture_names.get(image_filepath)
+        def writeTexture(image):
+            data = declared_textures.get(image)
             if data:
                 texture_name, texture_name_q = data
-                log.trace('Skipped writing texture {} using file {}', texture_name, image_filepath)
+                log.trace('Skipped writing texture {} {}', texture_name, image)
             else:
-                texture_name = name
+                texture_name = image.name
                 # make sure texture_name is not already used
                 i = 0
-                while texture_name in texture_names.values():
+                while texture_name in (_texture_name for _texture_name, _texture_name_q in declared_textures.values()):
                     i += 1
                     texture_name = '%s_%d' % (name, i)
                 if i != 0:
                     log.debug('Texture name {} was already used, using {} instead', name, texture_name)
                 texture_name_q = util.quote(texture_name)
-                texture_names[image_filepath] = (texture_name, texture_name_q)
+                declared_textures[image] = (texture_name, texture_name_q)
                 fw('newtex %s\n' % texture_name_q)
                 filepath = getImagePath(image, texture_name)
                 fw('map %s\n' % filepath)
@@ -484,7 +484,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                             raise util.ObjexExportAbort('Material %s uses texel data %r without a texture/image '
                                 '(make sure texel0 and texel1 have a texture/image set if they are used in the combiner)'
                                 % (name, texelData))
-                        texelData['texture_name_q'] = writeTexture(image, image.name)
+                        texelData['texture_name_q'] = writeTexture(image)
                 # write newmtl after any newtex block
                 fw('newmtl %s\n' % name_q)
                 if 'shade' in data:
@@ -767,7 +767,7 @@ count  P              A              M              B            comment
                     image = mat_wrap.base_color_texture.image
 
                 if image:
-                    texture_name_q = writeTexture(image, image.name)
+                    texture_name_q = writeTexture(image)
                 else:
                     texture_name_q = None
                 fw('newmtl %s\n' % name_q)
