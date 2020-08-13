@@ -90,8 +90,6 @@ class OBJEX_PT_mesh(bpy.types.Panel):
             self.layout.operator('objex.mesh_find_unassigned_vertices', text='Find unassigned vertices')
             self.layout.operator('objex.mesh_list_vertex_groups', text='List groups of selected vertex')
             # folding/unfolding
-            # 421fixme ... does this belong in mesh data tab? may want to (also) put it in armature data tab
-            # or make a new panel showing for both armature and mesh
             self.layout.separator()
             self.layout.label(text='Folding')
             OBJEX_PT_folding.draw(self, context)
@@ -202,6 +200,10 @@ class OBJEX_PT_armature(bpy.types.Panel):
         box = self.layout.box()
         propOffset(box, data, 'segment', 'Segment')
         box.prop(data, 'segment_local')
+        # folding/unfolding
+        self.layout.separator()
+        self.layout.label(text='Folding')
+        OBJEX_PT_folding.draw(self, context)
 
 #
 # material
