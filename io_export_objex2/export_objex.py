@@ -94,7 +94,10 @@ class ObjexWriter():
         fw('# Blender v%s Objex File: %r\n' % (bpy.app.version_string, os.path.basename(bpy.data.filepath)))
         fw('# www.blender.org\n')
 
-        fw('version 2.000\n') # 421todo externalize, or use bl_info ?
+        from .__init__ import bl_info
+        fw('# io_export_objex2 v%s\n' % '.'.join('%d' % d for d in bl_info['version']))
+        del bl_info
+        fw('version 2.000\n')
 
         self.export_id_line = 'exportid %f\n' % time.time()
         fw(self.export_id_line)
