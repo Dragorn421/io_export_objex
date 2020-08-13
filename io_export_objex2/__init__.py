@@ -85,6 +85,18 @@ for n in (
         importlib.import_module('.%s' % n, __package__)
 del importlib
 
+from . import export_objex
+from . import logging_util
+from . import blender_version_compatibility
+from . import util
+from . import addon_updater_ops
+from . import rigging_helpers
+from . import properties
+from . import data_updater
+from . import interface
+from . import node_setup_helpers
+from . import view3d_copybuffer_patch
+
 
 class OBJEX_OT_export_base():
     """Save an OBJEX File"""
