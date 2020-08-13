@@ -225,6 +225,7 @@ class ObjexWriter():
             rigged_to_armature = ob.find_armature()
 
             apply_modifiers = self.options['APPLY_MODIFIERS']
+            using_depsgraph = hasattr(self.context, 'evaluated_depsgraph_get') # True in 2.80+
             # disable armature deform modifiers
             user_show_armature_modifiers = []
             if apply_modifiers and rigged_to_armature and (
@@ -249,26 +250,29 @@ class ObjexWriter():
                         else:
                             log.warning('Object {} was found to be rigged to {} but it also has an armature deform modifier using {}',
                                 ob.name, rigged_to_armature.name, modifier.object.name if modifier.object else None)
+                    modifier_show = None
                     if disable_modifier:
+                        modifier_show = False
+                    elif using_depsgraph:
+                        modifier_show = modifier.show_render if self.options['APPLY_MODIFIERS_RENDER'] else modifier.show_viewport
+                    if modifier_show is not None:
                         user_show_armature_modifiers.append((modifier, modifier.show_viewport, modifier.show_render))
-                        modifier.show_viewport = False
-                        modifier.show_render = False
+                        modifier.show_viewport = modifier_show
+                        modifier.show_render = modifier_show
 
-            ob_for_convert = None
-            if hasattr(ob, 'evaluated_get'): # 2.80+
-                # 421FIXME_UPDATE may have to update depsgraph after editing modifier properties?
-                # if I understood correctly evaluated_depsgraph_get does the updating
+            if using_depsgraph: # 2.80+
                 depsgraph = self.context.evaluated_depsgraph_get()
                 ob_for_convert = ob.evaluated_get(depsgraph) if apply_modifiers else ob.original
                 del depsgraph
+            else:
+                ob_for_convert = None
 
             try:
                 if not ob_for_convert: # < 2.80
                     me = ob.to_mesh(scene, apply_modifiers, calc_tessface=False,
                                     settings='RENDER' if self.options['APPLY_MODIFIERS_RENDER'] else 'PREVIEW')
                 else: # 2.80+
-                    # 421FIXME_UPDATE use APPLY_MODIFIERS_RENDER where? may have to disable them in the disable-modifiers-loop
-                    # 421FIXME_UPDATE should to_mesh really be called without any argument? (like 2.82 obj exporter does)
+                    # 421fixme should preserve_all_data_layers=True be used?
                     me = ob_for_convert.to_mesh()
             except RuntimeError:
                 me = None
