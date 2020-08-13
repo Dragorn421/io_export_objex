@@ -634,8 +634,8 @@ class ObjexWriter():
 
                             obs += [(dob.object, dob.matrix) for dob in ob_main.dupli_list]
                         elif not use_old_dupli and ob_main.is_instancer:
-                            # 421FIXME_UPDATE assuming depsgraph must be re-get every time since evaluated_depsgraph_get
-                            # may be called in-between this line executing, ie in write_object when evaluating mesh data
+                            # evaluated_depsgraph_get may be called in-between this line executing,
+                            # ie in write_object when evaluating mesh data, so call it again every time here
                             depsgraph = self.context.evaluated_depsgraph_get()
                             obs += [(dup.instance_object.original, dup.matrix_world.copy())
                                     for dup in depsgraph.object_instances

@@ -223,7 +223,7 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
     if hasattr(scene, 'update'): # < 2.80
         scene.update()
     else: # 2.80+
-        pass # 421FIXME_UPDATE hopefully the applied modifiers use updated depsgraph (?) on their own
+        pass
 
     # (UN)fold rigged meshs
     for mesh in meshs:
@@ -241,53 +241,6 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
                         mesh.name, armature.name, armature_deform_modifier_candidates)
         armature_deform_modifier = armature_deform_modifier_candidates[0]
         log.debug('armature_deform_modifier.name = {}', armature_deform_modifier.name)
-        # copy modifier
-        # can't get bpy.ops.object.modifier_copy to work, probably needs more context changes
-        # operator source (didn't help):
-        # https://github.com/blender/blender/blob/600a627f6e326f4542a876e6e82f771cd3da218f/source/blender/editors/object/object_modifier.c#L1329
-        """
-        print('before modifier_copy', mesh.modifiers)
-        print('modifier_copy.poll() =', bpy.ops.object.modifier_copy.poll())
-        while bpy.context.selected_objects:
-            bpy.context.selected_objects[0].select = False
-        mesh.select = True
-        bpy.context.scene.objects.active = mesh
-        bpy.ops.object.mode_set(mode='OBJECT')
-        print('modifier_copy.poll() =', bpy.ops.object.modifier_copy.poll())
-        print(bpy.ops.object.modifier_copy(modifier=armature_deform_modifier.name))
-        print('after modifier_copy', mesh.modifiers)
-        """
-        # actually don't copy modifier, to_mesh suppresses the need for it
-        """
-        armature_deform_modifier_copy = mesh.modifiers.new('copy of {}'.format(armature_deform_modifier.name), 'ARMATURE')
-        for attr in (
-            'invert_vertex_group', 'object', 'use_bone_envelopes', 'use_deform_preserve_volume',
-            'use_multi_modifier', 'use_vertex_groups', 'vertex_group'
-        ):
-            setattr(armature_deform_modifier_copy, attr, getattr(armature_deform_modifier, attr))
-        """
-        # find the modifier copy
-        # irrelevant without using bpy.ops.object.modifier_copy
-        """
-        armature_deform_modifier_copy_candidates = [
-            modifier for modifier in mesh.modifiers
-            if modifier.type == 'ARMATURE' and modifier.object == armature
-                and modifier not in armature_deform_modifier_candidates
-        ]
-        if len(armature_deform_modifier_copy_candidates) != 1:
-            self.report({'WARNING'}, 'Something went wrong, there are {} more modifiers after copying modifier {}: {}, skipping mesh'
-                                        .format(len(armature_deform_modifier_copy_candidates),
-                                                armature_deform_modifier.name,
-                                                armature_deform_modifier_copy_candidates))
-            continue
-        armature_deform_modifier_copy = armature_deform_modifier_copy_candidates[0]
-        """
-        # apply the modifier copy
-        # again, no luck with the operators. didn't try anything to get them to work though
-        """
-        bpy.ops.object.modifier_move_up(modifier=armature_deform_modifier_copy.name)
-        bpy.ops.object.modifier_apply(apply_as='DATA', modifier=armature_deform_modifier_copy.name)
-        """
         # make only armature_deform_modifier active
         armature_deform_modifier_show_viewport_user = armature_deform_modifier.show_viewport
         temporarily_disabled_modifiers = [
@@ -439,12 +392,11 @@ class OBJEX_OT_autofold_save_pose(bpy.types.Operator, AutofoldOperator):
                     redo_in_toolbar = False
             except:
                 log.exception('Failed to get toolbar hotkey')
-                redo_in_toolbar = True # 421FIXME_UPDATE
+                redo_in_toolbar = bpy.app.version < (2, 80, 0)
                 toolbar_hotkey = 'T'
             if redo_in_toolbar: # < 2.80
                 log.info('Please set a pose name in the toolbar (left of 3D view, hotkey {})', toolbar_hotkey)
             else: # 2.80+
-                # 421FIXME_UPDATE not sure where the redo panel should show in 2.82
                 return context.window_manager.invoke_props_dialog(self)
             return {'FINISHED'}
         finally:
