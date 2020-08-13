@@ -22,6 +22,11 @@ import os
 
 import bpy
 import bpy_extras.io_utils
+try:
+    # 2.80+
+    import bpy_extras.node_shader_utils
+except ImportError: # < 2.80
+    pass
 
 from . import data_updater
 from . import util
@@ -756,8 +761,10 @@ count  P              A              M              B            comment
                             else:
                                 image = None
                 elif material: # 2.80+
-                    # 421FIXME_UPDATE todo: find image to export
-                    pass
+                    # based on the Blender 2.82 obj exporter
+                    mat_wrap = bpy_extras.node_shader_utils.PrincipledBSDFWrapper(material)
+                    # image can be None
+                    image = mat_wrap.base_color_texture.image
 
                 if image:
                     texture_name_q = writeTexture(image, image.name)
