@@ -411,6 +411,12 @@ if bpy.app.version >= (2, 80, 0): # 2.80+
     }
     node_setup['OBJEX_TransformUV_Main']['links']['UV'] = ('UV Map', 'UV')
 
+if hasattr(bpy.types, 'ShaderNodeVertexColor'): # 2.80+
+    node_setup['Vertex Color'] = {
+        'type': 'ShaderNodeVertexColor',
+        'location': (-520, -350),
+    }
+
 if not hasattr(bpy.types, 'ShaderNodeTexture'): # 2.80+
     # ShaderNodeTexImage sockets are Color then Alpha, not Alpha ("Value") then Color like on old ShaderNodeTexture
     for node_texel_texture, node_texel in (
@@ -421,7 +427,7 @@ if not hasattr(bpy.types, 'ShaderNodeTexture'): # 2.80+
             node_setup[node_texel]['links'][i] = (node_texel_texture, i)
     # ShaderNodeTexImage is larger
     for node_name in (
-        'UV Map', 'Geometry',
+        'UV Map', 'Geometry', 'Vertex Color',
         'OBJEX_TransformUV_Main',
         'OBJEX_TransformUV0', 'OBJEX_TransformUV1',
         'OBJEX_Texel0Texture', 'OBJEX_Texel1Texture',

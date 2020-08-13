@@ -150,8 +150,12 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
             else: # 2.80+
                 tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Color'], cc1.inputs['C'])
                 tree.links.new(tree.nodes['OBJEX_Shade'].outputs['Alpha'], ac1.inputs['C'])
-            tree.links.new(tree.nodes['Geometry'].outputs['Vertex Color'], tree.nodes['OBJEX_Shade'].inputs['Color'])
-            tree.links.new(tree.nodes['Geometry'].outputs['Vertex Alpha'], tree.nodes['OBJEX_Shade'].inputs['Alpha'])
+            if 'Vertex Color' in tree.nodes['Geometry'].outputs: # < 2.80
+                tree.links.new(tree.nodes['Geometry'].outputs['Vertex Color'], tree.nodes['OBJEX_Shade'].inputs['Color'])
+                tree.links.new(tree.nodes['Geometry'].outputs['Vertex Alpha'], tree.nodes['OBJEX_Shade'].inputs['Alpha'])
+            else: # 2.80+
+                tree.links.new(tree.nodes['Vertex Color'].outputs['Color'], tree.nodes['OBJEX_Shade'].inputs['Color'])
+                tree.links.new(tree.nodes['Vertex Color'].outputs['Alpha'], tree.nodes['OBJEX_Shade'].inputs['Alpha'])
         elif self.multiply_by == 'ENV_COLOR':
             if bpy.app.version < (2, 80, 0):
                 cc1.inputs['C'].input_flags_C_C = 'G_CCMUX_ENVIRONMENT'

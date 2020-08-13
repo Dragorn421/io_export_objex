@@ -76,8 +76,9 @@ update_material_functions = {
     0: material_from_0,
     1: node_groups_internal_change_update_material_function(2), # OBJEX_UV_pipe 1 -> 2
     2: material_from_2,
+    3: node_groups_internal_change_update_material_function(4), # add Vertex Color node to tree (2.80+)
 }
-addon_material_objex_version = 3
+addon_material_objex_version = 4
 
 # called by OBJEX_PT_material#draw
 def handle_material(material, layout):
