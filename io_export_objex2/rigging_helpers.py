@@ -22,19 +22,30 @@ class OBJEX_OT_mesh_find_vertices():
     @classmethod
     def poll(self, context):
         object = context.object if hasattr(context, 'object') else None
-        return object and object.type == 'MESH'
+        return object and object.find_armature() and object.type == 'MESH'
 
     def execute(self, context):
         select_found = self.select_found
-        mesh = context.object.data
+        object = context.object
+        armature = object.find_armature()
+        mesh = object.data
         # leave edit mode
         was_editmode = mesh.is_editmode
         if was_editmode:
             bpy.ops.object.mode_set(mode='OBJECT')
         found = False
+        self.ignored_vertex_groups = set()
+        def test(v):
+            n_bone_groups = 0
+            for g in v.groups:
+                if object.vertex_groups[g.group].name in armature.data.bones:
+                    n_bone_groups += 1
+                else:
+                    self.ignored_vertex_groups.add(g.group)
+            return self.test(n_bone_groups)
         # search for any matching vertex
         for v in mesh.vertices:
-            if self.test(v):
+            if test(v):
                 found = True
                 break
         # only select vertices if some were found
@@ -44,21 +55,23 @@ class OBJEX_OT_mesh_find_vertices():
             bpy.ops.mesh.select_all(action='DESELECT')
             bpy.ops.object.mode_set(mode='OBJECT')
             for v in mesh.vertices:
-                if self.test(v):
+                if test(v):
                     v.select = True
         if was_editmode or (found and select_found):
             bpy.ops.object.mode_set(mode='EDIT')
         if found:
-            self.report({'WARNING'}, self.__class__.message_found)
+            level = 'WARNING'
+            message = self.__class__.message_found
         else:
-            self.report({'INFO'}, self.__class__.message_not_found)
+            level = 'INFO'
+            message = self.__class__.message_not_found
+        if self.ignored_vertex_groups:
+            message = ('%s (ignored group %s: not a bone)'
+                        if len(self.ignored_vertex_groups) == 1
+                        else '%s (ignored groups %s: not bones)'
+            ) % (message, ', '.join(object.vertex_groups[group].name for group in self.ignored_vertex_groups))
+        self.report({level}, message)
         return {'FINISHED'}
-
-# 421fixme export_objex doesnt naively exports every group in v.groups,
-# only the ones corresponding to an actual bone from the armature
-# but here len(v.groups) is simply checked
-# though maybe groups not matching a bone have a weight-related
-# effect and should still be avoided for wysiwyg?
 
 class OBJEX_OT_mesh_find_multiassigned_vertices(bpy.types.Operator, OBJEX_OT_mesh_find_vertices):
 
@@ -67,8 +80,8 @@ class OBJEX_OT_mesh_find_multiassigned_vertices(bpy.types.Operator, OBJEX_OT_mes
 
     message_found = 'Found multiassigned vertices!'
     message_not_found = 'Did not find any multiassigned vertex.'
-    def test(self, v):
-        return len(v.groups) > 1
+    def test(self, n_bone_groups):
+        return n_bone_groups > 1
 
 class OBJEX_OT_mesh_find_unassigned_vertices(bpy.types.Operator, OBJEX_OT_mesh_find_vertices):
 
@@ -77,8 +90,8 @@ class OBJEX_OT_mesh_find_unassigned_vertices(bpy.types.Operator, OBJEX_OT_mesh_f
 
     message_found = 'Found unassigned vertices!'
     message_not_found = 'Did not find any unassigned vertex.'
-    def test(self, v):
-        return len(v.groups) == 0
+    def test(self, n_bone_groups):
+        return n_bone_groups == 0
 
 class OBJEX_OT_mesh_list_vertex_groups(bpy.types.Operator):
 
