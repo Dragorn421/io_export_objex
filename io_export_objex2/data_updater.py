@@ -60,6 +60,13 @@ def node_groups_internal_change_update_material_function(to_version):
         data.objex_version = to_version
     return update_material_function
 
+# same as node_groups_internal_change_update_material_function but create nodes
+def node_setup_simple_change_update_material_function(to_version):
+    def update_material_function(material, data, log):
+        interface.exec_build_nodes_operator(material, create=True, set_looks=False, set_basic_links=False)
+        data.objex_version = to_version
+    return update_material_function
+
 """
 - versions are integers in ascending order
 - addon_material_objex_version is the current version
@@ -76,9 +83,10 @@ update_material_functions = {
     0: material_from_0,
     1: node_groups_internal_change_update_material_function(2), # OBJEX_UV_pipe 1 -> 2
     2: material_from_2,
-    3: node_groups_internal_change_update_material_function(4), # add Vertex Color node to tree (2.80+)
+    3: node_setup_simple_change_update_material_function(5), # add Vertex Color node to tree (2.80+)
+    4: node_setup_simple_change_update_material_function(5), # fix version 4's update_material_function using create=False
 }
-addon_material_objex_version = 4
+addon_material_objex_version = 5
 
 # called by OBJEX_PT_material#draw
 def handle_material(material, layout):

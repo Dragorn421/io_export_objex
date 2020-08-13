@@ -860,7 +860,9 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             if not node and not self.create:
                 log.info('Skipped creating missing node {}', node_name)
                 continue # skip further actions on missing node
+            created_node = False
             if not node:
+                created_node = True
                 node = nodes.new(node_type)
                 if node_type_group:
                     node.node_tree = bpy.data.node_groups[node_type_group]
@@ -887,7 +889,7 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                 for k, v in socket_attributes.items():
                     setattr(socket, k, v)
             node.name = node_name # todo set unconditionally? won't set the name if already taken. rename others first? (set exact name needed for 2nd pass with links)
-            if self.set_looks:
+            if self.set_looks or created_node:
                 if node_label:
                     node.label = node_label
                 if node_location:
