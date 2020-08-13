@@ -24,7 +24,6 @@ def write_skeleton(file_write_skel, global_matrix, object_transform, armature, a
     if objex_data.pbody:
         fw('pbody')
         if objex_data.pbody_parent_object:
-            # 421todo escape, make sure name written here is same as in target's newskel
             if blender_version_compatibility.no_ID_PointerProperty:
                 pbody_parent_object_name = objex_data.pbody_parent_object
             else:
@@ -74,13 +73,11 @@ def order_bones(armature):
             continue
         bone_parents = bone.parent_recursive
         for skipped_bone in skipped_bones:
-            # 421todo does "in" work with bone objects?
             if skipped_bone in bone_parents:
                 log.error('bone {} has bone {} in its parents, but that bone was skipped', bone.name, skipped_bone.name)
         # make sure there is only one root bone
         root_parent_bone = bone_parents[-1] if bone_parents else bone
         if root_bone and root_parent_bone.name != root_bone.name:
-            # 421todo
             log.debug('bone_parents={!r} root_bone={!r} root_parent_bone={!r}', bone_parents, root_bone, root_parent_bone)
             log.error('armature {} has multiple root bones, at least {} and {}', armature.name, root_bone.name, root_parent_bone.name)
         root_bone = root_parent_bone

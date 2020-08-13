@@ -221,7 +221,6 @@ class ObjexWriter():
                     actions = []
                 self.armatures.append((util.quote(ob.name), ob, ob_mat, actions))
 
-            # 421todo should this be None in some cases? ("export with current armature deform" option?)
             rigged_to_armature = ob.find_armature()
 
             apply_modifiers = self.options['APPLY_MODIFIERS']
@@ -245,7 +244,6 @@ class ObjexWriter():
                                 log.warning('Found several armature deform modifiers on object {} using armature {}',
                                     ob.name, rigged_to_armature.name)
                             found_armature_deform = True
-                            # 421todo not sure armature deform could be used for anything other than main animation?
                             disable_modifier = True
                         else:
                             log.warning('Object {} was found to be rigged to {} but it also has an armature deform modifier using {}',
@@ -291,20 +289,6 @@ class ObjexWriter():
                 # _must_ do this first since it re-allocs arrays
                 mesh_triangulate(me)
 
-            """
-            421todo
-            apply scale here
-            apply translation to root_bone in loc
-            apply rotation to bones in rot
-            """
-            """
-            options['DEFORMED_MESH_STRATEGY']
-            -> 'WRITE_WORLD' write world coordinates for every mesh including ones deformed by armature (may break animations if world space != object space)
-            -> 'WRITE_OBJECT_TRANSFORM_IN_ANIMATION' write object coordinates for animated meshs and apply transforms in animation data (would result in world space used as model space, aka WYSIWYG)
-            -> 'WRITE_OBJECT_IGNORE_TRANSFORM' write object coordinates for animated meshs and ignore transform (would result in object space used as model space, may be useful for several animated meshs in one scene, so they are not stacked at world origin but still use 0,0,0 as origin when drawn in-game)
-            ?
-            -> 2 checkboxes? first "always apply object transform when writing mesh data of an animated mesh" (default unchecked) if unchecked 2nd appears "apply object transform to animations instead" (default checked)
-            """
             me.transform(blender_version_compatibility.matmul(self.options['GLOBAL_MATRIX'], ob_mat))
             # If negative scaling, we have to invert the normals...
             if ob_mat.determinant() < 0.0:

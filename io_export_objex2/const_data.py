@@ -450,5 +450,3 @@ if not hasattr(bpy.types, 'ShaderNodeOutput'): # 2.80+
     x, y = node_setup['Output']['location']
     node_setup['Output']['location'] = x + 300, y
     node_setup['Output']['links'] = {'Surface': ('Principled BSDF', 0)}
-
-# 421todo ShaderNodeVertexColor in 2.80+ (currently the user should create it themselves)

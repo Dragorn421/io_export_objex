@@ -723,7 +723,6 @@ def create_node_group_rgba_pipe(group_name):
 
     return tree
 
-# 421fixme check this function still behaves as expected since the updater code was ditched
 def update_node_groups():
     # dict mapping group names (keys in bpy.data.node_groups) to (latest_version, create_function) tuples
     # version is stored in 'objex_version' for each group and compared to latest_version
@@ -1173,7 +1172,6 @@ class OBJEX_PT_material(bpy.types.Panel):
         for image in images_used:
             box = self.layout.box()
             box.label(text=image.filepath if image.filepath else 'Image without filepath?')
-            #box.prop(textureNode.texture, 'image') # 421fixme using textureNode here doesn't make sense
             imdata = image.objex_bonus
             box.prop(imdata, 'format')
             if imdata.format[:2] == 'CI':
