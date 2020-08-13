@@ -44,13 +44,9 @@ def write_skeleton(file_write_skel, global_matrix, object_transform, armature, a
         if bone.parent:
             pos = pos.copy()
             pos -= blender_version_compatibility.matmul(transform, bone.parent.head_local)
-        # 421todo this warning looks very outdated now that we use object transform
-        # 421todo confirm that bone root position is always assumed to be 0 by oot, if yes make sure WYSIWYG applies with the edit-mode location being accounted for in write_action_from_pose_bones
         else:
-            # 421fixme better warnings, 
             if bone.head_local != mathutils.Vector((0,0,0)):
-                # 421todo instead of warn, automatically solve the problem (add a bone from (0,0,0) ?)
-                log.warning('root bone {} at {!r} does not start at armature origin, in-game results may vary', bone.name, pos)
+                log.debug('root bone {} at {!r} does not start at armature origin', bone.name, pos)
         fw('%s+ %s %.6f %.6f %.6f\n' % (' ' * indent, util.quote(bone.name), pos.x, pos.y, pos.z))
         indent += 1
         stack.append(bone)
@@ -148,7 +144,7 @@ def write_animations(file_write_anim, scene, global_matrix, object_transform, ar
     fw('# %s\n' % armature.name)
     for action in actions:
         frame_start, frame_end = action.frame_range
-        frame_count = int(frame_end - frame_start + 1) # 421fixme is this correct?
+        frame_count = int(frame_end - frame_start + 1)
         fw('newanim %s %s %d\n' % (armature_name_q, util.quote(action.name), frame_count))
         write_action(fw, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count)
         fw('\n')
@@ -164,24 +160,15 @@ def write_action(fw, scene, global_matrix, object_transform, armature, root_bone
     
     pose_bones = armature.pose.bones
     root_pose_bone = pose_bones[root_bone.name]
-    
-    # 421todo this may become useful if we want to take into account object transform on mesh, but directly transforming the armature's child usually visually breaks the armature deform, so let's not?
-    """
-    mesh = armature.children[0]
-    if len(armature.children) != 1:
-        # 421todo not sure what to do here
-        print('WARNING len(armature.children) != 1 -> using %s' % mesh.name)
-    """
-    # 421todo some of these warnings may be useless
-    # 421todo figure out how to automatically solve the issues
+
     if armature.location != mathutils.Vector((0,0,0)):
-        log.warning('origin of armature {} {!r} is not world origin (0,0,0), in-game results may vary', armature.name, armature.location)
+        log.debug('origin of armature {} {!r} is not world origin (0,0,0)', armature.name, armature.location)
     for child in armature.children:
         if child.location != armature.location:
-            log.warning('origins of object {} {!r} and parent armature {} {!r} mismatch, in-game results may vary', child.name, child.location, armature.name, armature.location)
+            log.debug('origins of object {} {!r} and parent armature {} {!r} mismatch', child.name, child.location, armature.name, armature.location)
         if child.location != mathutils.Vector((0,0,0)):
-            log.warning('origin of object {} {!r} (parent armature {}) is not world origin (0,0,0), in-game results may vary', child.name, child.location, armature.name)
-    
+            log.debug('origin of object {} {!r} (parent armature {}) is not world origin (0,0,0)', child.name, child.location, armature.name)
+
     for frame_current_offset in range(frame_count):
         frame_current = frame_start + frame_current_offset
         scene.frame_set(frame_current)
