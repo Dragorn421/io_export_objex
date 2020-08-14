@@ -195,6 +195,7 @@ def restoreSavedPose(armature, saved_bones, invert=False):
         if invert:
             location *= (-1)
             rotation_quaternion.invert()
+            location.rotate(rotation_quaternion)
         bone.location = location
         rotation_mode_prev = bone.rotation_mode
         # convert from quaternion in rotation_quaternion to any mode
