@@ -540,32 +540,31 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 else:
                     otherModeLowerHalfFlags.append(objex_data.rendermode_blender_flag_CVG_DST_)
                 if hasattr(material, 'use_transparency'): # < 2.80
-                    use_transparency = material.use_transparency
+                    use_alpha_transparency = 'BLEND' if material.use_transparency else 'NONE'
                 else: # 2.80+
                     if material.blend_method == 'OPAQUE':
-                        use_transparency = False
+                        use_alpha_transparency = 'NONE'
                     elif material.blend_method in ('BLEND', 'HASHED'):
-                        use_transparency = True
+                        use_alpha_transparency = 'BLEND'
                     elif material.blend_method == 'CLIP':
-                        log.warning('Material {} uses Blend Mode "Alpha Clip", assuming no transparency for the Auto settings', name)
-                        use_transparency = False
+                        use_alpha_transparency = 'CLIP'
                     else:
                         log.warning('Material {} uses unknown Blend Mode blend_method={!r}, assuming no transparency', name, material.blend_method)
-                        use_transparency = False
+                        use_alpha_transparency = 'NONE'
                 if objex_data.rendermode_zmode == 'AUTO':
-                    otherModeLowerHalfFlags.append('ZMODE_XLU' if use_transparency else 'ZMODE_OPA')
+                    otherModeLowerHalfFlags.append('ZMODE_XLU' if use_alpha_transparency != 'NONE' else 'ZMODE_OPA')
                 else:
                     otherModeLowerHalfFlags.append('ZMODE_%s' % objex_data.rendermode_zmode)
                 if (objex_data.rendermode_blender_flag_CVG_X_ALPHA == 'YES'
                     or (objex_data.rendermode_blender_flag_CVG_X_ALPHA == 'AUTO'
-                        and use_transparency)
+                        and use_alpha_transparency != 'NONE')
                 ):
                     otherModeLowerHalfFlags.append('CVG_X_ALPHA')
                 if objex_data.rendermode_blender_flag_ALPHA_CVG_SEL:
                     otherModeLowerHalfFlags.append('ALPHA_CVG_SEL')
                 if (objex_data.rendermode_forceblending == 'YES'
                     or (objex_data.rendermode_forceblending == 'AUTO'
-                        and use_transparency)
+                        and use_alpha_transparency != 'NONE')
                 ):
                     otherModeLowerHalfFlags.append('FORCE_BL')
                 # blender cycles
@@ -584,9 +583,14 @@ count  P              A              M              B            comment
                 rm_bl_c0 = objex_data.rendermode_blending_cycle0
                 rm_bl_c1 = objex_data.rendermode_blending_cycle1
                 if rm_bl_c0 == 'AUTO':
-                    rm_bl_c0 = 'PASS' if use_transparency else 'FOG_SHADE'
+                    if use_alpha_transparency == 'NONE':
+                        rm_bl_c0 = 'FOG_SHADE'
+                    elif use_alpha_transparency == 'CLIP':
+                        rm_bl_c0 = 'PASS'
+                    elif use_alpha_transparency == 'BLEND':
+                        rm_bl_c0 = 'XLU'
                 if rm_bl_c1 == 'AUTO':
-                    rm_bl_c1 = 'XLU' if use_transparency else 'OPA'
+                    rm_bl_c1 = 'XLU' if use_alpha_transparency != 'NONE' else 'OPA'
                 presets = {
                     'FOG_PRIM': ('G_BL_CLR_FOG','G_BL_A_FOG',  'G_BL_CLR_IN', 'G_BL_1MA'),
                     'FOG_SHADE':('G_BL_CLR_FOG','G_BL_A_SHADE','G_BL_CLR_IN', 'G_BL_1MA'),

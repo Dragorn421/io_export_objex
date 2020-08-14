@@ -269,7 +269,9 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
                 ('PASS','Pass','Let the input pixel color through unaltered (G_RM_PASS...)',3), # G_BL_CLR_IN    G_BL_0         G_BL_CLR_IN    G_BL_1
                 ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',4), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
                 ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',5), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
-                ('AUTO','Auto','Use "Pass" if material uses transparency and "Fog RGB, shade A" otherwise',6),
+                ('AUTO','Auto', 'Use "Pass" if material uses Alpha Clip transparency,\n'
+                                '"XLU-like" if material uses Alpha Blend transparency,\n'
+                                'and "Fog RGB, shade A" otherwise.',6),
                 ('CUSTOM','Custom','Define a custom blending cycle',7),
             ],
             name='First blending cycle',
