@@ -33,20 +33,31 @@ from . import util
 from .logging_util import getLogger
 
 class ObjexMaterialNodeTreeExplorer():
-    def __init__(self, tree):
+    def __init__(self, material):
         self.log = getLogger('ObjexMaterialNodeTreeExplorer')
-        self.tree = tree
+        self.material = material
+        self.tree = material.node_tree
         self.colorCycles = []
         self.alphaCycles = []
         self.flagSockets = {}
         self.defaulFlagColorCycle = 'G_CCMUX_0'
         self.defaulFlagAlphaCycle = 'G_ACMUX_0'
 
+    def fail(self, message, node=None):
+        message = 'Failed exploring material %s\n%s' % (self.material.name, message)
+        if node is not None:
+            message = '%s\nNode: %s %s %r' % (message, node.name, node.bl_idname, node)
+        raise util.ObjexExportAbort(message)
+
     def buildFromColorCycle(self, cc):
         log = self.log
         if cc in (cc for cc,flags,prev_alpha_cycle_node in self.colorCycles):
             log.error('Looping: already visited color cycle node {!r}', cc)
             return
+        if cc.bl_idname != 'ShaderNodeGroup':
+            self.fail('Expected a node group as color cycle node', node=cc)
+        if len(cc.inputs) < 4:
+            self.fail('Expected color cycle node to have at least 4 inputs', node=cc)
         flags = []
         prev_color_cycle_node = None
         prev_alpha_cycle_node = None
@@ -86,6 +97,10 @@ class ObjexMaterialNodeTreeExplorer():
         if ac in (ac for ac,flags in self.alphaCycles):
             log.error('Looping: already visited alpha cycle node {!r}', ac)
             return
+        if ac.bl_idname != 'ShaderNodeGroup':
+            self.fail('Expected a node group as alpha cycle', node=ac)
+        if len(ac.inputs) < 4:
+            self.fail('Expected alpha cycle node to have at least 4 inputs', node=ac)
         flags = []
         prev_alpha_cycle_node = None
         for i in range(4):
@@ -467,7 +482,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 # 421todo compare face_img with texel0/1
                 if not material.use_nodes:
                     raise util.ObjexExportAbort('Material {0!r} {0.name} is_objex_material but not use_nodes (was "Use Nodes" unchecked after adding objex nodes to it?)'.format(material))
-                explorer = ObjexMaterialNodeTreeExplorer(material.node_tree)
+                explorer = ObjexMaterialNodeTreeExplorer(material)
                 explorer.build()
                 if len(explorer.combinerFlags) != 16:
                     log.error('Unexpected combiner flags amount {:d} (are both cycles used?), flags: {!r}', len(explorer.combinerFlags), explorer.combinerFlags)
