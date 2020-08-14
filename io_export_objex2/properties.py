@@ -149,18 +149,6 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
         )
 
     fold_unfold_saved_pose_index = bpy.props.IntProperty()
-    """
-    def fold_unfold_saved_pose_name_update(self, context):
-        my_saved_poses = context.scene.my_saved_poses
-        saved_pose = my_saved_poses.get(self.fold_unfold_saved_pose_name)
-        if saved_pose:
-            self.fold_unfold_saved_pose_index = my_saved_poses.values().index(saved_pose)
-        else:
-            self.fold_unfold_saved_pose_index = -1
-    fold_unfold_saved_pose_name = bpy.props.StringProperty(
-        update=fold_unfold_saved_pose_name_update
-    )
-    """
 
 # material
 
