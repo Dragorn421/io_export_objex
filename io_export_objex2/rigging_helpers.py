@@ -457,6 +457,38 @@ class OBJEX_OT_autofold_save_pose(bpy.types.Operator, AutofoldOperator):
                 else 'NONE')
         self.layout.prop(self, 'type')
 
+class OBJEX_OT_autofold_delete_pose(bpy.types.Operator, AutofoldOperator):
+
+    bl_idname = 'objex.autofold_delete_pose'
+    bl_label = 'Delete a saved Pose position'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    pose_name = bpy.props.StringProperty(
+            name='Pose',
+            description='The saved pose position to delete',
+        )
+
+    def invoke(self, context, event):
+        scene = context.scene
+        armature = self.get_armature(context)
+        try:
+            self.pose_name = scene.objex_bonus.saved_poses[armature.data.objex_bonus.fold_unfold_saved_pose_index].name
+        except IndexError: # bad fold_unfold_saved_pose_index
+            pass
+        return context.window_manager.invoke_props_dialog(self)
+
+    def execute(self, context):
+        scene = context.scene
+        pose_index = scene.objex_bonus.saved_poses.find(self.pose_name)
+        if pose_index < 0: # not found
+            return {'CANCELLED'}
+        scene.objex_bonus.saved_poses.remove(pose_index)
+        return {'FINISHED'}
+
+    def draw(self, context):
+        scene = context.scene
+        self.layout.prop_search(self, 'pose_name', scene.objex_bonus, 'saved_poses')
+
 class OBJEX_OT_autofold_restore_pose(bpy.types.Operator, AutofoldOperator):
 
     bl_idname = 'objex.autofold_restore_pose'
@@ -597,6 +629,7 @@ classes = (
     OBJEX_OT_mesh_find_unassigned_vertices,
     OBJEX_OT_mesh_list_vertex_groups,
     OBJEX_OT_autofold_save_pose,
+    OBJEX_OT_autofold_delete_pose,
     OBJEX_OT_autofold_restore_pose,
     OBJEX_OT_autofold_fold_unfold,
 )

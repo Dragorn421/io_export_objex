@@ -120,6 +120,7 @@ class OBJEX_PT_folding(bpy.types.Panel):
         self.layout.label(text='Default saved pose to use for folding:')
         # 'OBJEX_SavedPose' does not refer to any addon-defined class. see documentation of template_list
         self.layout.template_list('UI_UL_list', 'OBJEX_SavedPose', scene.objex_bonus, 'saved_poses', armature.data.objex_bonus, 'fold_unfold_saved_pose_index', rows=2)
+        self.layout.operator('objex.autofold_delete_pose', text='Delete pose')
 
 
 # armature
