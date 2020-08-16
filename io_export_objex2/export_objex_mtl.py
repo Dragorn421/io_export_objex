@@ -28,6 +28,7 @@ try:
 except ImportError: # < 2.80
     pass
 
+from . import const_data as CST
 from . import data_updater
 from . import util
 from .logging_util import getLogger
@@ -654,6 +655,16 @@ count  P              A              M              B            comment
                 
                 (fogColor * shadeAlpha + pixelColor * (1 - pixelAlpha)) * pixelAlpha + frameBufferColor * frameBufferAlpha
                 """
+                for i in range(16):
+                    flag = explorer.combinerFlags[i]
+                    cycle = 'CACA'[i // 4]
+                    param = 'ABCD'[i % 4]
+                    supported_flags = CST.COMBINER_FLAGS_SUPPORT[cycle][param]
+                    if flag not in supported_flags:
+                        raise util.ObjexExportAbort(
+                            'Unsupported flag for cycle {} param {}: {} (supported: {})'
+                            .format(cycle, param, flag, ', '.join(supported_flags)))
+                del flag, cycle, param, supported_flags
                 # todo better G_?CMUX_ prefix stripping
                 fw('gbi gsDPSetCombineLERP(%s)\n' % (', '.join(flag[len('G_?CMUX_'):] for flag in explorer.combinerFlags)))
                 def rgba32(rgba):
