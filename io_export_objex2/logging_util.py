@@ -1,7 +1,36 @@
+import bpy
+
 import logging
+
+from . import blender_version_compatibility
 
 logging_trace_level = 5
 logging.addLevelName(logging_trace_level, 'TRACE')
+
+debug_levels_str = 'trace={:d} debug={:d} info={:d}'.format(logging_trace_level, logging.DEBUG, logging.INFO)
+default_level_console = logging.INFO
+default_level_report = logging.INFO
+minimum_level = 1
+maximum_level = 51
+
+def update_default_level_console(self, context):
+    setConsoleLevelDefault(self.logging_level)
+
+class AddonLoggingPreferences:
+    logging_level = bpy.props.IntProperty(
+        name='Global log level',
+        description=(
+            'Affects logging in the system console.\n'
+            'The lower, the more logs.\n'
+            '%s'
+        ) % debug_levels_str,
+        default=default_level_console,
+        update=update_default_level_console,
+        min=1, max=51
+    )
+
+    def draw(self, context):
+        self.layout.prop(self, 'logging_level')
 
 def getLogger(name):
     global root_logger
@@ -100,6 +129,9 @@ def setLogOperator(operator, level=logging.INFO, user_friendly_formatter=False):
         root_logger.addHandler(root_logger_operator_report_handler)
 
 def resetLoggingSettings():
+    global default_level_console
+    addon_preferences = blender_version_compatibility.get_preferences(bpy.context).addons[__package__].preferences
+    default_level_console = addon_preferences.logging_level
     setConsoleLevel(default_level_console)
     setLogFile(None)
     setLogOperator(None)
@@ -108,9 +140,3 @@ def unregisterLogging():
     global root_logger, root_logger_stream_handler
     resetLoggingSettings()
     root_logger.removeHandler(root_logger_stream_handler)
-
-debug_levels_str = 'trace={:d} debug={:d} info={:d}'.format(logging_trace_level, logging.DEBUG, logging.INFO)
-default_level_console = logging.INFO
-default_level_report = logging.INFO
-minimum_level = 1
-maximum_level = 51

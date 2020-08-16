@@ -439,7 +439,7 @@ def menu_func_export(self, context):
     self.layout.operator(OBJEX_OT_export.bl_idname, text='Objex2 (.objex)')
 
 
-class OBJEX_AddonPreferences(bpy.types.AddonPreferences, addon_updater_ops.AddonUpdaterPreferences):
+class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggingPreferences, addon_updater_ops.AddonUpdaterPreferences):
     bl_idname = __package__
 
     # see view3d_copybuffer_patch.py
@@ -472,6 +472,7 @@ class OBJEX_AddonPreferences(bpy.types.AddonPreferences, addon_updater_ops.Addon
 
     def draw(self, context):
         addon_updater_ops.check_for_update_background()
+        logging_util.AddonLoggingPreferences.draw(self, context)
         self.layout.prop(self, 'monkeyPatch_view3d_copybuffer')
         addon_updater_ops.update_settings_ui(self, context)
         addon_updater_ops.update_notice_box_ui(self, context)
@@ -484,13 +485,14 @@ classes = (
 
 
 def register():
-    addon_updater_ops.register(bl_info)
-
-    logging_util.registerLogging('objex')
-
+    # must register OBJEX_AddonPreferences before registerLogging
     for cls in classes:
         blender_version_compatibility.make_annotations(cls)
         bpy.utils.register_class(cls)
+
+    addon_updater_ops.register(bl_info)
+
+    logging_util.registerLogging('objex')
 
     _MT_file_export = bpy.types.INFO_MT_file_export if hasattr(bpy.types, 'INFO_MT_file_export') else bpy.types.TOPBAR_MT_file_export
     _MT_file_export.append(menu_func_export)
@@ -503,6 +505,7 @@ def register():
     view3d_copybuffer_patch.register()
 
 
+# reverse register() order
 def unregister():
     view3d_copybuffer_patch.unregister()
     node_setup_helpers.unregister()
@@ -514,12 +517,13 @@ def unregister():
     _MT_file_export = bpy.types.INFO_MT_file_export if hasattr(bpy.types, 'INFO_MT_file_export') else bpy.types.TOPBAR_MT_file_export
     _MT_file_export.remove(menu_func_export)
 
-    for cls in reversed(classes):
-        bpy.utils.unregister_class(cls)
-
     logging_util.unregisterLogging()
 
     addon_updater_ops.unregister()
+
+    # must not unregister OBJEX_AddonPreferences before unregisterLogging
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
 
 
 if __name__ == '__main__':
