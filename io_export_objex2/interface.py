@@ -901,7 +901,12 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             for input_socket_key, socket_attributes in node_force_inputs_attributes.items():
                 socket = node.inputs[input_socket_key]
                 for k, v in socket_attributes.items():
-                    setattr(socket, k, v)
+                    try:
+                        setattr(socket, k, v)
+                    except ValueError:
+                        log.warn('{} setattr({!r}, {!r}, {!r}) ValueError '
+                                '(this can be ignored if happening while updating a material)',
+                                node_name, socket, k, v)
             node.name = node_name # todo set unconditionally? won't set the name if already taken. rename others first? (set exact name needed for 2nd pass with links)
             if self.set_looks or created_node:
                 if node_label:
