@@ -155,6 +155,19 @@ conversion; valid formats include:
 - `*` not optional if `pointer` has been specified, unless
 `texturebank` is also used (texture banks default to `ci8`)
 
+#### `alphamode`
+
+`alphamode mode` (optional)
+- controls how colors of alpha pixels are derived
+during conversion
+- `mode` must be one of the following:
+- `edge`: derives alpha colors by expanding visible edge colors
+- `average`: use average of all visible colors for every alpha
+- `white`: every invisible pixel's color is set to white
+- `black`: every invisible pixel's color is set to black
+- `image`: use colors already stored in image (falls back to
+`edge` on `ci` formats if more than four unique invisible colors)
+
 #### `palette`
 
 `palette number` (optional) (ci formats only)
