@@ -1199,6 +1199,7 @@ class OBJEX_PT_material(bpy.types.Panel):
             box.prop(imdata, 'format')
             if imdata.format[:2] == 'CI':
                 box.prop(imdata, 'palette')
+            box.prop(imdata, 'alphamode')
             propOffset(box, imdata, 'pointer', 'Pointer')
             box.prop(imdata, 'priority')
             box.prop(imdata, 'force_write')

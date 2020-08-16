@@ -427,6 +427,8 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     fw('format %s\n' % tod.format.lower())
                     if tod.format[:2] == 'CI' and tod.palette != 0:
                         fw('palette %d\n' % tod.palette)
+                if tod.alphamode != 'AUTO':
+                    fw('alphamode %s\n' % tod.alphamode)
                 if tod.priority != 0:
                     fw('priority %d\n' % tod.priority)
                 if tod.force_write == 'FORCE_WRITE':

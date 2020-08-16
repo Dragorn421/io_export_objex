@@ -388,6 +388,21 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
             soft_max=255, # todo ?
             default=0
         )
+    alphamode = bpy.props.EnumProperty(
+            items=[
+                ('AUTO','Auto','Defaults to edge if format is not I (greyscale shared with alpha)',0),
+                ('edge','Edge','Color is taken from visible edges',1),
+                ('average','Average','Use average of all visible colors',2),
+                ('white','White','Use white',3),
+                ('black','Black','Use black',4),
+                ('image','Image','Use colors as they are in the input image.\n'
+                                '(falls back to Edge on CI formats (paletted) if there are more than four unique invisible colors)',5),
+            ],
+            name='Alpha',
+            description='What color to write for fully transparent pixels.\n'
+                        '(color of such pixels can indeed still show due to not-nearest-neighbour texture filtering)',
+            default='AUTO'
+        )
     pointer = bpy.props.StringProperty(
             name='Pointer',
             description='The address that should be used when referencing this texture',
