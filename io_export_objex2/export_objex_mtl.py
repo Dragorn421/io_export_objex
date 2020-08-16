@@ -72,7 +72,8 @@ class ObjexMaterialNodeTreeExplorer():
             else: # 2.80+
                 flag = socket.node['flagColorCycle %s' % socket.identifier]
             if not flag:
-                log.error('Unsupported flag {} for input {} of {!r}', flag, 'ABCD'[i], cc)
+                log.error('No color cycle flag on socket {} of node {}, linked to input {} of {}',
+                    socket.name, socket.node.name, 'ABCD'[i], cc.name)
             flags.append(flag)
             if flag == 'G_CCMUX_COMBINED':
                 if prev_color_cycle_node and prev_color_cycle_node != socket.node:
@@ -114,7 +115,8 @@ class ObjexMaterialNodeTreeExplorer():
             else: # 2.80+
                 flag = socket.node['flagAlphaCycle %s' % socket.identifier]
             if not flag:
-                log.error('Unsupported flag {} for input {} of {!r}', flag, 'ABCD'[i], ac)
+                log.error('No alpha cycle flag on socket {} of node {}, linked to input {} of {}',
+                    socket.name, socket.node.name, 'ABCD'[i], ac.name)
             flags.append(flag)
             if flag == 'G_ACMUX_COMBINED':
                 if prev_alpha_cycle_node and prev_alpha_cycle_node != socket.node:

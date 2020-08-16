@@ -739,6 +739,7 @@ def create_node_group_rgba_pipe(group_name):
     return tree
 
 def update_node_groups():
+    log = getLogger('interface')
     # dict mapping group names (keys in bpy.data.node_groups) to (latest_version, create_function) tuples
     # version is stored in 'objex_version' for each group and compared to latest_version
     # usage: increment associated latest_version when making changes in the create_function of some group
@@ -762,8 +763,10 @@ def update_node_groups():
             old_node_group = current_node_group
             old_node_group.name = '%s_old' % group_name
             current_node_group = None
+            log.debug('Renamed old group {} (version {} < {}) to {}', group_name, old_node_group['objex_version'], latest_version, old_node_group.name)
         # group must be (re)created
         if not current_node_group:
+            log.debug('Creating group {} with {!r}', group_name, group_create)
             current_node_group = group_create(group_name)
             current_node_group['objex_version'] = latest_version
 
