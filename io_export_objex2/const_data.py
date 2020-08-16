@@ -90,7 +90,8 @@ COMBINER_FLAGS_SUPPORT = {
     },
 }
 
-color0 = (0,0,0) if bpy.app.version < (2, 80, 0) else (0,0,0,0)
+# matches default_value type of OBJEX_NodeSocket_CombinerInput
+color0 = (0,0,0)
 
 node_setup = {
     'Geometry': {

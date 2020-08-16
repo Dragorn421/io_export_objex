@@ -52,6 +52,85 @@ def material_from_2(material, data, log):
             node.inputs[input_socket_name].default_value = default_value
     data.objex_version = 3
 
+def nodes_from_5(material, data, log):
+    # fix node names
+    interface.exec_build_nodes_operator(material,
+        init=False, reset=False, create=False,
+        update_groups_of_existing=False,
+        set_looks=False, set_basic_links=False
+    )
+    # save links to cycles
+    tree = material.node_tree
+    nodes = tree.nodes
+    cycle_node_names = ('OBJEX_ColorCycle0','OBJEX_ColorCycle1','OBJEX_AlphaCycle0','OBJEX_AlphaCycle1',)
+    links = {}
+    for cycle_node_name in cycle_node_names:
+        cycle_node = nodes.get(cycle_node_name)
+        if not cycle_node:
+            log.warn('Cycle node {} does not exist, skipping', cycle_node_name)
+            continue
+        if len(cycle_node.inputs) < 4:
+            log.warn('Cycle node {} has only {} inputs (< 4), skipping', cycle_node_name, len(cycle_node.inputs))
+            continue
+        if len(cycle_node.outputs) == 0:
+            log.warn('Cycle node {} has 0 outputs, skipping', cycle_node_name)
+            continue
+        if len(cycle_node.inputs) > 4:
+            log.warn('Cycle node {} has {} inputs (> 4), only using first 4', cycle_node_name, len(cycle_node.inputs))
+        if len(cycle_node.outputs) > 1:
+            log.warn('Cycle node {} has {} outputs (> 1), only using the first one', cycle_node_name, len(cycle_node.outputs))
+        # links between input sockets and other nodes
+        inputs_links = {}
+        for i in range(4):
+            inputs_links[i] = tuple(
+                link.from_socket for link in cycle_node.inputs[i].links
+                    if link.from_socket.node.name not in cycle_node_names)
+        # links between output sockets and other nodes
+        outputs_links = {
+            0: tuple(link.to_socket for link in cycle_node.outputs[0].links
+                        if link.to_socket.node.name not in cycle_node_names)
+        }
+        # links between cycle nodes
+        # only check cycle_node.outputs as cycle_node.inputs (of other nodes) would only have duplicate links
+        links_to_cycles_from_output = []
+        for link in cycle_node.outputs[0].links:
+            to_node_name = link.to_socket.node.name
+            if to_node_name not in cycle_node_names:
+                continue
+            to_socket_index = link.to_socket.node.inputs.find(link.to_socket.name)
+            if to_socket_index >= 4:
+                log.warn('Skipping link between cycle node {} output and {} input {} because index of the input is {} (>= 4)', cycle_node_name, to_node_name, link.to_socket.name, to_socket_index)
+                continue
+            links_to_cycles_from_output.append((to_node_name, to_socket_index))
+        links[cycle_node_name] = {'in':inputs_links, 'out':outputs_links, 'out-cycles':{0:links_to_cycles_from_output}}
+    log.debug('links =\n{!r}', links)
+    # recreate cycle nodes
+    for node_name, _ in links.items():
+        nodes.remove(nodes[node_name])
+    interface.exec_build_nodes_operator(material,
+        init=False, reset=False, create=True,
+        update_groups_of_existing=False,
+        set_looks=False, set_basic_links=False
+    )
+    # restore links
+    for node_name, node_links in links.items():
+        node = nodes[node_name]
+        for input_socket_key, input_socket_links_from in node_links['in'].items():
+            to_socket = node.inputs[input_socket_key]
+            for from_socket in input_socket_links_from:
+                tree.links.new(from_socket, to_socket)
+        for output_socket_key, output_socket_links_to in node_links['out'].items():
+            from_socket = node.outputs[output_socket_key]
+            for to_socket in output_socket_links_to:
+                tree.links.new(from_socket, to_socket)
+        for output_socket_key, output_socket_links_to_cycle_node in node_links['out-cycles'].items():
+            from_socket = node.outputs[output_socket_key]
+            for to_node_name, to_socket_key in output_socket_links_to_cycle_node:
+                to_socket = nodes[to_node_name].inputs[to_socket_key]
+                tree.links.new(from_socket, to_socket)
+    # done
+    data.objex_version = 6
+
 # update_material_function factory for when a material version bump is only due to a node group version bump
 # if socket inputs/outputs change something like material_from_2 would be more appropriate, this is only for purely group-internal changes
 def node_groups_internal_change_update_material_function(to_version):
@@ -85,8 +164,9 @@ update_material_functions = {
     2: material_from_2,
     3: node_setup_simple_change_update_material_function(5), # add Vertex Color node to tree (2.80+)
     4: node_setup_simple_change_update_material_function(5), # fix version 4's update_material_function using create=False
+    5: nodes_from_5, # custom cycle input sockets in 2.8x
 }
-addon_material_objex_version = 5
+addon_material_objex_version = 6
 
 # called by OBJEX_PT_material#draw
 def handle_material(material, layout):
