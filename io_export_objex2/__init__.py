@@ -122,6 +122,11 @@ class OBJEX_OT_export_base():
             description='Also export any armature used by the selection, even if it is not selected',
             default=True,
             )
+    use_collection = StringProperty(
+            name='Collection',
+            description='Export objects from a collection',
+            default='',
+            )
 
     # object group
     use_mesh_modifiers = BoolProperty(
@@ -277,7 +282,13 @@ class OBJEX_OT_export_base():
             box = self.layout.box()
             box.prop(self, 'use_selection')
             box.prop(self, 'include_armatures_from_selection')
-        else:
+        elif hasattr(bpy.data, 'collections'): # 2.80+
+            box = self.layout.box()
+            box.prop(self, 'use_selection')
+            box.prop_search(self, 'use_collection', bpy.data, 'collections')
+            if self.use_collection:
+                box.prop(self, 'include_armatures_from_selection')
+        else: # < 2.80
             self.layout.prop(self, 'use_selection')
         if self.use_mesh_modifiers:
             box = self.layout.box()
@@ -347,6 +358,10 @@ class OBJEX_OT_export_base():
                                          ).to_4x4())
         
         keywords['global_matrix'] = global_matrix
+        if hasattr(bpy.data, 'collections'): # 2.80+
+            keywords['use_collection'] = bpy.data.collections.get(self.use_collection)
+        else:
+            del keywords['use_collection']
 
         log = logging_util.getLogger('OBJEX_OT_export')
         try:

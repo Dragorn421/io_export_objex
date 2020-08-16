@@ -711,6 +711,7 @@ def save(context,
          export_packed_images=None,
          export_packed_images_dir=None,
          use_selection=None,
+         use_collection=None,
          include_armatures_from_selection=True,
          global_matrix=None,
          path_mode=None
@@ -752,6 +753,8 @@ def save(context,
                     obj.find_armature() for obj in objects
                 ) if armature and armature not in objects
             )
+    elif use_collection: # 2.80+
+        objects = use_collection.all_objects
     else:
         objects = context.scene.objects
     objex_writer.add_target_objects(objects)
