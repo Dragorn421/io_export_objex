@@ -317,7 +317,7 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
         if node.bl_idname == 'NodeGroupInput':
             return CST.COLOR_OK
         flag, warnMsg = self.linkToFlag()
-        return CST.COLOR_BAD if warnMsg else CST.COLOR_OK
+        return CST.COLOR_OK if flag and not warnMsg else CST.COLOR_BAD
 
 def input_flag_list_choose_get(variable):
     def input_flag_list_choose(self, context):
