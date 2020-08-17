@@ -130,11 +130,11 @@ def remove_from_handlers():
 
 @bpy.app.handlers.persistent
 def monkeyPatch_view3d_copybuffer_handler(_):
-    if not get_context_user_keymaps():
+    kc = bpy.context.window_manager.keyconfigs.addon
+    if kc and not get_context_user_keymaps(): # don't call get_context_user_keymaps if kc isn't defined (if --background)
         log.debug('No keymaps (yet)')
         return
     log.debug('!')
-    kc = bpy.context.window_manager.keyconfigs.addon
     if kc:
         # 421fixme 'Object Mode' means copying is possible in less contexts than vanilla view3d.copybuffer (see below for attempts at not using 'Object Mode'...)
         km = kc.keymaps.new(name='Object Mode', space_type='EMPTY')
