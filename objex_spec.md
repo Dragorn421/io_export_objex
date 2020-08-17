@@ -650,8 +650,13 @@ beware that these are packed values that may contain padding;
 for instance, touchFx is broken down like so: `eedd0000`, where
 `ee` = effect, `dd` = damage, `0000` = padding
 
-##### collision material attributes (prefixed with `collision.`)
+##### collision material attributes
 
+All attributes in the following tables should be prefixed with `collision.`,
+for example a complete line would be `attrib collision.IGNORE_CAMERA`.
+
+Some attributes such as `WATERBOX` accept parameters like so:
+`attrib collision.WATERBOX,light=0,camera=0,room=0`
 
 <details>
 <summary>list of attributes</summary>
@@ -721,16 +726,51 @@ for instance, touchFx is broken down like so: `eedd0000`, where
 | `RAYCAST` | Paths? Decreases surface height in raycast function by 1 |
 | `HOOKSHOT` | Hookshot |
 | `DOUBLE_SIDED` | Double-sided geometry. <br> **Do not use this** <br> it's for lazy people <br> apparently if Link rolls into it, he'll clip through it <br> please do it the way Nintendo did instead by giving such meshes thickness <br> this has the added benefit of Link being able to jump over and/or climb onto them (e.g. fences) |
-| `WATERBOX` | Waterbox |
-| `WATERBOX_%d_%d_%d` | `WATERBOX_LIGHT_CAMERA_ROOM` <br> `light` = environment/lighting setting to use while camera is inside waterbox <br> `camera` = fixed camera setting to use <br> `room` = room where waterbox is active (optional; if unset, will be active in all rooms) |
 
-| | Settings requiring numbers |
-|-|-|
-| `WARP_%d` | Scene Exit Table Index |
-| `CAMERA_%d` | Mesh Camera Data Index ID |
-| `ECHO_%d` | TODO: Confirm if this controls sound echo, music echo, etc. |
-| `LIGHTING_%d` | TODO: Confirm if this controls sound echo, music echo, etc. |
-| `CONVEYOR_%d_%d_INHERIT` | `CONVEYOR_direction_speed_INHERIT` <br> `direction` range 0 - 360 <br> `speed` range 0.none, 1.slow, 2.medium, 3.fast <br> `INHERIT` is optional; if enabled, a `0`-speed conveyor triangle will have the speed of the conveyor triangle stepped on immediately before it |
+
+**WATERBOX**
+
+| Name | Parameter Description | Default (if not set) |
+|-|-|-|
+| `light` | environment/lighting setting to use while camera is inside waterbox | 0 |
+| `camera` | fixed camera setting to use | 0 |
+| `room` | room where waterbox is active | active in all rooms |
+
+**WARP**
+
+`attrib collision.WARP,exit=%d`
+
+- `exit` Scene Exit Table Index (0-indexed, meaning 0 is the first table entry)
+
+**CAMERA**
+
+`attrib collision.CAMERA,id=%d`
+
+- `id` Mesh Camera Data Index ID
+
+**ECHO**
+
+TODO: Confirm if this controls sound echo, music echo, etc.
+
+`attrib collision.ECHO,value=%d`
+
+**LIGHTING**
+
+TODO: Confirm if this controls sound echo, music echo, etc.
+
+`attrib collision.LIGHTING,value=%d`
+
+**CONVEYOR**
+
+`attrib collision.CONVEYOR,direction=%d,speed=%d`
+
+`attrib collision.CONVEYOR,direction=%d,speed=%d,inherit`
+
+- `direction` range 0 - 360
+
+- `speed` range 0.none, 1.slow, 2.medium, 3.fast
+
+- `inherit` is optional; if enabled, a `0`-speed conveyor triangle will have the speed of the conveyor triangle stepped on immediately before it
 
 </details>
 
