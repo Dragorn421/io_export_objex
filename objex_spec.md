@@ -1,6 +1,20 @@
 ﻿# **objex specification**
 
-*Iteration 44*
+# Versioning
+
+**Current version:** `2.major = 2.0`
+
+The addon and zzconvert versions follow the `2.major.minor`
+format where `minor` can be anything.
+
+When using the addon and zzconvert, the `major` version number should match
+
+`minor` can be bumped when there's a pure-addon/zzconvert-fix
+that doesn't require a zzconvert/addon update
+
+`major` is bumped when there's a change requiring both zzconvert
+and the addon to update (and minor would be reset).
+For example, when objex specs change.
 
 # changes from .obj
 
@@ -15,11 +29,11 @@ one per line, each starting with `skellib` or `animlib`
 
 #### `version`
 
-`version major.minor` (e.g. `version 2.000`)
+`version 2.major` (e.g. `version 2.0`)
 - if no version string is detected, zzconvert will
 tell the user to upgrade their Blender script
-- if `major` version is not `2`, zzconvert will
-suggest upgrading zzconvert
+- if is not `2.%d`, zzconvert will suggest upgrading zzconvert
+- see [Versioning](#versioning)
 
 #### `exportid`
 
