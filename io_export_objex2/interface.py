@@ -77,9 +77,9 @@ class OBJEX_PT_mesh(bpy.types.Panel):
         self.layout.prop(data, 'write_origin')
         self.layout.prop(data, 'attrib_billboard')
         self.layout.prop(data, 'attrib_POSMTX')
+        self.layout.prop(data, 'attrib_PROXY')
         armature = object.find_armature()
         if armature:
-            self.layout.prop(data, 'attrib_PROXY')
             self.layout.prop(data, 'attrib_NOSPLIT')
             if data.attrib_NOSPLIT:
                 self.layout.label(text='NOSKEL (implied by NOSPLIT)', icon='CHECKBOX_HLT')
