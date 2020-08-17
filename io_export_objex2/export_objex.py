@@ -372,6 +372,9 @@ class ObjexWriter():
             util.detect_zztag(log, ob.name)
             fw('g %s\n' % util.quote(ob.name))
 
+            # rig_is_exported is used to avoid referencing a skeleton or bones which aren't exported
+            rig_is_exported = self.options['EXPORT_SKEL'] and (rigged_to_armature in self.objects)
+
             if ob.type == 'MESH':
                 objex_data = ob.data.objex_bonus # ObjexMeshProperties
                 if objex_data.priority != 0:
@@ -384,9 +387,20 @@ class ObjexWriter():
                         % tuple(blender_version_compatibility.matmul(self.options['GLOBAL_MATRIX'], ob.location)))
                 if objex_data.attrib_billboard != 'NONE':
                     fw('attrib %s\n' % objex_data.attrib_billboard)
-                for attrib in ('LIMBMTX', 'POSMTX', 'NOSPLIT', 'NOSKEL', 'PROXY'):
+                for attrib in ('POSMTX', 'PROXY'):
                     if getattr(objex_data, 'attrib_%s' % attrib):
                         fw('attrib %s\n' % attrib)
+                # export those attributes when the properties are shown in the ui, that is when the mesh is rigged
+                if rigged_to_armature:
+                    for attrib in ('LIMBMTX', 'NOSPLIT', 'NOSKEL'):
+                        if getattr(objex_data, 'attrib_%s' % attrib):
+                            if rig_is_exported:
+                                fw('attrib %s\n' % attrib)
+                            else:
+                                log.warning('Mesh {} is rigged to armature {} and sets {},\n'
+                                    'but that armature is not being exported. Skipped exporting the attribute.\n'
+                                    '(you are likely exporting Selection Only, unchecked Used armatures, and did not select the armature)',
+                                    ob.name, rigged_to_armature.name, attrib)
 
             subprogress2.step()
 
@@ -402,8 +416,6 @@ class ObjexWriter():
                 del vertGroupNames
 
             # Vert
-            # rig_is_exported is used to avoid referencing a skeleton or bones which aren't exported
-            rig_is_exported = self.options['EXPORT_SKEL'] and (rigged_to_armature in self.objects)
             if rigged_to_armature and rig_is_exported:
                 fw('useskel %s\n' % util.quote(rigged_to_armature.name))
             if self.options['EXPORT_WEIGHTS'] and vertex_groups and rigged_to_armature and rig_is_exported:
