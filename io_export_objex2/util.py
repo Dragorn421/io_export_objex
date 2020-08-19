@@ -13,3 +13,6 @@ def detect_zztag(log, name):
     ):
         log.warning('Found what may be an ancient ZZ-tag in name {}\n'
             'Those are not used at all anymore and will be ignored', name)
+
+def get_addon_version():
+    return addon_version

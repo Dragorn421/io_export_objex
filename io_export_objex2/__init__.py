@@ -500,6 +500,8 @@ classes = (
 
 
 def register():
+    util.addon_version = bl_info['version']
+
     # must register OBJEX_AddonPreferences before registerLogging
     for cls in classes:
         blender_version_compatibility.make_annotations(cls)
