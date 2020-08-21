@@ -735,12 +735,9 @@ def post_update_callback(module_name, res=None):
 			print("{} updater: Running post update callback".format(updater.addon))
 
 		atr = addon_updater_updated_successful.bl_idname.split(".")
-		try:
-			getattr(getattr(bpy.ops, atr[0]),atr[1])('INVOKE_DEFAULT')
-			global ran_update_sucess_popup
-			ran_update_sucess_popup = True
-		except AttributeError as e:
-			print("{} updater: {}".format(updater.addon, e.message))
+		getattr(getattr(bpy.ops, atr[0]),atr[1])('INVOKE_DEFAULT')
+		global ran_update_sucess_popup
+		ran_update_sucess_popup = True
 	else:
 		# some kind of error occurred and it was unable to install,
 		# offer manual download instead
@@ -1361,8 +1358,6 @@ def register(bl_info):
 		return
 	updater.clear_state() # clear internal vars, avoids reloading oddities
 
-	updater.auto_reload_post_update = True
-
 	updater.engine = "Github"
 	updater.user = "CrookedPoe"
 	updater.repo = "io_export_objex"
@@ -1493,6 +1488,11 @@ def register(bl_info):
 
 	# Function defined above, customize as appropriate per repository; not required
 	updater.select_link = select_link_function
+
+	# Recommended false to encourage blender restarts on update completion
+	# Setting this option to True is NOT as stable as false (could cause
+	# blender crashes)
+	updater.auto_reload_post_update = False
 
 	for cls in classes:
 		# apply annotations to remove Blender 2.8 warnings, no effect on 2.7
