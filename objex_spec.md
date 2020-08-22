@@ -182,6 +182,9 @@ during conversion
 - `image`: use colors already stored in image (falls back to
 `edge` on `ci` formats if more than four unique invisible colors)
 
+default (if not present): `image` for `I` formats
+and `edge` for everything else
+
 #### `palette`
 
 `palette number` (optional) (ci formats only)
