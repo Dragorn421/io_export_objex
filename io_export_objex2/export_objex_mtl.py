@@ -707,10 +707,6 @@ count  P              A              M              B            comment
                     or (objex_data.write_environment_color == 'GLOBAL' and scene.objex_bonus.write_environment_color)
                 ):
                     fw('gbi gsDPSetEnvColor(%d, %d, %d, %d)\n' % rgba32(data['environment']))
-                """
-                421todo
-                G_SHADING_SMOOTH ?
-                """
                 if hasattr(material, 'use_backface_culling') and material.use_backface_culling != objex_data.backface_culling: # 2.80+
                     log.warning('Material {} has backface culling {} in objex properties (used for exporting) '
                                 'but {} in the Blender material settings (used for viewport rendering)',
@@ -720,6 +716,7 @@ count  P              A              M              B            comment
                 geometryModeFlagsSet = []
                 for flag, set_flag in (
                     ('G_SHADE', shadingType is not None),
+                    ('G_SHADING_SMOOTH', objex_data.geometrymode_G_SHADING_SMOOTH),
                     ('G_CULL_FRONT', objex_data.frontface_culling),
                     ('G_CULL_BACK', objex_data.backface_culling),
                     ('G_ZBUFFER', objex_data.geometrymode_G_ZBUFFER),

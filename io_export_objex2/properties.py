@@ -344,6 +344,11 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='G_ZBUFFER\n' 'Enable Z buffer calculations',
             default=True
         )
+    geometrymode_G_SHADING_SMOOTH = bpy.props.BoolProperty(
+            name='Smooth Shading',
+            description='G_SHADING_SMOOTH\n' 'Enable smooth shading (vertex colors, lighting)',
+            default=True
+        )
 
 # add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B
 for c in (0,1):
