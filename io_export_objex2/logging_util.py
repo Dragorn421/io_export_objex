@@ -130,8 +130,12 @@ def setLogOperator(operator, level=logging.INFO, user_friendly_formatter=False):
 
 def resetLoggingSettings():
     global default_level_console
-    addon_preferences = blender_version_compatibility.get_preferences(bpy.context).addons[__package__].preferences
-    default_level_console = addon_preferences.logging_level
+    addons_preferences = blender_version_compatibility.get_preferences(bpy.context).addons
+    if __package__ in addons_preferences:
+        addon_preferences = addons_preferences[__package__].preferences
+        default_level_console = addon_preferences.logging_level
+    else:
+        getLogger('logging_util').info('Could not get default console logging level from addon preferences, Blender is likely running in background mode, using default_level_console={}', default_level_console)
     setConsoleLevel(default_level_console)
     setLogFile(None)
     setLogOperator(None)
