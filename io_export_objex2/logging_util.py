@@ -40,6 +40,7 @@ def getLogger(name):
             log._log(logging_trace_level, message, args, **kws)
     log.trace = trace
     def Logger_makeRecordWrapper(name, level, fn, lno, msg, args, exc_info, func=None, extra=None, sinfo=None):
+        name = name[len(__package__)+1:]
         self = log
         record = logging.Logger.makeRecord(self, name, level, fn, lno, msg, args, exc_info, func, sinfo)
         def LogRecord_getMessageNewStyleFormatting():
@@ -58,7 +59,7 @@ def getLogger(name):
 
 def registerLogging(root_logger_name):
     global root_logger, root_logger_formatter, root_logger_stream_handler, root_logger_file_handler, root_logger_operator_report_handler
-    root_logger = logging.getLogger(root_logger_name)
+    root_logger = logging.getLogger('%s.%s' % (__package__, root_logger_name))
     root_logger_stream_handler = logging.StreamHandler()
     root_logger_file_handler = None
     root_logger_operator_report_handler = None
