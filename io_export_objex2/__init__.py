@@ -431,7 +431,7 @@ class OBJEX_OT_export_base():
             # 421fixme 'Rec709' is also available in 2.79, idk what it is but it's mentioned in
             # the tooltip for the Linear value of the Color Space property of image texture nodes
             display_device_ok = 'None'
-            if display_device != display_device_ok:
+            if context.scene.objex_bonus.colorspace_strategy != 'QUIET' and display_device != display_device_ok:
                 log.warning('Scene uses display_device={!r} which changes how colors are '
                             'displayed in the viewport, reducing the preview accuracy.\n'
                             'This can be changed under Color Management in {} properties.\n'
@@ -480,6 +480,21 @@ def menu_func_export(self, context):
 class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggingPreferences, addon_updater_ops.AddonUpdaterPreferences):
     bl_idname = __package__
 
+    colorspace_default_strategy = bpy.props.EnumProperty(
+        items=[
+            ('AUTO','Auto','Default to "Warn non-linear" (for now)',0)
+        ] + [
+            # copied from properties.ObjexSceneProperties.colorspace_strategy
+            ('QUIET','Do nothing + silence',
+                'Do nothing and do not warn about using a non-linear color space.',1),
+            ('WARN','Warn non-linear',
+                'Warn on export about using a non-linear color space.',2),
+        ],
+        name='Default Color Space Strategy',
+        description='Default value for the scene Color Space Strategy property.',
+        default='AUTO'
+    )
+
     # see view3d_copybuffer_patch.py
     monkeyPatch_view3d_copybuffer = bpy.props.EnumProperty(
         items=[
@@ -511,6 +526,7 @@ class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggi
     def draw(self, context):
         addon_updater_ops.check_for_update_background()
         logging_util.AddonLoggingPreferences.draw(self, context)
+        self.layout.prop(self, 'colorspace_default_strategy')
         self.layout.prop(self, 'monkeyPatch_view3d_copybuffer')
         addon_updater_ops.update_settings_ui(self, context)
         addon_updater_ops.update_notice_box_ui(self, context)

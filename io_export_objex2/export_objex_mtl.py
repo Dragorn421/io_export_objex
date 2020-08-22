@@ -506,7 +506,8 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                             raise util.ObjexExportAbort('Material %s uses texel data %r without a texture/image '
                                 '(make sure texel0 and texel1 have a texture/image set if they are used in the combiner)'
                                 % (name, texelData))
-                        if (scene.display_settings.display_device == 'None'
+                        if (scene.objex_bonus.colorspace_strategy != 'QUIET'
+                            and scene.display_settings.display_device == 'None'
                             and image.colorspace_settings.name != 'Linear'
                             and image not in warned_about_image_color_space
                         ):

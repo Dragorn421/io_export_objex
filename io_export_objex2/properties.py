@@ -24,6 +24,20 @@ class SavedPose(bpy.types.PropertyGroup):
     bones = bpy.props.CollectionProperty(type=SavedPoseBone)
 
 class ObjexSceneProperties(bpy.types.PropertyGroup):
+    is_objex_scene = bpy.props.BoolProperty()
+
+    colorspace_strategy = bpy.props.EnumProperty(
+        # if modifying these items, also edit __init__.OBJEX_AddonPreferences.colorspace_default_strategy
+        items=[
+            ('QUIET','Do nothing + silence',
+                'Do nothing and do not warn about using a non-linear color space.',1),
+            ('WARN','Warn non-linear',
+                'Warn on export about using a non-linear color space.',2),
+        ],
+        name='Color Space Strategy',
+        description='How to handle color spaces in the scene',
+    )
+
     write_primitive_color = bpy.props.BoolProperty(
             name='Set prim color (global)',
             description='Scene property, shared by materials',

@@ -8,6 +8,7 @@ from math import pi
 from . import const_data as CST
 from . import data_updater
 from .logging_util import getLogger
+from . import util
 from . import rigging_helpers
 
 """
@@ -54,6 +55,24 @@ def propOffset(layout, data, key, propName):
         layout.label(text='%s looks like base 10' % propName)
         layout.label(text='It will be read in base 16')
         layout.label(text='Use 0x prefix to be explicit')
+
+
+# scene
+
+class OBJEX_PT_scene(bpy.types.Panel):
+    bl_label = 'Objex'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'scene'
+
+    @classmethod
+    def poll(self, context):
+        return context.scene.objex_bonus.is_objex_scene
+
+    def draw(self, context):
+        scene = context.scene
+        data = scene.objex_bonus
+        self.layout.prop(data, 'colorspace_strategy')
 
 
 # mesh
@@ -834,6 +853,8 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
     def execute(self, context):
         log = getLogger('OBJEX_OT_material_build_nodes')
 
+        scene = context.scene
+
         if self.target_material_name:
             material = bpy.data.materials[self.target_material_name]
         else:
@@ -1077,6 +1098,17 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                 node_tree.links.new(cc1.outputs[0], principledBSDF.inputs['Base Color'])
                 node_tree.links.new(ac1.outputs[0], principledBSDF.inputs['Alpha'])
 
+        if not scene.objex_bonus.is_objex_scene:
+            scene.objex_bonus.is_objex_scene = True
+            addon_preferences = util.get_addon_preferences()
+            if addon_preferences:
+                colorspace_strategy = addon_preferences.colorspace_default_strategy
+                if colorspace_strategy == 'AUTO':
+                    colorspace_strategy = 'WARN'
+                scene.objex_bonus.colorspace_strategy = colorspace_strategy
+            else:
+                log.info('No addon preferences, assuming background mode, scene color space strategy stays at default {}',
+                    scene.objex_bonus.colorspace_strategy)
         material.objex_bonus.is_objex_material = True
         material.objex_bonus.objex_version = data_updater.addon_material_objex_version
 
@@ -1283,6 +1315,8 @@ class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
         return {'FINISHED'}
 
 classes = (
+    OBJEX_PT_scene,
+
     OBJEX_PT_mesh,
     OBJEX_PT_folding,
 
