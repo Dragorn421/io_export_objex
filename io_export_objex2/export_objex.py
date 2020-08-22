@@ -229,18 +229,18 @@ class ObjexWriter():
             using_depsgraph = hasattr(self.context, 'evaluated_depsgraph_get') # True in 2.80+
             # disable armature deform modifiers
             user_show_armature_modifiers = []
-            if apply_modifiers and rigged_to_armature and (
-                # don't apply armature deform (aka disable modifier) if armature is exported,
-                # or if the armature deform should be applied for armatures that aren't exported ("UNUSED")
-                rigged_to_armature in self.objects or not self.options['APPLY_UNUSED_ARMATURE_DEFORM']
-            ):
+            if apply_modifiers:
                 found_armature_deform = False
                 for modifier in ob.modifiers:
                     disable_modifier = False
                     if found_armature_deform and not self.options['APPLY_MODIFIERS_AFTER_ARMATURE_DEFORM']:
                         log.info('Skipped modifier {} which is down of the armature deform modifier', modifier.name)
                         disable_modifier = True
-                    if modifier.type == 'ARMATURE':
+                    if modifier.type == 'ARMATURE' and rigged_to_armature and (
+                        # don't apply armature deform (aka disable modifier) if armature is exported,
+                        # or if the armature deform should be applied for armatures that aren't exported ("UNUSED")
+                        rigged_to_armature in self.objects or not self.options['APPLY_UNUSED_ARMATURE_DEFORM']
+                    ):
                         if modifier.object == rigged_to_armature:
                             if found_armature_deform:
                                 log.warning('Found several armature deform modifiers on object {} using armature {}',
