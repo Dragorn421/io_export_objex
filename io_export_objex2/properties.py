@@ -286,7 +286,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             items=[
                 ('YES','Always','Force blending',1),
                 ('NO','Never','Do not force blending',2),
-                ('AUTO','Auto','Force blending if the material uses transparency',3),
+                ('AUTO','Auto','Force blending if the material uses Alpha Blend transparency',3),
             ],
             name='Force blending',
             description='Not well understood, related to transparency and rendering order',
