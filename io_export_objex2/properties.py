@@ -38,6 +38,21 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
         description='How to handle color spaces in the scene',
     )
 
+    sync_backface_culling = bpy.props.EnumProperty(
+        items=[
+            ('BLENDER_TO_OBJEX','Blender -> Objex',
+                'Change backface culling property of an objex material when '
+                'its Blender backface culling material property changes.',1 << 0),
+            ('OBJEX_TO_BLENDER','Objex -> Blender',
+                'Change Blender backface culling material property of a '
+                'material when its objex backface culling property changes.',1 << 1),
+        ],
+        name='Sync Backface Culling',
+        description='How to sync the two backface culling properties, the one in vanilla Blender and the objex one',
+        options={'ENUM_FLAG'},
+        default={'BLENDER_TO_OBJEX','OBJEX_TO_BLENDER'},
+    )
+
     write_primitive_color = bpy.props.BoolProperty(
             name='Set prim color (global)',
             description='Scene property, shared by materials',
@@ -173,6 +188,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     backface_culling = bpy.props.BoolProperty(
             name='Cull backfaces',
             description='Culls the back face of geometry',
+            update=interface.objex_backface_culling_update,
             default=True
         )
     frontface_culling = bpy.props.BoolProperty(
