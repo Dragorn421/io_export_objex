@@ -8,6 +8,7 @@ from math import pi
 from . import const_data as CST
 from . import data_updater
 from .logging_util import getLogger
+from . import util
 from . import rigging_helpers
 
 """
@@ -54,6 +55,30 @@ def propOffset(layout, data, key, propName):
         layout.label(text='%s looks like base 10' % propName)
         layout.label(text='It will be read in base 16')
         layout.label(text='Use 0x prefix to be explicit')
+
+
+# scene
+
+class OBJEX_PT_scene(bpy.types.Panel):
+    bl_label = 'Objex'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'scene'
+
+    @classmethod
+    def poll(self, context):
+        return context.scene.objex_bonus.is_objex_scene
+
+    def draw(self, context):
+        scene = context.scene
+        data = scene.objex_bonus
+        self.layout.prop(data, 'colorspace_strategy')
+        if blender_version_compatibility.has_per_material_backface_culling:
+            box = self.layout.box()
+            box.label(text='Sync Backface Culling')
+            box.prop(data, 'sync_backface_culling')
+        self.layout.prop(data, 'write_primitive_color')
+        self.layout.prop(data, 'write_environment_color')
 
 
 # mesh
@@ -317,7 +342,12 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
         if node.bl_idname == 'NodeGroupInput':
             return CST.COLOR_OK
         flag, warnMsg = self.linkToFlag()
-        return CST.COLOR_OK if flag and not warnMsg else CST.COLOR_BAD
+        cycle = self.node.get('cycle')
+        name = self.name # A,B,C,D
+        return CST.COLOR_OK if (
+            flag and not warnMsg
+            and flag in CST.COMBINER_FLAGS_SUPPORT[cycle][name]
+        ) else CST.COLOR_BAD
 
 def input_flag_list_choose_get(variable):
     def input_flag_list_choose(self, context):
@@ -829,6 +859,8 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
     def execute(self, context):
         log = getLogger('OBJEX_OT_material_build_nodes')
 
+        scene = context.scene
+
         if self.target_material_name:
             material = bpy.data.materials[self.target_material_name]
         else:
@@ -1072,12 +1104,94 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                 node_tree.links.new(cc1.outputs[0], principledBSDF.inputs['Base Color'])
                 node_tree.links.new(ac1.outputs[0], principledBSDF.inputs['Alpha'])
 
+        if not scene.objex_bonus.is_objex_scene:
+            scene.objex_bonus.is_objex_scene = True
+            addon_preferences = util.get_addon_preferences()
+            if addon_preferences:
+                colorspace_strategy = addon_preferences.colorspace_default_strategy
+                if colorspace_strategy == 'AUTO':
+                    colorspace_strategy = 'WARN'
+                scene.objex_bonus.colorspace_strategy = colorspace_strategy
+            else:
+                log.info('No addon preferences, assuming background mode, scene color space strategy stays at default {}',
+                    scene.objex_bonus.colorspace_strategy)
+        if not material.objex_bonus.is_objex_material:
+            watch_objex_material(material)
         material.objex_bonus.is_objex_material = True
         material.objex_bonus.objex_version = data_updater.addon_material_objex_version
 
         return {'FINISHED'}
 
 # properties and non-node UI
+
+def init_watch_objex_materials():
+    log = getLogger('interface')
+    log.debug('Looking for objex materials to watch')
+    watched = []
+    ignored = []
+    for material in bpy.data.materials:
+        if material.objex_bonus.is_objex_material:
+            watch_objex_material(material)
+            watched.append(material)
+        else:
+            ignored.append(material)
+    log.debug('Watching: {}, ignored: {}', ', '.join(mat.name for mat in watched), ', '.join(mat.name for mat in ignored))
+
+def watch_objex_material(material):
+    if blender_version_compatibility.has_per_material_backface_culling:
+        watch_objex_material_backface_culling(material)
+
+def watch_objex_material_backface_culling(material):
+    log = getLogger('interface')
+    log.trace('Watching use_backface_culling of material {} sync_backface_culling = {!r}',
+        material.name, bpy.context.scene.objex_bonus.sync_backface_culling)
+    bpy.msgbus.subscribe_rna(
+        key=material.path_resolve('use_backface_culling', False),
+        owner=msgbus_owner,
+        args=(material,),
+        notify=blender_use_backface_culling_update,
+        # 421fixme I don't know what PERSISTENT would do
+        # renaming material or object using it doesnt prevent notifications when it isn't set
+        #options={'PERSISTENT'}
+    )
+    if (material.objex_bonus.backface_culling != material.use_backface_culling
+        and bpy.context.scene.objex_bonus.sync_backface_culling
+    ):
+        if 'OBJEX_TO_BLENDER' in bpy.context.scene.objex_bonus.sync_backface_culling:
+            log.trace('{} notifying objex backface_culling', material.name)
+            # trigger objex_backface_culling_update
+            material.objex_bonus.backface_culling = material.objex_bonus.backface_culling
+        else: # sync_backface_culling == {'BLENDER_TO_OBJEX'}
+            log.trace('{} notifying Blender use_backface_culling', material.name)
+            # trigger blender_use_backface_culling_update
+            material.use_backface_culling = material.use_backface_culling
+
+def blender_use_backface_culling_update(material):
+    log = getLogger('interface')
+    log.trace('sync_backface_culling = {!r}', bpy.context.scene.objex_bonus.sync_backface_culling)
+    if (material.objex_bonus.backface_culling != material.use_backface_culling
+        and 'BLENDER_TO_OBJEX' in bpy.context.scene.objex_bonus.sync_backface_culling
+    ):
+        log.trace('{} Blender use_backface_culling = {}', material.name, material.use_backface_culling)
+        if material.objex_bonus.is_objex_material:
+            material.objex_bonus.backface_culling = material.use_backface_culling
+        else:
+            log.trace('But material is not an objex material, ignoring it.')
+
+def objex_backface_culling_update(self, context):
+    if not blender_version_compatibility.has_per_material_backface_culling:
+        return
+    log = getLogger('interface')
+    material = self.id_data
+    log.trace('sync_backface_culling = {!r}', bpy.context.scene.objex_bonus.sync_backface_culling)
+    if (material.objex_bonus.backface_culling != material.use_backface_culling
+        and 'OBJEX_TO_BLENDER' in bpy.context.scene.objex_bonus.sync_backface_culling
+    ):
+        log.trace('{} objex backface_culling = {}', material.name, material.objex_bonus.backface_culling)
+        if material.objex_bonus.is_objex_material:
+            material.use_backface_culling = material.objex_bonus.backface_culling
+        else:
+            log.trace('But material is not an objex material, ignoring it.')
 
 class OBJEX_PT_material(bpy.types.Panel):
     bl_label = 'Objex'
@@ -1239,6 +1353,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
         # other rarely-used or auto settings
         self.layout.prop(data, 'vertex_shading')
+        self.layout.prop(data, 'geometrymode_G_SHADING_SMOOTH')
         self.layout.prop(data, 'geometrymode_G_FOG')
         if data.geometrymode_G_FOG == 'NO':
             self.layout.label(text='G_FOG off does not disable fog', icon='ERROR')
@@ -1277,6 +1392,8 @@ class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
         return {'FINISHED'}
 
 classes = (
+    OBJEX_PT_scene,
+
     OBJEX_PT_mesh,
     OBJEX_PT_folding,
 
@@ -1295,6 +1412,21 @@ classes = (
     OBJEX_OT_set_pixels_along_uv_from_image_dimensions,
     OBJEX_PT_material,
 )
+
+msgbus_owner = object()
+
+# handler arguments seem undocumented and vary between 2.7x and 2.8x anyway
+def handler_scene_or_depsgraph_update_post_once(*args):
+    if bpy.app.version < (2, 80, 0):
+        update_handlers = bpy.app.handlers.scene_update_post
+    else:
+        update_handlers = bpy.app.handlers.depsgraph_update_post
+    update_handlers.remove(handler_scene_or_depsgraph_update_post_once)
+    init_watch_objex_materials()
+
+@bpy.app.handlers.persistent
+def handler_load_post(*args):
+    init_watch_objex_materials()
 
 def register_interface():
     log = getLogger('interface')
@@ -1335,8 +1467,32 @@ def register_interface():
         blender_version_compatibility.make_annotations(socket_class)
         bpy.utils.register_class(socket_class)
 
+    if bpy.app.version < (2, 80, 0):
+        update_handlers = bpy.app.handlers.scene_update_post
+    else:
+        update_handlers = bpy.app.handlers.depsgraph_update_post
+    update_handlers.append(handler_scene_or_depsgraph_update_post_once)
+    bpy.app.handlers.load_post.append(handler_load_post)
+
 def unregister_interface():
     log = getLogger('interface')
+
+    if bpy.app.version < (2, 80, 0):
+        update_handlers = bpy.app.handlers.scene_update_post
+    else:
+        update_handlers = bpy.app.handlers.depsgraph_update_post
+    try:
+        update_handlers.remove(handler_scene_or_depsgraph_update_post_once)
+    except ValueError: # already removed
+        pass
+    try:
+        bpy.app.handlers.load_post.remove(handler_load_post)
+    except ValueError: # already removed
+        log.exception('load_post does not have handler handler_load_post, '
+            'but that handler should be persistent and kept enabled')
+    if hasattr(bpy, 'msgbus'):
+        bpy.msgbus.clear_by_owner(msgbus_owner)
+
     for clazz in reversed(classes):
         if clazz is None:
             continue

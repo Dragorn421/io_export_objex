@@ -24,6 +24,35 @@ class SavedPose(bpy.types.PropertyGroup):
     bones = bpy.props.CollectionProperty(type=SavedPoseBone)
 
 class ObjexSceneProperties(bpy.types.PropertyGroup):
+    is_objex_scene = bpy.props.BoolProperty()
+
+    colorspace_strategy = bpy.props.EnumProperty(
+        # if modifying these items, also edit __init__.OBJEX_AddonPreferences.colorspace_default_strategy
+        items=[
+            ('QUIET','Do nothing + silence',
+                'Do nothing and do not warn about using a non-linear color space.',1),
+            ('WARN','Warn non-linear',
+                'Warn on export about using a non-linear color space.',2),
+        ],
+        name='Color Space Strategy',
+        description='How to handle color spaces in the scene',
+    )
+
+    sync_backface_culling = bpy.props.EnumProperty(
+        items=[
+            ('BLENDER_TO_OBJEX','Blender -> Objex',
+                'Change backface culling property of an objex material when '
+                'its Blender backface culling material property changes.',1 << 0),
+            ('OBJEX_TO_BLENDER','Objex -> Blender',
+                'Change Blender backface culling material property of a '
+                'material when its objex backface culling property changes.',1 << 1),
+        ],
+        name='Sync Backface Culling',
+        description='How to sync the two backface culling properties, the one in vanilla Blender and the objex one',
+        options={'ENUM_FLAG'},
+        default={'BLENDER_TO_OBJEX','OBJEX_TO_BLENDER'},
+    )
+
     write_primitive_color = bpy.props.BoolProperty(
             name='Set prim color (global)',
             description='Scene property, shared by materials',
@@ -159,6 +188,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     backface_culling = bpy.props.BoolProperty(
             name='Cull backfaces',
             description='Culls the back face of geometry',
+            update=interface.objex_backface_culling_update,
             default=True
         )
     frontface_culling = bpy.props.BoolProperty(
@@ -342,6 +372,11 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     geometrymode_G_ZBUFFER = bpy.props.BoolProperty(
             name='Z buffer',
             description='G_ZBUFFER\n' 'Enable Z buffer calculations',
+            default=True
+        )
+    geometrymode_G_SHADING_SMOOTH = bpy.props.BoolProperty(
+            name='Smooth Shading',
+            description='G_SHADING_SMOOTH\n' 'Enable smooth shading (vertex colors, lighting)',
             default=True
         )
 

@@ -305,12 +305,15 @@ class ObjexMaterialNodeTreeExplorer():
         log = self.log
         # FIXME
         if textureNode.bl_idname == 'ShaderNodeTexture': # < 2.80
-            if textureNode.texture.type != 'IMAGE':
-                raise util.ObjexExportAbort(
-                    'Material tree {} uses non-image texture type {} '
-                    '(only image textures can be exported)'
-                    .format(self.tree.name, tex.type))
-            image = textureNode.texture.image
+            if textureNode.texture:
+                if textureNode.texture.type != 'IMAGE':
+                    raise util.ObjexExportAbort(
+                        'Material tree {} uses non-image texture type {} '
+                        '(only image textures can be exported)'
+                        .format(self.tree.name, tex.type))
+                image = textureNode.texture.image
+            else:
+                image = None
         elif textureNode.bl_idname == 'ShaderNodeTexImage': # 2.80+
             image = textureNode.image
         else:
@@ -364,6 +367,8 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
     path_mode = options['PATH_MODE']
     export_packed_images = options['EXPORT_PACKED_IMAGES']
     export_packed_images_dir = options['EXPORT_PACKED_IMAGES_DIR']
+
+    warned_about_image_color_space = set()
 
     with open(filepath, "w", encoding="utf8", newline="\n") as f:
         fw = f.write
@@ -504,6 +509,21 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                             raise util.ObjexExportAbort('Material %s uses texel data %r without a texture/image '
                                 '(make sure texel0 and texel1 have a texture/image set if they are used in the combiner)'
                                 % (name, texelData))
+                        if (scene.objex_bonus.colorspace_strategy != 'QUIET'
+                            and scene.display_settings.display_device == 'None'
+                            and image.colorspace_settings.name != 'Linear'
+                            and image not in warned_about_image_color_space
+                        ):
+                            warned_about_image_color_space.add(image)
+                            log.warning(
+                                'Image {} uses Color Space {!r},\n'
+                                'but the scene uses display_device={!r}. This makes the preview less accurate.\n'
+                                'The Color Space property can be found in{}.\n'
+                                'Recommended value: Linear',
+                                image.name, image.colorspace_settings.name, scene.display_settings.display_device,
+                                ' the Image Editor' if bpy.app.version < (2,80,0)
+                                    else ':\nImage Editor, UV Editor, or on the Image Texture node'
+                            )
                         texelData['texture_name_q'] = writeTexture(image)
                 # write newmtl after any newtex block
                 fw('newmtl %s\n' % name_q)
@@ -691,10 +711,6 @@ count  P              A              M              B            comment
                     or (objex_data.write_environment_color == 'GLOBAL' and scene.objex_bonus.write_environment_color)
                 ):
                     fw('gbi gsDPSetEnvColor(%d, %d, %d, %d)\n' % rgba32(data['environment']))
-                """
-                421todo
-                G_SHADING_SMOOTH ?
-                """
                 if hasattr(material, 'use_backface_culling') and material.use_backface_culling != objex_data.backface_culling: # 2.80+
                     log.warning('Material {} has backface culling {} in objex properties (used for exporting) '
                                 'but {} in the Blender material settings (used for viewport rendering)',
@@ -704,6 +720,7 @@ count  P              A              M              B            comment
                 geometryModeFlagsSet = []
                 for flag, set_flag in (
                     ('G_SHADE', shadingType is not None),
+                    ('G_SHADING_SMOOTH', objex_data.geometrymode_G_SHADING_SMOOTH),
                     ('G_CULL_FRONT', objex_data.frontface_culling),
                     ('G_CULL_BACK', objex_data.backface_culling),
                     ('G_ZBUFFER', objex_data.geometrymode_G_ZBUFFER),

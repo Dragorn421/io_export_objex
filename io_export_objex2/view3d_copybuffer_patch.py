@@ -1,10 +1,9 @@
-from . import blender_version_compatibility
-
 import bpy
 import io
 import contextlib
 
 from .logging_util import getLogger
+from . import util
 
 # set in register()
 log = None
@@ -130,8 +129,10 @@ def remove_from_handlers():
 
 @bpy.app.handlers.persistent
 def monkeyPatch_view3d_copybuffer_handler(_):
-    kc = bpy.context.window_manager.keyconfigs.addon
-    if kc and not get_context_user_keymaps(): # don't call get_context_user_keymaps if kc isn't defined (if --background)
+    addon_preferences = util.get_addon_preferences()
+    kc = bpy.context.window_manager.keyconfigs.addon if addon_preferences else None
+    # don't call get_context_user_keymaps if addon_preferences or kc isn't defined (if --background)
+    if addon_preferences and kc and not get_context_user_keymaps():
         log.debug('No keymaps (yet)')
         return
     log.debug('!')
@@ -161,7 +162,6 @@ def monkeyPatch_view3d_copybuffer_handler(_):
         km_view3d_copybuffer_wrapper = km
         kmi_view3d_copybuffer_wrapper = kmi
 
-        addon_preferences = blender_version_compatibility.get_preferences(bpy.context).addons[__package__].preferences
         monkeyPatch_view3d_copybuffer_update(addon_preferences, bpy.context)
     else:
         log.info('Ignored patching, no keyconfig available (Blender is likely in background mode)')
@@ -198,8 +198,8 @@ def unregister():
     # in the seemingly unlikely event monkeyPatch_view3d_copybuffer_handler isn't called and doesn't remove itself, remove it here
     remove_from_handlers()
     # restore view3d.copybuffer key mapping if needed
-    addon_preferences = blender_version_compatibility.get_preferences(bpy.context).addons[__package__].preferences
-    if addon_preferences.monkeyPatch_view3d_copybuffer_active_user != 'None':
+    addon_preferences = util.get_addon_preferences()
+    if addon_preferences and addon_preferences.monkeyPatch_view3d_copybuffer_active_user != 'None':
         set_view3d_copybuffer_keymap_item_active(addon_preferences.monkeyPatch_view3d_copybuffer_active_user == 'True')
 
     for clazz in reversed(classes):

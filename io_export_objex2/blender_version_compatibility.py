@@ -97,3 +97,5 @@ def adapt_ID_PointerProperty(clazz):
             params['update'] = poll_wrapper_with_update_factory()
         log.debug('PointerProperty -> StringProperty {!r} {!r}', clazz, attr)
         setattr(clazz, attr, bpy.props.StringProperty(**params))
+
+has_per_material_backface_culling = bpy.app.version >= (2, 80, 0)

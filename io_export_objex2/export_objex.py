@@ -94,10 +94,9 @@ class ObjexWriter():
         fw('# Blender v%s Objex File: %r\n' % (bpy.app.version_string, os.path.basename(bpy.data.filepath)))
         fw('# www.blender.org\n')
 
-        from .__init__ import bl_info
-        fw('# io_export_objex2 v%s\n' % '.'.join('%d' % d for d in bl_info['version']))
-        del bl_info
-        fw('version 2.000\n')
+        two, major, minor = util.get_addon_version()
+        fw('# io_export_objex2 v%d.%d.%d\n' % (two, major, minor))
+        fw('version %d.%d\n' % (two, major))
 
         self.export_id_line = 'exportid %f\n' % time.time()
         fw(self.export_id_line)
@@ -230,18 +229,18 @@ class ObjexWriter():
             using_depsgraph = hasattr(self.context, 'evaluated_depsgraph_get') # True in 2.80+
             # disable armature deform modifiers
             user_show_armature_modifiers = []
-            if apply_modifiers and rigged_to_armature and (
-                # don't apply armature deform (aka disable modifier) if armature is exported,
-                # or if the armature deform should be applied for armatures that aren't exported ("UNUSED")
-                rigged_to_armature in self.objects or not self.options['APPLY_UNUSED_ARMATURE_DEFORM']
-            ):
+            if apply_modifiers:
                 found_armature_deform = False
                 for modifier in ob.modifiers:
                     disable_modifier = False
                     if found_armature_deform and not self.options['APPLY_MODIFIERS_AFTER_ARMATURE_DEFORM']:
                         log.info('Skipped modifier {} which is down of the armature deform modifier', modifier.name)
                         disable_modifier = True
-                    if modifier.type == 'ARMATURE':
+                    if modifier.type == 'ARMATURE' and rigged_to_armature and (
+                        # don't apply armature deform (aka disable modifier) if armature is exported,
+                        # or if the armature deform should be applied for armatures that aren't exported ("UNUSED")
+                        rigged_to_armature in self.objects or not self.options['APPLY_UNUSED_ARMATURE_DEFORM']
+                    ):
                         if modifier.object == rigged_to_armature:
                             if found_armature_deform:
                                 log.warning('Found several armature deform modifiers on object {} using armature {}',
@@ -282,15 +281,32 @@ class ObjexWriter():
                 for modifier, user_show_viewport, user_show_render in user_show_armature_modifiers:
                     modifier.show_viewport = user_show_viewport
                     modifier.show_render = user_show_render
-            del apply_modifiers
-            
+
             if me is None:
                 return
 
             # _must_ do this before applying transformation, else tessellation may differ
             if self.options['TRIANGULATE']:
-                # _must_ do this first since it re-allocs arrays
-                mesh_triangulate(me)
+                if not all(len(polygon.vertices) == 3 for polygon in me.polygons):
+                    notes = []
+                    if any(modifier.type == 'TRIANGULATE' for modifier in ob.modifiers):
+                        notes.append('mesh has a triangulate modifier')
+                        if apply_modifiers:
+                            notes.append('even after applying modifiers')
+                        else:
+                            notes.append('modifiers are not being applied (check export options)')
+                        if rigged_to_armature and not self.options['APPLY_MODIFIERS_AFTER_ARMATURE_DEFORM']:
+                            notes.append('mesh is rigged and only modifiers before armature deform are used\n'
+                                '(move the triangulate modifier up, or check export options)')
+                    else:
+                        notes.append('mesh has no triangulate modifier')
+                    log.warning('Mesh {} is not triangulated and will be triangulated automatically (for exporting only).\n'
+                        'Preview accuracy (UVs, shading, vertex colors) is improved by using a triangulated mesh.'
+                        '{}', ob.name, ''.join('\nNote: %s' % note for note in notes))
+                    # _must_ do this first since it re-allocs arrays
+                    mesh_triangulate(me)
+                else:
+                    log.debug('Skipped triangulating {}, mesh only has triangles', ob.name)
 
             me.transform(blender_version_compatibility.matmul(self.options['GLOBAL_MATRIX'], ob_mat))
             # If negative scaling, we have to invert the normals...

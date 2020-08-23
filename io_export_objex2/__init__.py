@@ -398,30 +398,53 @@ class OBJEX_OT_export_base():
                         log.info(line)
             progress_report.print = progress_report_print
 
-            if any(material.objex_bonus.is_objex_material for material in bpy.data.materials):
-                for area in bpy.context.screen.areas:
-                    if area.type == 'VIEW_3D':
-                        for space in area.spaces:
-                            if space.type != 'VIEW_3D':
-                                continue
-                            shading_type = space.viewport_shade if hasattr(space, 'viewport_shade') else space.shading.type
-                            if shading_type != 'MATERIAL':
-                                log.warning('There is a 3d view area in the current screen which is using {} '
-                                    'shading and not MATERIAL shading. MATERIAL shading is required to correctly '
-                                    'preview objex-enabled materials', shading_type)
+            # Warn about using texture (face texture) shading in < 2.80
+            if (any(material.objex_bonus.is_objex_material for material in bpy.data.materials)
+                and any(
+                    any(space.viewport_shade == 'TEXTURED'
+                        for space in area.spaces
+                        if space.type != 'VIEW_3D'
+                            and hasattr(space, 'viewport_shade') # < 2.80
+                    ) for area in bpy.context.screen.areas
+                        if area.type == 'VIEW_3D'
+                )
+            ):
+                log.warning('There is a 3d view area in the current screen which is\n'
+                            'using Texture as Viewport Shading and not Material,\n'
+                            'which is required to correctly preview objex-enabled materials.',
+                            shading_type)
 
             view_transform = context.scene.view_settings.view_transform
             if bpy.app.version < (2, 80, 0):
-                view_transform_ok = ('Default',)
+                view_transform_ok = 'Default'
             else:
-                view_transform_ok = ('Standard',)
-            if view_transform not in view_transform_ok:
+                view_transform_ok = 'Standard'
+            if view_transform != view_transform_ok:
                 log.warning('Scene uses view_transform={!r} which changes how colors are '
                             'displayed in the viewport, reducing the preview accuracy.\n'
                             'This can be changed under Color Management in {} properties.\n'
-                            'Recommended values: {}',
+                            'Recommended value: {}',
                             view_transform, 'Scene' if bpy.app.version < (2, 80, 0) else 'Render',
-                            ', '.join(view_transform_ok))
+                            view_transform_ok)
+
+            display_device = context.scene.display_settings.display_device
+            # 421fixme 'Rec709' is also available in 2.79, idk what it is but it's mentioned in
+            # the tooltip for the Linear value of the Color Space property of image texture nodes
+            display_device_ok = 'None'
+            if context.scene.objex_bonus.colorspace_strategy != 'QUIET' and display_device != display_device_ok:
+                log.warning('Scene uses display_device={!r} which changes how colors are '
+                            'displayed in the viewport, reducing the preview accuracy.\n'
+                            'This can be changed under Color Management in {} properties.\n'
+                            'Note that this should also be kept consistent with the '
+                            'Color Space property of image texture nodes '
+                            '(display_device="None", Color Space="Linear").\n'
+                            '{}'
+                            'Recommended value: {}',
+                            display_device,
+                            'Scene' if bpy.app.version < (2, 80, 0) else 'Render',
+                            'In Blender 2.7x, "Color Space" can be found in the Image Editor.\n'
+                                if bpy.app.version < (2, 80, 0) else '',
+                            display_device_ok)
 
             return export_objex.save(context, **keywords)
         except util.ObjexExportAbort as abort:
@@ -457,6 +480,21 @@ def menu_func_export(self, context):
 class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggingPreferences, addon_updater_ops.AddonUpdaterPreferences):
     bl_idname = __package__
 
+    colorspace_default_strategy = bpy.props.EnumProperty(
+        items=[
+            ('AUTO','Auto','Default to "Warn non-linear" (for now)',0)
+        ] + [
+            # copied from properties.ObjexSceneProperties.colorspace_strategy
+            ('QUIET','Do nothing + silence',
+                'Do nothing and do not warn about using a non-linear color space.',1),
+            ('WARN','Warn non-linear',
+                'Warn on export about using a non-linear color space.',2),
+        ],
+        name='Default Color Space Strategy',
+        description='Default value for the scene Color Space Strategy property.',
+        default='AUTO'
+    )
+
     # see view3d_copybuffer_patch.py
     monkeyPatch_view3d_copybuffer = bpy.props.EnumProperty(
         items=[
@@ -488,6 +526,7 @@ class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggi
     def draw(self, context):
         addon_updater_ops.check_for_update_background()
         logging_util.AddonLoggingPreferences.draw(self, context)
+        self.layout.prop(self, 'colorspace_default_strategy')
         self.layout.prop(self, 'monkeyPatch_view3d_copybuffer')
         addon_updater_ops.update_settings_ui(self, context)
         addon_updater_ops.update_notice_box_ui(self, context)
@@ -500,6 +539,8 @@ classes = (
 
 
 def register():
+    util.addon_version = bl_info['version']
+
     # must register OBJEX_AddonPreferences before registerLogging
     for cls in classes:
         blender_version_compatibility.make_annotations(cls)

@@ -2,7 +2,7 @@ import bpy
 
 import logging
 
-from . import blender_version_compatibility
+from . import util
 
 logging_trace_level = 5
 logging.addLevelName(logging_trace_level, 'TRACE')
@@ -40,6 +40,7 @@ def getLogger(name):
             log._log(logging_trace_level, message, args, **kws)
     log.trace = trace
     def Logger_makeRecordWrapper(name, level, fn, lno, msg, args, exc_info, func=None, extra=None, sinfo=None):
+        name = name[len(__package__)+1:]
         self = log
         record = logging.Logger.makeRecord(self, name, level, fn, lno, msg, args, exc_info, func, sinfo)
         def LogRecord_getMessageNewStyleFormatting():
@@ -58,7 +59,7 @@ def getLogger(name):
 
 def registerLogging(root_logger_name):
     global root_logger, root_logger_formatter, root_logger_stream_handler, root_logger_file_handler, root_logger_operator_report_handler
-    root_logger = logging.getLogger(root_logger_name)
+    root_logger = logging.getLogger('%s.%s' % (__package__, root_logger_name))
     root_logger_stream_handler = logging.StreamHandler()
     root_logger_file_handler = None
     root_logger_operator_report_handler = None
@@ -130,8 +131,11 @@ def setLogOperator(operator, level=logging.INFO, user_friendly_formatter=False):
 
 def resetLoggingSettings():
     global default_level_console
-    addon_preferences = blender_version_compatibility.get_preferences(bpy.context).addons[__package__].preferences
-    default_level_console = addon_preferences.logging_level
+    addon_preferences = util.get_addon_preferences()
+    if addon_preferences:
+        default_level_console = addon_preferences.logging_level
+    else:
+        getLogger('logging_util').info('Could not get default console logging level from addon preferences, Blender is likely running in background mode, using default_level_console={}', default_level_console)
     setConsoleLevel(default_level_console)
     setLogFile(None)
     setLogOperator(None)
