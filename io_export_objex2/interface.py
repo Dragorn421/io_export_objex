@@ -77,6 +77,8 @@ class OBJEX_PT_scene(bpy.types.Panel):
             box = self.layout.box()
             box.label(text='Sync Backface Culling')
             box.prop(data, 'sync_backface_culling')
+        self.layout.prop(data, 'write_primitive_color')
+        self.layout.prop(data, 'write_environment_color')
 
 
 # mesh
