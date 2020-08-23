@@ -499,7 +499,7 @@ class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggi
     monkeyPatch_view3d_copybuffer = bpy.props.EnumProperty(
         items=[
             ('AUTO','Auto','Default to "Wrap copying - delete" (for now)',1),
-            ('NOTHING','Do nothing','Do not disable "Ctrl+C" (or any other or change anything else',2),
+            ('NOTHING','Do nothing','Do not disable "Ctrl+C" (or any other or change anything else)',2),
             ('DISABLE','Disable Ctrl+C','Disable "Ctrl+C", the key combo will do nothing',3),
             ('WRAPPER_DELETE','Wrap copying - delete',
                 'Disable vanilla copy operator shortcut (usually Ctrl+C) and remap it to '
@@ -513,7 +513,7 @@ class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggi
         default='AUTO' if bpy.app.version < (2, 80, 0) else 'NOTHING',
         update=view3d_copybuffer_patch.monkeyPatch_view3d_copybuffer_update
     )
-    # what were the user settings for view3d.copybuffer before the addon changed it
+    # what were the user settings for view3d.copybuffer before the addon changed it (for internal use)
     monkeyPatch_view3d_copybuffer_active_user = bpy.props.EnumProperty(
         items=[
             ('None', '','',1), # settings not overwritten by addon

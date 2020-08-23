@@ -314,7 +314,7 @@ class ObjexWriter():
                 me.flip_normals()
 
             if self.options['EXPORT_UV']:
-                if hasattr(me, 'uv_textures'): # < 2.79
+                if hasattr(me, 'uv_textures'): # < 2.80
                     has_uvs = len(me.uv_textures) > 0
                     has_uv_textures = has_uvs
                     if has_uv_textures:
