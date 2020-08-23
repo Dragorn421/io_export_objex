@@ -1116,8 +1116,9 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                 log.info('No addon preferences, assuming background mode, scene color space strategy stays at default {}',
                     scene.objex_bonus.colorspace_strategy)
         if not material.objex_bonus.is_objex_material:
+            material.objex_bonus.is_objex_material = True
             watch_objex_material(material)
-        material.objex_bonus.is_objex_material = True
+        # 421fixme why is objex_version set here? data_updater says it's up to the update functions to do it
         material.objex_bonus.objex_version = data_updater.addon_material_objex_version
 
         return {'FINISHED'}
