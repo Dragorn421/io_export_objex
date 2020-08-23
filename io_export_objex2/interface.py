@@ -1221,16 +1221,16 @@ class OBJEX_PT_material(bpy.types.Panel):
             self.layout.label(text='"Use Nodes" for it?')
             self.layout.label(text='Solutions:', icon='INFO')
             box = self.layout.box()
-            box.label('1) Check "Use Nodes"')
+            box.label(text='1) Check "Use Nodes"')
             box.prop(material, 'use_nodes')
             # 421todo "clear objex material" operator "Click here to make this a standard, non-objex, material"
             # would allow ctrl+z
             box = self.layout.box()
-            box.label('2) Disable objex features')
-            box.label('for this material')
+            box.label(text='2) Disable objex features')
+            box.label(text='for this material')
             box.prop(data, 'is_objex_material')
             box = self.layout.box()
-            box.label('3) Reset nodes')
+            box.label(text='3) Reset nodes')
             draw_build_nodes_operator(box, 'Reset nodes', init=True, reset=True)
             return
         # update material
@@ -1260,13 +1260,13 @@ class OBJEX_PT_material(bpy.types.Panel):
                 branch_to_object_armature = branch_to_object.find_armature()
                 if branch_to_object_armature:
                     if branch_to_object.data.objex_bonus.attrib_NOSPLIT:
-                        self.layout.label('%s is marked NOSPLIT' % branch_to_object.name, icon='INFO')
+                        self.layout.label(text='%s is marked NOSPLIT' % branch_to_object.name, icon='INFO')
                     else:
                         valid_bone = data.branch_to_object_bone in branch_to_object_armature.data.bones
                         self.layout.prop_search(data, 'branch_to_object_bone', branch_to_object_armature.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
                         if not valid_bone:
-                            self.layout.label('A bone must be picked', icon='ERROR')
-                            self.layout.label('NOSPLIT is off on %s' % branch_to_object.name, icon='INFO')
+                            self.layout.label(text='A bone must be picked', icon='ERROR')
+                            self.layout.label(text='NOSPLIT is off on %s' % branch_to_object.name, icon='INFO')
             return
         # node operators
         row = self.layout.row()
