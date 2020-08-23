@@ -305,12 +305,15 @@ class ObjexMaterialNodeTreeExplorer():
         log = self.log
         # FIXME
         if textureNode.bl_idname == 'ShaderNodeTexture': # < 2.80
-            if textureNode.texture.type != 'IMAGE':
-                raise util.ObjexExportAbort(
-                    'Material tree {} uses non-image texture type {} '
-                    '(only image textures can be exported)'
-                    .format(self.tree.name, tex.type))
-            image = textureNode.texture.image
+            if textureNode.texture:
+                if textureNode.texture.type != 'IMAGE':
+                    raise util.ObjexExportAbort(
+                        'Material tree {} uses non-image texture type {} '
+                        '(only image textures can be exported)'
+                        .format(self.tree.name, tex.type))
+                image = textureNode.texture.image
+            else:
+                image = None
         elif textureNode.bl_idname == 'ShaderNodeTexImage': # 2.80+
             image = textureNode.image
         else:
