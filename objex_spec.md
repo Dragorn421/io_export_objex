@@ -712,7 +712,7 @@ Some attributes such as `WATERBOX` accept parameters like so:
 | `FLOOR_JUMP_FALL` | Instead of jumping, step off the platform into falling state |
 | `FLOOR_JUMP_DIVE` | Instead of jumping, activate diving animation/state |
 
-| | Floor Settings (SPECIAL) |
+| | Special |
 |-|-|
 | `FLOOR_LAVA` | Lava |
 | `FLOOR_LAVA_1` | Lava (TODO: What's the difference?) |
@@ -721,10 +721,13 @@ Some attributes such as `WATERBOX` accept parameters like so:
 | `FLOOR_NOFALLDMG` | No Fall Damage |
 | `FLOOR_QUICKHORSE` | Quicksand, passable on horseback |
 | `FLOOR_QUICKSAND` | Quicksand |
-| `FLOOR_STEEP` | Steep Surface (causes Link to slide) |
+| `SPECIAL_BLEEDWALL` | Spawns "blood" particles when struck, special sound when struck with sword (used in Jabu-Jabu's Belly) (TODO: Walls, floors, or both?) |
+| `SPECIAL_INSTAVOID` | Instantly void out on contact |
+| `SPECIAL_LOOKUP` | Causes Link to look upwards when he stands on it |
 
-| | Wall Settings (SPECIAL) |
+| | Wall |
 |-|-|
+| `FLOOR_STEEP` | Steep Surface (causes Link to slide) |
 | `WALL_BARRIER` | (formerly `WALL_NOGRAB`) Link will not jump over or attempt to climb the wall, even if it is short enough for these actions |
 | `WALL_LADDER` | Ladder |
 | `WALL_LADDER_TOP` | Ladder (Top), makes Link climb down onto a ladder |
@@ -736,9 +739,6 @@ Some attributes such as `WATERBOX` accept parameters like so:
 
 | | Ungrouped Settings |
 |-|-|
-| `SPECIAL_BLEEDWALL` | Spawns "blood" particles when struck, special sound when struck with sword (used in Jabu-Jabu's Belly) (TODO: Walls, floors, or both?) |
-| `SPECIAL_INSTAVOID` | Instantly void out on contact |
-| `SPECIAL_LOOKUP` | Causes Link to look upwards when he stands on it |
 | `NOHORSE` | Epona can't walk on the polygon |
 | `RAYCAST` | Paths? Decreases surface height in raycast function by 1 |
 | `HOOKSHOT` | Hookshot |
