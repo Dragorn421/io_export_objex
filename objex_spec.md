@@ -727,7 +727,6 @@ Some attributes such as `WATERBOX` accept parameters like so:
 
 | | Wall |
 |-|-|
-| `FLOOR_STEEP` | Steep Surface (causes Link to slide) |
 | `WALL_BARRIER` | (formerly `WALL_NOGRAB`) Link will not jump over or attempt to climb the wall, even if it is short enough for these actions |
 | `WALL_LADDER` | Ladder |
 | `WALL_LADDER_TOP` | Ladder (Top), makes Link climb down onto a ladder |
@@ -735,7 +734,6 @@ Some attributes such as `WATERBOX` accept parameters like so:
 | `WALL_CRAWL` | Wall used to activate/deactivate crawling |
 | `WALL_CRAWL_1` | TODO: What's the difference? |
 | `WALL_PUSHBLOCK` | Pushblock |
-| `WALL_DAMAGE` | Wall Damage |
 
 | | Ungrouped Settings |
 |-|-|
@@ -743,6 +741,8 @@ Some attributes such as `WATERBOX` accept parameters like so:
 | `RAYCAST` | Paths? Decreases surface height in raycast function by 1 |
 | `HOOKSHOT` | Hookshot |
 | `DOUBLE_SIDED` | Double-sided geometry. <br> **Do not use this** <br> it's for lazy people <br> apparently if Link rolls into it, he'll clip through it <br> please do it the way Nintendo did instead by giving such meshes thickness <br> this has the added benefit of Link being able to jump over and/or climb onto them (e.g. fences) |
+| `WALL_DAMAGE` | Wall Damage |
+| `FLOOR_STEEP` | Steep Surface (causes Link to slide) |
 
 
 **WATERBOX**
