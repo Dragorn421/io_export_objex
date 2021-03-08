@@ -61,6 +61,7 @@ class ObjexWriter():
         'EXPORT_MTL': True,
         'EXPORT_SKEL': True,
         'EXPORT_ANIM': True,
+        'EXPORT_LINK_ANIM_BIN': False,
         'EXPORT_WEIGHTS': True,
         'UNIQUE_WEIGHTS': False,
         'APPLY_MODIFIERS': True,
@@ -116,6 +117,8 @@ class ObjexWriter():
             if self.options['EXPORT_ANIM']:
                 self.filepath_anim = os.path.splitext(self.filepath)[0] + ".anim"
                 fw('animlib %s\n' % repr(os.path.basename(self.filepath_anim))[1:-1])
+                if self.options['EXPORT_LINK_ANIM_BIN']:
+                    self.filepath_linkbase = os.path.splitext(self.filepath)[0] + '_'
     
     def write_uvs(self, mesh, face_index_pairs):
         fw = self.fw_objex
@@ -696,14 +699,18 @@ class ObjexWriter():
                         skelfile = open(self.filepath_skel, "w", encoding="utf8", newline="\n")
                         skelfile_write = skelfile.write
                         skelfile_write(self.export_id_line)
+                        link_anim_basepath = None
                         if self.options['EXPORT_ANIM']:
                             log.info(' ... and animations')
                             animfile = open(self.filepath_anim, "w", encoding="utf8", newline="\n")
                             animfile_write = animfile.write
                             animfile_write(self.export_id_line)
+                            if self.options['EXPORT_LINK_ANIM_BIN']:
+                                log.info(' ... and Link animation binaries')
+                                link_anim_basepath = self.filepath_linkbase
                         else:
                             animfile_write = None
-                        export_objex_anim.write_armatures(skelfile_write, animfile_write, scene, self.options['GLOBAL_MATRIX'], self.armatures)
+                        export_objex_anim.write_armatures(skelfile_write, animfile_write, scene, self.options['GLOBAL_MATRIX'], self.armatures, link_anim_basepath)
                     finally:
                         if skelfile:
                             skelfile.close()
@@ -728,6 +735,7 @@ def save(context,
          use_materials=None,
          use_skeletons=None,
          use_animations=None,
+         link_anim_bin=None,
          use_weights=None,
          use_unique_weights=None,
          use_mesh_modifiers=None,
@@ -756,6 +764,7 @@ def save(context,
         'EXPORT_MTL':use_materials,
         'EXPORT_SKEL':use_skeletons,
         'EXPORT_ANIM':use_animations,
+        'EXPORT_LINK_ANIM_BIN':link_anim_bin,
         'EXPORT_WEIGHTS':use_weights,
         'UNIQUE_WEIGHTS':use_unique_weights,
         'APPLY_MODIFIERS':use_mesh_modifiers,

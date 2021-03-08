@@ -92,7 +92,7 @@ def order_bones(armature):
     
     return root_bone, bones_ordered
 
-def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, armatures):
+def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, armatures, link_anim_basepath):
     log = getLogger('anim')
 
     # user_ variables store parameters (potentially) used by the script and to be restored later
@@ -120,7 +120,7 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
         
         if file_write_anim and armature_actions:
             if armature.animation_data:
-                write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, armature_actions)
+                write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, armature_actions, link_anim_basepath)
             else:
                 log.warning(
                     'Skipped exporting actions {!r} with armature {},\n'
@@ -136,22 +136,34 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
     
     scene.frame_set(user_frame_current, subframe=user_frame_subframe)
 
-def write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, actions):
+def write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, actions, link_anim_basepath):
     fw = file_write_anim
     fw('# %s\n' % armature.name)
+    if link_anim_basepath is not None and len(bones_ordered) != 21:
+        log.warning('Requested exporting Link animation binary, but armature does not have 21 bones')
+        link_anim_basepath = None
     for action in actions:
         frame_start, frame_end = action.frame_range
         frame_count = int(frame_end - frame_start + 1)
         fw('newanim %s %s %d\n' % (armature_name_q, util.quote(action.name), frame_count))
-        write_action(fw, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count)
+        link_anim_file = None
+        if link_anim_basepath is not None:
+            link_anim_filename = link_anim_basepath + ''.join(c for c in action.name if c.isalnum()) + '_' + str(frame_count) + '.bin'
+            link_anim_file = open(link_anim_filename, 'wb')
+        write_action(fw, link_anim_file, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count)
+        if link_anim_file is not None:
+            link_anim_file.close()
         fw('\n')
     fw('\n')
 
-def write_action(fw, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count):
+def write_action(fw, link_anim_file, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count):
     log = getLogger('anim')
     transform = blender_version_compatibility.matmul(global_matrix, object_transform)
     transform3 = transform.to_3x3()
     transform3_inv = transform3.inverted()
+
+    def link_write_shorts(x, y, z):
+        link_anim_file.write(bytes([(x>>8)&0xFF, x&0xFF, (y>>8)&0xFF, y&0xFF, (z>>8)&0xFF, z&0xFF]))
 
     armature.animation_data.action = action
     
@@ -184,6 +196,13 @@ def write_action(fw, scene, global_matrix, object_transform, armature, root_bone
         root_loc = root_pose_bone.head # armature space
         root_loc = blender_version_compatibility.matmul(transform, root_loc)
         fw('loc %.6f %.6f %.6f\n' % (root_loc.x, root_loc.y, root_loc.z)) # 421todo what about "ms"
+        if link_anim_file is not None:
+            scale = 1.0 # TODO support x1000 scale?
+            x, y, z = int(root_loc.x * scale), int(root_loc.y * scale), int(root_loc.z * scale)
+            if any(n < -0x8000 or n > 0x7FFF for n in [x, y, z]):
+                log.warning('Link anim position values out of range')
+            link_write_shorts(x, y, z)
+        #TODO
         for bone in bones_ordered:
             pose_bone = pose_bones[bone.name]
             parent_pose_bone = pose_bone.parent
@@ -215,3 +234,15 @@ def write_action(fw, scene, global_matrix, object_transform, armature, root_bone
             rotation_euler_zyx = rot_matrix.to_euler('XYZ')
             # 5 digits: precision of s16 angles in radians is 2pi/2^16 ~ ‭0.000096
             fw('rot %.5f %.5f %.5f\n' % (rotation_euler_zyx.x, rotation_euler_zyx.y, rotation_euler_zyx.z))
+            if link_anim_file is not None:
+                def rot_to_short(r):
+                    r *= 180.0 / 3.14159265358
+                    r *= 182.044444444444
+                    r = int(r) & 0xFFFF
+                    if r >= 0x8000:
+                        r -= 0x10000
+                    return r
+                link_write_shorts(rot_to_short(rotation_euler_zyx.x), rot_to_short(rotation_euler_zyx.y), rot_to_short(rotation_euler_zyx.z))
+        
+        if link_anim_file is not None:
+            link_anim_file.write(b'\x00\x00') # TODO enable animation of eyes/mouth
