@@ -349,6 +349,10 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='What shade data should be written for each vertex',
             default='AUTO'
         )
+    external_material_segment = bpy.props.StringProperty(
+    		name='Pointer',
+    		description='Branch material to segment'
+    	)
     force_write = bpy.props.BoolProperty(
             name='Force write',
             description='Write this material even if it is not used',
