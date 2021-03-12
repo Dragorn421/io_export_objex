@@ -1354,6 +1354,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
         # other rarely-used or auto settings
         self.layout.prop(data, 'vertex_shading')
+        self.layout.prop(data, 'external_material_segment')
         self.layout.prop(data, 'geometrymode_G_SHADING_SMOOTH')
         self.layout.prop(data, 'geometrymode_G_FOG')
         if data.geometrymode_G_FOG == 'NO':

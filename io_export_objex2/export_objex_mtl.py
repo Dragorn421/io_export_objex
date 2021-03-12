@@ -781,9 +781,16 @@ count  P              A              M              B            comment
                         fw('gbivar shiftt%s %d\n' % (i, shiftFromScale(texelData['uv_scale_v'])))
                 if texel0data or texel1data:
                     fw('gbi _loadtexels\n')
-                    fw('gbi gsDPSetTileSize(G_TX_RENDERTILE, 0, 0, '
-                        'qu102(_texel{0}width-1), qu102(_texel{0}height-1))\n'
-                        .format('0' if texel0data else '1')
+                    objex_data = material.objex_bonus if material else None
+                    if objex_data.external_material_segment:
+                    	fw('gbi gsSPDisplayList(%s%s)\n' % (
+                        '' if objex_data.external_material_segment.startswith('0x') else '0x',
+                            objex_data.external_material_segment
+                        ))
+                    else:
+                        fw('gbi gsDPSetTileSize(G_TX_RENDERTILE, 0, 0, '
+                            'qu102(_texel{0}width-1), qu102(_texel{0}height-1))\n'
+                            .format('0' if texel0data else '1')
                     ) # 421fixme ?
             else:
                 image = None
