@@ -62,6 +62,7 @@ class ObjexWriter():
         'EXPORT_SKEL': True,
         'EXPORT_ANIM': True,
         'EXPORT_LINK_ANIM_BIN': False,
+        'LINK_BIN_SCALE': 1000.0,
         'EXPORT_WEIGHTS': True,
         'UNIQUE_WEIGHTS': False,
         'APPLY_MODIFIERS': True,
@@ -710,7 +711,9 @@ class ObjexWriter():
                                 link_anim_basepath = self.filepath_linkbase
                         else:
                             animfile_write = None
-                        export_objex_anim.write_armatures(skelfile_write, animfile_write, scene, self.options['GLOBAL_MATRIX'], self.armatures, link_anim_basepath)
+                        export_objex_anim.write_armatures(skelfile_write, animfile_write, 
+                            scene, self.options['GLOBAL_MATRIX'], self.armatures, 
+                            link_anim_basepath, self.options['LINK_BIN_SCALE'])
                     finally:
                         if skelfile:
                             skelfile.close()
@@ -736,6 +739,7 @@ def save(context,
          use_skeletons=None,
          use_animations=None,
          link_anim_bin=None,
+         link_bin_scale=None,
          use_weights=None,
          use_unique_weights=None,
          use_mesh_modifiers=None,

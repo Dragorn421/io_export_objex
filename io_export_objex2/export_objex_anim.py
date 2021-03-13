@@ -92,7 +92,7 @@ def order_bones(armature):
     
     return root_bone, bones_ordered
 
-def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, armatures, link_anim_basepath):
+def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, armatures, link_anim_basepath, link_bin_scale):
     log = getLogger('anim')
 
     # user_ variables store parameters (potentially) used by the script and to be restored later
@@ -120,7 +120,7 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
         
         if file_write_anim and armature_actions:
             if armature.animation_data:
-                write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, armature_actions, link_anim_basepath)
+                write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, armature_actions, link_anim_basepath, link_bin_scale)
             else:
                 log.warning(
                     'Skipped exporting actions {!r} with armature {},\n'
@@ -136,7 +136,7 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
     
     scene.frame_set(user_frame_current, subframe=user_frame_subframe)
 
-def write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, actions, link_anim_basepath):
+def write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, actions, link_anim_basepath, link_bin_scale):
     fw = file_write_anim
     fw('# %s\n' % armature.name)
     if link_anim_basepath is not None and len(bones_ordered) != 21:
@@ -150,13 +150,13 @@ def write_animations(file_write_anim, scene, global_matrix, object_transform, ar
         if link_anim_basepath is not None:
             link_anim_filename = link_anim_basepath + ''.join(c for c in action.name if c.isalnum()) + '_' + str(frame_count) + '.bin'
             link_anim_file = open(link_anim_filename, 'wb')
-        write_action(fw, link_anim_file, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count)
+        write_action(fw, link_anim_file, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count, link_bin_scale)
         if link_anim_file is not None:
             link_anim_file.close()
         fw('\n')
     fw('\n')
 
-def write_action(fw, link_anim_file, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count):
+def write_action(fw, link_anim_file, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count, link_bin_scale):
     log = getLogger('anim')
     transform = blender_version_compatibility.matmul(global_matrix, object_transform)
     transform3 = transform.to_3x3()
@@ -197,8 +197,9 @@ def write_action(fw, link_anim_file, scene, global_matrix, object_transform, arm
         root_loc = blender_version_compatibility.matmul(transform, root_loc)
         fw('loc %.6f %.6f %.6f\n' % (root_loc.x, root_loc.y, root_loc.z)) # 421todo what about "ms"
         if link_anim_file is not None:
-            scale = 1.0 # TODO support x1000 scale?
-            x, y, z = int(root_loc.x * scale), int(root_loc.y * scale), int(root_loc.z * scale)
+            x = int(root_loc.x * link_bin_scale)
+            y = int(root_loc.y * link_bin_scale)
+            z = int(root_loc.z * link_bin_scale)
             if any(n < -0x8000 or n > 0x7FFF for n in [x, y, z]):
                 log.warning('Link anim position values out of range')
             link_write_shorts(x, y, z)

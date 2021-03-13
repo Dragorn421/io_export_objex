@@ -200,6 +200,12 @@ class OBJEX_OT_export_base():
             description='Write binary animation data for Link',
             default=export_objex.ObjexWriter.default_options['EXPORT_LINK_ANIM_BIN'],
             )
+    link_bin_scale = FloatProperty(
+            name='Link bin scale',
+            description='If your Link is about 4 (young) / 6 (adult) units tall, this should be 1000',
+            soft_min=1.0, soft_max=1000.0,
+            default=export_objex.ObjexWriter.default_options['LINK_BIN_SCALE'],
+            )
     use_weights = BoolProperty(
             name='Write Weights',
             description='Write out the vertex weights',
@@ -320,6 +326,7 @@ class OBJEX_OT_export_base():
             if self.use_animations:
                 box2 = box.box()
                 box2.prop(self, 'link_anim_bin')
+                box2.prop(self, 'link_bin_scale')
             if self.use_weights:
                 box2 = box.box()
                 box2.prop(self, 'use_weights')
