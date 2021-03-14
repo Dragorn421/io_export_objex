@@ -169,6 +169,13 @@ def write_action(fw, link_anim_file, scene, global_matrix, object_transform, arm
     
     pose_bones = armature.pose.bones
     root_pose_bone = pose_bones[root_bone.name]
+    if link_anim_file is not None:
+        eyes_bone = pose_bones.get('Eyes')
+        mouth_bone = pose_bones.get('Mouth')
+        if eyes_bone is None:
+            log.warning('Eyes animation index bone not found (bone with name Eyes)')
+        if mouth_bone is None:
+            log.warning('Mouth animation index bone not found (bone with name Mouth)')
 
     if armature.location != mathutils.Vector((0,0,0)):
         log.debug('origin of armature {} {!r} is not world origin (0,0,0)', armature.name, armature.location)
@@ -246,4 +253,19 @@ def write_action(fw, link_anim_file, scene, global_matrix, object_transform, arm
                 link_write_shorts(rot_to_short(rotation_euler_zyx.x), rot_to_short(rotation_euler_zyx.y), rot_to_short(rotation_euler_zyx.z))
         
         if link_anim_file is not None:
-            link_anim_file.write(b'\x00\x00') # TODO enable animation of eyes/mouth
+            texanimvalue = 0
+            if eyes_bone is not None:
+                i = round(eyes_bone.head.x) # Want it in armature space, not transform space
+                if i < -1 or i > 7:
+                    log.warning('Link eye index (Eyes bone X value) out of range -1 to 7')
+                    if i < -1 or i > 14:
+                        i = -1
+                texanimvalue |= i+1
+            if mouth_bone is not None:
+                i = round(mouth_bone.head.x)
+                if i < -1 or i > 3:
+                    log.warning('Link mouth index (Mouth bone X value) out of range -1 to 3')
+                    if i < -1 or i > 14:
+                        i = -1
+                texanimvalue |= (i+1) << 4
+            link_anim_file.write(texanimvalue.to_bytes(2, byteorder='big'))
