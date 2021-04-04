@@ -50,7 +50,7 @@ COMBINER_FLAGS_SUPPORT = {
             'G_CCMUX_SHADE_ALPHA',
             'G_CCMUX_ENV_ALPHA',
             #'G_CCMUX_LOD_FRACTION',
-            #'G_CCMUX_PRIM_LOD_FRAC',
+            'G_CCMUX_PRIM_LOD_FRAC',
             #'G_CCMUX_K5',
             'G_CCMUX_0'
         },
@@ -78,7 +78,7 @@ COMBINER_FLAGS_SUPPORT = {
             'G_ACMUX_TEXEL0','G_ACMUX_TEXEL1','G_ACMUX_PRIMITIVE',
             'G_ACMUX_SHADE',
             'G_ACMUX_ENVIRONMENT',
-            #'G_ACMUX_PRIM_LOD_FRAC',
+            'G_ACMUX_PRIM_LOD_FRAC',
             'G_ACMUX_0'
         },
         'D': {
@@ -278,6 +278,14 @@ node_setup = {
             0: ('G_CCMUX_1', 'G_ACMUX_1'),
         },
     },
+    'OBJEX_LodFrac': {
+        'group': 'OBJEX_Color1',
+        'label': 'Prim Lod Frac',
+        'location': (300, -510),
+        'outputs-combiner-flags': {
+            0: ('G_CCMUX_PRIM_LOD_FRAC', 'G_ACMUX_PRIM_LOD_FRAC'),
+        },
+    },
     'OBJEX_ColorCycle0': {
         'group': 'OBJEX_Cycle',
         'label': 'Color Cycle 0',
@@ -400,7 +408,7 @@ node_setup = {
     'OBJEX_Frame_CombinerInputs': {
         'type': 'NodeFrame',
         'label': 'Combiner Inputs',
-        'children': ('OBJEX_PrimColor', 'OBJEX_EnvColor', 'OBJEX_Texel0', 'OBJEX_Texel1', 'OBJEX_Shade', 'OBJEX_Color0', 'OBJEX_Color1'),
+        'children': ('OBJEX_PrimColor', 'OBJEX_EnvColor', 'OBJEX_Texel0', 'OBJEX_Texel1', 'OBJEX_Shade', 'OBJEX_Color0', 'OBJEX_Color1', 'OBJEX_LodFrac'),
     },
 }
 
