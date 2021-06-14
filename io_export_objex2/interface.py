@@ -32,6 +32,7 @@ very nice bare-bones example with custom node and ui https://gist.github.com/OEP
 other useful reference
 GPL https://www.gnu.org/licenses/gpl-3.0.en.html
 API changes https://docs.blender.org/api/current/change_log.html
+More up-to-date-ish but somewhat vague and summarized version changes https://wiki.blender.org/wiki/Reference/Release_Notes
 Addon Tutorial (not part of the addon doc) https://docs.blender.org/manual/en/latest/advanced/scripting/addon_tutorial.html
 Operator examples https://docs.blender.org/api/2.79/bpy.types.Operator.html
 bl_idname requirements https://github.com/blender/blender/blob/f149d5e4b21f372f779fdb28b39984355c9682a6/source/blender/windowmanager/intern/wm_operators.c#L167
@@ -259,7 +260,7 @@ if bpy.app.version < (2, 80, 0):
         bl_socket_idname = 'OBJEX_NodeSocket_RGBA_Color'
         # 421fixme COLOR_GAMMA or COLOR for the different uses in this file?
         # 421fixme is default_value in interface used at all?
-        default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1), min=0, max=1, subtype='COLOR')
+        default_value : bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1), min=0, max=1, subtype='COLOR')
         def draw(self, context, layout):
             pass
         def draw_color(self, context):
@@ -277,7 +278,7 @@ class OBJEX_NodeSocketInterface_Dummy():
 # NodeSocket
 
 class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
-    default_value = bpy.props.FloatVectorProperty(name='default_value', default=(0,1,0), min=0, max=1, subtype='COLOR')
+    default_value : bpy.props.FloatVectorProperty(name='default_value', default=(0,1,0), min=0, max=1, subtype='COLOR')
 
     def linkToFlag(self):
         """
@@ -404,10 +405,10 @@ combinerInputClassName = 'OBJEX_NodeSocket_CombinerInput'
 if bpy.app.version < (2, 80, 0):
 
     class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
-        default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,0,0), min=0, max=1, subtype='COLOR')
+        default_value : bpy.props.FloatVectorProperty(name='default_value', default=(1,0,0), min=0, max=1, subtype='COLOR')
 
-        flagColorCycle = bpy.props.StringProperty(default='')
-        flagAlphaCycle = bpy.props.StringProperty(default='')
+        flagColorCycle : bpy.props.StringProperty(default='')
+        flagAlphaCycle : bpy.props.StringProperty(default='')
 
         def draw(self, context, layout, node, text):
             layout.label(text=text)
@@ -418,7 +419,7 @@ if bpy.app.version < (2, 80, 0):
             return CST.COLOR_OK
 
     class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket):
-        default_value = bpy.props.FloatVectorProperty(
+        default_value : bpy.props.FloatVectorProperty(
             name='default_value', default=(1,1,1),
             min=0, max=1, subtype='COLOR',
         )
@@ -450,7 +451,7 @@ else: # 2.80+
 class OBJEX_NodeSocket_IntProperty():
     def update_prop(self, context):
         self.node.inputs[self.target_socket_name].default_value = self.default_value
-    default_value = bpy.props.IntProperty(update=update_prop)
+    default_value : bpy.props.IntProperty(update=update_prop)
 
     def draw(self, context, layout, node, text):
         layout.prop(self, 'default_value', text=text)
@@ -461,7 +462,7 @@ class OBJEX_NodeSocket_IntProperty():
 class OBJEX_NodeSocket_BoolProperty():
     def update_prop(self, context):
         self.node.inputs[self.target_socket_name].default_value = 1 if self.default_value else 0
-    default_value = bpy.props.BoolProperty(update=update_prop)
+    default_value : bpy.props.BoolProperty(update=update_prop)
 
     def draw(self, context, layout, node, text):
         layout.prop(self, 'default_value', text=text)
@@ -836,25 +837,25 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
     bl_options = {'INTERNAL', 'UNDO'}
 
     # if set, use the material with this name instead of the context one
-    target_material_name = bpy.props.StringProperty()
+    target_material_name : bpy.props.StringProperty()
 
     # defaults for following bool properties are handled by draw_build_nodes_operator and exec_build_nodes_operator
 
     # indicates the material is becoming an objex material for the first time
     # soft resets by removing nodes that serve no purpose (meant to remove default nodes),
     # add default combiner links, and infer texel0 from face textures
-    init = bpy.props.BoolProperty()
+    init : bpy.props.BoolProperty()
     # clear all nodes before building
-    reset = bpy.props.BoolProperty()
+    reset : bpy.props.BoolProperty()
     # create missing nodes (disabling may cause unchecked errors, set_looks and set_basic_links should be disabled too when create is disabled)
-    create = bpy.props.BoolProperty()
+    create : bpy.props.BoolProperty()
     # for existing group nodes, set the used group to the latest
     # in the end, should have no effect unless updating a material
-    update_groups_of_existing = bpy.props.BoolProperty()
+    update_groups_of_existing : bpy.props.BoolProperty()
     # set locations, dimensions
-    set_looks = bpy.props.BoolProperty()
+    set_looks : bpy.props.BoolProperty()
     # create basic links (eg vanilla RGB node OBJEX_PrimColorRGB to RGB pipe node OBJEX_PrimColor)
-    set_basic_links = bpy.props.BoolProperty()
+    set_basic_links : bpy.props.BoolProperty()
 
     def execute(self, context):
         log = getLogger('OBJEX_OT_material_build_nodes')

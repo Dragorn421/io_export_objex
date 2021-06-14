@@ -495,7 +495,7 @@ def menu_func_export(self, context):
 class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggingPreferences, addon_updater_ops.AddonUpdaterPreferences):
     bl_idname = __package__
 
-    colorspace_default_strategy = bpy.props.EnumProperty(
+    colorspace_default_strategy : bpy.props.EnumProperty(
         items=[
             ('AUTO','Auto','Default to "Warn non-linear" (for now)',0)
         ] + [
@@ -511,7 +511,7 @@ class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggi
     )
 
     # see view3d_copybuffer_patch.py
-    monkeyPatch_view3d_copybuffer = bpy.props.EnumProperty(
+    monkeyPatch_view3d_copybuffer : bpy.props.EnumProperty(
         items=[
             ('AUTO','Auto','Default to "Wrap copying - delete" (for now)',1),
             ('NOTHING','Do nothing','Do not disable "Ctrl+C" (or any other or change anything else)',2),
@@ -529,7 +529,7 @@ class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggi
         update=view3d_copybuffer_patch.monkeyPatch_view3d_copybuffer_update
     )
     # what were the user settings for view3d.copybuffer before the addon changed it (for internal use)
-    monkeyPatch_view3d_copybuffer_active_user = bpy.props.EnumProperty(
+    monkeyPatch_view3d_copybuffer_active_user : bpy.props.EnumProperty(
         items=[
             ('None', '','',1), # settings not overwritten by addon
             ('True', '','',2),

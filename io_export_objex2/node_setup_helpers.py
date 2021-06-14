@@ -51,11 +51,11 @@ class OBJEX_OT_material_single_texture(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     # Cannot use PointerProperty in operators unfortunately...
-    texel = bpy.props.StringProperty(
+    texel : bpy.props.StringProperty(
             name='Image',
             description='The image to use'
         )
-    multiply_by0 = bpy.props.EnumProperty(
+    multiply_by0 : bpy.props.EnumProperty(
             items=[
                 ('LIGHTING','Lighting','Use shading from lighting',1),
                 ('VERTEX_COLORS','Vertex Colors','Use shading from vertex colors',2),
@@ -66,7 +66,7 @@ class OBJEX_OT_material_single_texture(bpy.types.Operator):
             description='What to combine (multiply) the texture with.',
             default='PRIM_COLOR'
         )
-    multiply_by1 = bpy.props.EnumProperty(
+    multiply_by1 : bpy.props.EnumProperty(
             items=[
                 ('LIGHTING','Lighting','Use shading from lighting',1),
                 ('VERTEX_COLORS','Vertex Colors','Use shading from vertex colors',2),
@@ -143,15 +143,15 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     # Cannot use PointerProperty in operators unfortunately...
-    texel0 = bpy.props.StringProperty(
+    texel0 : bpy.props.StringProperty(
             name='Image 1',
             description='The first of the two images to use'
         )
-    texel1 = bpy.props.StringProperty(
+    texel1 : bpy.props.StringProperty(
             name='Image 2',
             description='The second of the two images to use'
         )
-    alpha = bpy.props.FloatProperty(
+    alpha : bpy.props.FloatProperty(
             name='Factor',
             description='How to blend the two images together\n'
                         '1 -> 100% Image 1\n'
@@ -159,7 +159,7 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
             min=0, max=1, step=0.01, precision=2,
             default=1
         )
-    alpha_source = bpy.props.EnumProperty(
+    alpha_source : bpy.props.EnumProperty(
             items=[
                 ('ENV','Environment Color','Store factor in environment color',1),
                 ('PRIM','Primitive Color','Store factor in primitive color',2),
@@ -168,7 +168,7 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
             description='In what color register to store the blend factor.',
             default='ENV'
         )
-    multiply_by = bpy.props.EnumProperty(
+    multiply_by : bpy.props.EnumProperty(
             items=[
                 ('LIGHTING','Lighting','Use shading from lighting',1),
                 ('VERTEX_COLORS','Vertex Colors','Use shading from vertex colors',2),
