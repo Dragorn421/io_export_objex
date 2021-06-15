@@ -13,7 +13,7 @@ class OBJEX_OT_mesh_find_vertices():
 
     bl_options = {'REGISTER','UNDO'}
 
-    select_found : bpy.props.BoolProperty(
+    select_found = bpy.props.BoolProperty(
             name='Select',
             description='Select vertices found',
             default=True
@@ -328,13 +328,13 @@ class OBJEX_OT_autofold_save_pose(bpy.types.Operator, AutofoldOperator):
     bl_label = 'Save Pose position'
     bl_options = {'REGISTER', 'UNDO'}
 
-    pose_name : bpy.props.StringProperty(
+    pose_name = bpy.props.StringProperty(
             name='Pose name',
             description='Name identifier for the pose position to save',
         )
     # pose_name_current is used to ignore the "already used" pose name during redo in the redo panel
-    pose_name_current : bpy.props.StringProperty()
-    type : bpy.props.EnumProperty(
+    pose_name_current = bpy.props.StringProperty()
+    type = bpy.props.EnumProperty(
             items=[
                 ('UNFOLDEDpose_foldedRest','Unfolding pose','The pose position UNFOLDS the armature from its folded rest position',1),
                 ('foldedPose_UNFOLDEDrest','Folding pose','The pose position folds the armature from its UNFOLDED rest position',2),
@@ -464,7 +464,7 @@ class OBJEX_OT_autofold_delete_pose(bpy.types.Operator, AutofoldOperator):
     bl_label = 'Delete a saved Pose position'
     bl_options = {'REGISTER', 'UNDO'}
 
-    pose_name : bpy.props.StringProperty(
+    pose_name = bpy.props.StringProperty(
             name='Pose',
             description='The saved pose position to delete',
         )
@@ -496,7 +496,7 @@ class OBJEX_OT_autofold_restore_pose(bpy.types.Operator, AutofoldOperator):
     bl_label = 'Restore Pose position as previously saved'
     bl_options = {'REGISTER', 'UNDO'}
 
-    pose_name : bpy.props.StringProperty(
+    pose_name = bpy.props.StringProperty(
             name='Pose',
             description='The saved pose position to restore',
         )
@@ -544,7 +544,7 @@ class OBJEX_OT_autofold_fold_unfold(bpy.types.Operator, AutofoldOperator):
     bl_label = 'Fold/Unfold an armature and the meshs rigged to it'
     bl_options = {'REGISTER', 'UNDO'}
 
-    action : bpy.props.EnumProperty(
+    action = bpy.props.EnumProperty(
             items=[
                 ('FOLD','Fold','',1),
                 ('UNFOLD','Unfold','',2),
@@ -554,7 +554,7 @@ class OBJEX_OT_autofold_fold_unfold(bpy.types.Operator, AutofoldOperator):
             description='Fold or unfold',
             default='SWITCH'
         )
-    pose_name : bpy.props.StringProperty(
+    pose_name = bpy.props.StringProperty(
             name='Pose',
             description='The saved pose position to use',
         )

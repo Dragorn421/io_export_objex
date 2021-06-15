@@ -207,7 +207,7 @@ class OBJEX_OT_material_update(bpy.types.Operator):
     bl_label = 'Update an Objex material'
     bl_options = {'INTERNAL', 'PRESET', 'REGISTER', 'UNDO'}
 
-    update_all : bpy.props.BoolProperty()
+    update_all = bpy.props.BoolProperty()
 
     def execute(self, context):
         log = logging_util.getLogger(self.bl_idname)

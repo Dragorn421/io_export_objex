@@ -17,7 +17,7 @@ def update_default_level_console(self, context):
     setConsoleLevelDefault(self.logging_level)
 
 class AddonLoggingPreferences:
-    logging_level : bpy.props.IntProperty(
+    logging_level = bpy.props.IntProperty(
         name='Global log level',
         description=(
             'Affects logging in the system console.\n'

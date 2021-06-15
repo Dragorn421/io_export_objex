@@ -8,25 +8,25 @@ from .logging_util import getLogger
 # scene
 
 class SavedPoseBone(bpy.types.PropertyGroup):
-    bone_name : bpy.props.StringProperty()
-    location : bpy.props.FloatVectorProperty(size=3)
-    rotation_quaternion : bpy.props.FloatVectorProperty(size=4)
+    bone_name = bpy.props.StringProperty()
+    location = bpy.props.FloatVectorProperty(size=3)
+    rotation_quaternion = bpy.props.FloatVectorProperty(size=4)
 
 class SavedPose(bpy.types.PropertyGroup):
-    name : bpy.props.StringProperty()
-    type : bpy.props.EnumProperty(
+    name = bpy.props.StringProperty()
+    type = bpy.props.EnumProperty(
             items=[
                 ('UNFOLDEDpose_foldedRest','','',1),
                 ('foldedPose_UNFOLDEDrest','','',2),
             ],
             default='UNFOLDEDpose_foldedRest'
         )
-    bones : bpy.props.CollectionProperty(type=SavedPoseBone)
+    bones = bpy.props.CollectionProperty(type=SavedPoseBone)
 
 class ObjexSceneProperties(bpy.types.PropertyGroup):
-    is_objex_scene : bpy.props.BoolProperty()
+    is_objex_scene = bpy.props.BoolProperty()
 
-    colorspace_strategy : bpy.props.EnumProperty(
+    colorspace_strategy = bpy.props.EnumProperty(
         # if modifying these items, also edit __init__.OBJEX_AddonPreferences.colorspace_default_strategy
         items=[
             ('QUIET','Do nothing + silence',
@@ -38,7 +38,7 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
         description='How to handle color spaces in the scene',
     )
 
-    sync_backface_culling : bpy.props.EnumProperty(
+    sync_backface_culling = bpy.props.EnumProperty(
         items=[
             ('BLENDER_TO_OBJEX','Blender -> Objex',
                 'Change backface culling property of an objex material when '
@@ -53,29 +53,29 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
         default={'BLENDER_TO_OBJEX','OBJEX_TO_BLENDER'},
     )
 
-    write_primitive_color : bpy.props.BoolProperty(
+    write_primitive_color = bpy.props.BoolProperty(
             name='Set prim color (global)',
             description='Scene property, shared by materials',
             default=True
         )
-    write_environment_color : bpy.props.BoolProperty(
+    write_environment_color = bpy.props.BoolProperty(
             name='Set env color (global)',
             description='Scene property, shared by materials',
             default=True
         )
 
-    saved_poses : bpy.props.CollectionProperty(type=SavedPose)
+    saved_poses = bpy.props.CollectionProperty(type=SavedPose)
 
 
 # mesh
 
 class ObjexMeshProperties(bpy.types.PropertyGroup):
-    priority : bpy.props.IntProperty(
+    priority = bpy.props.IntProperty(
             name='Priority',
             description='Meshs with higher priority are written first',
             default=0
         )
-    write_origin : bpy.props.EnumProperty(
+    write_origin = bpy.props.EnumProperty(
             items=[
                 ('YES','Yes','Write origin',1),
                 ('NO','No','Do not write origin',2),
@@ -86,7 +86,7 @@ class ObjexMeshProperties(bpy.types.PropertyGroup):
                         'Used by zzconvert to translate the mesh coordinates back, as if object had its location at world origin.',
             default='AUTO'
         )
-    attrib_billboard : bpy.props.EnumProperty(
+    attrib_billboard = bpy.props.EnumProperty(
             items=[
                 ('BBMTXS','Spherical','include spherical billboard matrix in Dlist',1),
                 ('BBMTXC','Cylindrical','include cylindrical billboard matrix in Dlist',2),
@@ -119,7 +119,7 @@ for attrib, desc in (
 # armature
 
 class ObjexArmatureExportActionsItem(bpy.types.PropertyGroup):
-    action : bpy.props.PointerProperty(
+    action = bpy.props.PointerProperty(
             type=bpy.types.Action,
             name='Action',
             description='',
@@ -127,20 +127,20 @@ class ObjexArmatureExportActionsItem(bpy.types.PropertyGroup):
         )
 
 class ObjexArmatureProperties(bpy.types.PropertyGroup):
-    export_all_actions : bpy.props.BoolProperty(
+    export_all_actions = bpy.props.BoolProperty(
             name='Export all actions',
             description='',
             default=True,
             update=interface.armature_export_actions_change
         )
-    export_actions_active : bpy.props.IntProperty()
-    export_actions : bpy.props.CollectionProperty(
+    export_actions_active = bpy.props.IntProperty()
+    export_actions = bpy.props.CollectionProperty(
             type=ObjexArmatureExportActionsItem,
             name='Actions',
             description=''
         )
     
-    type : bpy.props.EnumProperty(
+    type = bpy.props.EnumProperty(
             items=[
                 ('z64player','z64player','',1),
                 ('z64npc','z64npc','',2),
@@ -152,51 +152,51 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
             default='NONE'
         )
     
-    pbody : bpy.props.BoolProperty(
+    pbody = bpy.props.BoolProperty(
             name='Physics Body',
             description='',
             default=False
         )
-    pbody_parent_object : bpy.props.PointerProperty(
+    pbody_parent_object = bpy.props.PointerProperty(
             type=bpy.types.Object,
             name='Parent Object',
             description='Optional'
         )
-    pbody_parent_bone : bpy.props.StringProperty(
+    pbody_parent_bone = bpy.props.StringProperty(
             name='Parent Bone',
             description=''
         )
     
-    segment : bpy.props.StringProperty(
+    segment = bpy.props.StringProperty(
             name='Segment',
             description='Hexadecimal'
         )
-    segment_local : bpy.props.BoolProperty(
+    segment_local = bpy.props.BoolProperty(
             name='Local',
             description='',
             default=False
         )
 
-    fold_unfold_saved_pose_index : bpy.props.IntProperty()
+    fold_unfold_saved_pose_index = bpy.props.IntProperty()
 
 # material
 
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
-    is_objex_material : bpy.props.BoolProperty(default=False)
-    objex_version : bpy.props.IntProperty(default=0) # see data_updater.py
+    is_objex_material = bpy.props.BoolProperty(default=False)
+    objex_version = bpy.props.IntProperty(default=0) # see data_updater.py
 
-    backface_culling : bpy.props.BoolProperty(
+    backface_culling = bpy.props.BoolProperty(
             name='Cull backfaces',
             description='Culls the back face of geometry',
             update=interface.objex_backface_culling_update,
             default=True
         )
-    frontface_culling : bpy.props.BoolProperty(
+    frontface_culling = bpy.props.BoolProperty(
             name='Cull frontfaces',
             description='Culls the front face of geometry',
             default=False
         )
-    write_primitive_color : bpy.props.EnumProperty(
+    write_primitive_color = bpy.props.EnumProperty(
             items=[
                 ('YES','Yes','Set the color',1),
                 ('NO','No','Do not set the color',2),
@@ -207,7 +207,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
                         'Disabling this can for example allow to set a dynamic primitive color from code or from another display list',
             default='GLOBAL'
         )
-    write_environment_color : bpy.props.EnumProperty(
+    write_environment_color = bpy.props.EnumProperty(
             items=[
                 ('YES','Yes','Set the color',1),
                 ('NO','No','Do not set the color',2),
@@ -218,32 +218,32 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             default='GLOBAL'
         )
 
-    rendermode_blender_flag_AA_EN : bpy.props.BoolProperty(
+    rendermode_blender_flag_AA_EN = bpy.props.BoolProperty(
             name='AA_EN',
             description='AA_EN\n' 'Enable anti-aliasing?',
             default=True
         )
-    rendermode_blender_flag_Z_CMP : bpy.props.BoolProperty(
+    rendermode_blender_flag_Z_CMP = bpy.props.BoolProperty(
             name='Z_CMP',
             description='Z_CMP\n' 'Use Z buffer',
             default=True
         )
-    rendermode_blender_flag_Z_UPD : bpy.props.BoolProperty(
+    rendermode_blender_flag_Z_UPD = bpy.props.BoolProperty(
             name='Z_UPD',
             description='Z_UPD\n' 'Update Z buffer',
             default=True
         )
-    rendermode_blender_flag_IM_RD : bpy.props.BoolProperty(
+    rendermode_blender_flag_IM_RD = bpy.props.BoolProperty(
             name='IM_RD',
             description='IM_RD\n' '? see CloudModding wiki',
             default=True
         )
-    rendermode_blender_flag_CLR_ON_CVG : bpy.props.BoolProperty(
+    rendermode_blender_flag_CLR_ON_CVG = bpy.props.BoolProperty(
             name='CLR_ON_CVG',
             description='CLR_ON_CVG\n' '? see CloudModding wiki',
             default=False
         )
-    rendermode_blender_flag_CVG_DST_ : bpy.props.EnumProperty(
+    rendermode_blender_flag_CVG_DST_ = bpy.props.EnumProperty(
             items=[
                 ('CVG_DST_CLAMP','CLAMP','CVG_DST_CLAMP',1),
                 ('CVG_DST_WRAP','WRAP','CVG_DST_WRAP',2),
@@ -255,7 +255,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='? see CloudModding wiki',
             default='AUTO'
         )
-    rendermode_zmode : bpy.props.EnumProperty(
+    rendermode_zmode = bpy.props.EnumProperty(
             items=[
                 ('OPA','Opaque','Opaque surfaces (OPA)',1),
                 ('INTER','Interpenetrating','Interpenetrating surfaces',2),
@@ -267,7 +267,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Not well understood, has to do with rendering order',
             default='AUTO'
         )
-    rendermode_blender_flag_CVG_X_ALPHA : bpy.props.EnumProperty(
+    rendermode_blender_flag_CVG_X_ALPHA = bpy.props.EnumProperty(
             items=[
                 ('YES','Set','Set CVG_X_ALPHA',1),
                 ('NO','Clear','Clear CVG_X_ALPHA',2),
@@ -277,12 +277,12 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='CVG_X_ALPHA\n' '? see CloudModding wiki',
             default='AUTO'
         )
-    rendermode_blender_flag_ALPHA_CVG_SEL : bpy.props.BoolProperty(
+    rendermode_blender_flag_ALPHA_CVG_SEL = bpy.props.BoolProperty(
             name='ALPHA_CVG_SEL',
             description='ALPHA_CVG_SEL\n' '? see CloudModding wiki',
             default=True # 421fixme does enabling this kill alpha?
         )
-    rendermode_forceblending : bpy.props.EnumProperty(
+    rendermode_forceblending = bpy.props.EnumProperty(
             items=[
                 ('YES','Always','Force blending',1),
                 ('NO','Never','Do not force blending',2),
@@ -292,7 +292,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Not well understood, related to transparency and rendering order',
             default='AUTO'
         )
-    rendermode_blending_cycle0 : bpy.props.EnumProperty(
+    rendermode_blending_cycle0 = bpy.props.EnumProperty(
             items=[
                 ('FOG_PRIM','Fog RGBA','Blend with fog color and alpha (G_RM_FOG_PRIM_A)',1),  # G_BL_CLR_FOG   G_BL_A_FOG     G_BL_CLR_IN    G_BL_1MA
                 ('FOG_SHADE','Fog RGB, shade A','Blend with fog color and shade alpha (shade from combiner cycles) (G_RM_FOG_SHADE_A)',2),  # G_BL_CLR_FOG   G_BL_A_SHADE   G_BL_CLR_IN    G_BL_1MA
@@ -308,7 +308,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='First cycle\nHow to blend the pixels being rendered with the frame buffer\nResponsible for at least transparency effects and fog',
             default='AUTO'
         )
-    rendermode_blending_cycle1 : bpy.props.EnumProperty(
+    rendermode_blending_cycle1 = bpy.props.EnumProperty(
             items=[
                 ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',1), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
                 ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',2), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
@@ -320,27 +320,27 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             default='AUTO'
         )
 
-    standalone : bpy.props.BoolProperty(
+    standalone = bpy.props.BoolProperty(
             name='Standalone',
             description='Write the display list for this material once, and use 0xDE G_DL commands to branch to it every use',
             default=False
         )
-    empty : bpy.props.BoolProperty(
+    empty = bpy.props.BoolProperty(
             name='Empty',
             description='Do not write any geometry using this material',
             default=False
         )
-    branch_to_object : bpy.props.PointerProperty(
+    branch_to_object = bpy.props.PointerProperty(
             type=bpy.types.Object,
             name='Branch to',
             description='Jump to the display list of another object',
             poll=lambda self, object: object.type == 'MESH'
         )
-    branch_to_object_bone : bpy.props.StringProperty(
+    branch_to_object_bone = bpy.props.StringProperty(
             name='Branch to bone',
             description='Jump to the display list for a bone'
         )
-    vertex_shading : bpy.props.EnumProperty(
+    vertex_shading = bpy.props.EnumProperty(
             items=[
                 ('AUTO','Auto','Colors only or normals only, depending on the node setup',1),
                 ('DYNAMIC','Dynamic','Use normals where vertex colors are opaque white (1,1,1,1), and vertex colors otherwise',2),
@@ -349,21 +349,21 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='What shade data should be written for each vertex',
             default='AUTO'
         )
-    external_material_segment : bpy.props.StringProperty(
+    external_material_segment = bpy.props.StringProperty(
     		name='Pointer',
     		description='Branch material to segment'
     	)
-    force_write : bpy.props.BoolProperty(
+    force_write = bpy.props.BoolProperty(
             name='Force write',
             description='Write this material even if it is not used',
             default=False
         )
-    priority : bpy.props.IntProperty(
+    priority = bpy.props.IntProperty(
             name='Priority',
             description='Geometry using materials with higher priority is written first',
             default=0
         )
-    geometrymode_G_FOG : bpy.props.EnumProperty(
+    geometrymode_G_FOG = bpy.props.EnumProperty(
             items=[
                 ('YES','Set','Set G_FOG',1),
                 ('NO','Clear','Clear G_FOG',2),
@@ -373,12 +373,12 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='G_FOG\n' '? see CloudModding wiki, has to do with computing fog values\n' 'THIS DOES NOT DISABLE FOG, use the blending cycle settings for that purpose',
             default='AUTO'
         )
-    geometrymode_G_ZBUFFER : bpy.props.BoolProperty(
+    geometrymode_G_ZBUFFER = bpy.props.BoolProperty(
             name='Z buffer',
             description='G_ZBUFFER\n' 'Enable Z buffer calculations',
             default=True
         )
-    geometrymode_G_SHADING_SMOOTH : bpy.props.BoolProperty(
+    geometrymode_G_SHADING_SMOOTH = bpy.props.BoolProperty(
             name='Smooth Shading',
             description='G_SHADING_SMOOTH\n' 'Enable smooth shading (vertex colors, lighting)',
             default=True
@@ -402,7 +402,7 @@ for c in (0,1):
 # images
 
 class ObjexImageProperties(bpy.types.PropertyGroup):
-    format : bpy.props.EnumProperty(
+    format = bpy.props.EnumProperty(
             items=[
                 # number identifiers are 0xFS with F~G_IM_FMT_ and S~G_IM_SIZ_
                 ('I4','I4','Greyscale shared with alpha, 16 values (AAAA)',0x40),
@@ -420,14 +420,14 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
             description='What format to use when writing the texture',
             default='AUTO'
         )
-    palette : bpy.props.IntProperty(
+    palette = bpy.props.IntProperty(
             name='Palette',
             description='Palette slot to use (0 for automatic)\nSeveral paletted textures (CI format) may use the same palette slot to save space',
             min=0,
             soft_max=255, # todo ?
             default=0
         )
-    alphamode : bpy.props.EnumProperty(
+    alphamode = bpy.props.EnumProperty(
             items=[
                 ('AUTO','Auto','Defaults to edge if format is not I (greyscale shared with alpha)',0),
                 ('edge','Edge','Color is taken from visible edges',1),
@@ -442,17 +442,17 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
                         '(color of such pixels can indeed still show due to not-nearest-neighbour texture filtering)',
             default='AUTO'
         )
-    pointer : bpy.props.StringProperty(
+    pointer = bpy.props.StringProperty(
             name='Pointer',
             description='The address that should be used when referencing this texture',
             default=''
         )
-    priority : bpy.props.IntProperty(
+    priority = bpy.props.IntProperty(
             name='Priority',
             description='Textures with higher priority are written first',
             default=0
         )
-    force_write : bpy.props.EnumProperty(
+    force_write = bpy.props.EnumProperty(
             items=[
                 ('FORCE_WRITE','Always','Force the texture to be written',1),
                 ('DO_NOT_WRITE','Never','Force the texture to NOT be written',2),
@@ -462,7 +462,7 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
             description='Explicitly state to write or to not write the image',
             default='UNSPECIFIED'
         )
-    texture_bank : bpy.props.PointerProperty(
+    texture_bank = bpy.props.PointerProperty(
             type=bpy.types.Image,
             name='Bank',
             description='Image data to write instead of this texture, useful for dynamic textures (eyes, windows)'

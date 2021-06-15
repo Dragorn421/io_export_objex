@@ -18,7 +18,7 @@ def make_annotations(clazz):
     if bpy.app.version < (2, 80):
         return clazz
     for cls in clazz.__mro__:
-        bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, tuple) and len(v) == 2 and inspect.isbuiltin(v[0]) and isinstance(v[1], dict)}
+        bl_props = {k: v for k, v in cls.__dict__.items() if (isinstance(v, tuple) and len(v) == 2 and inspect.isbuiltin(v[0]) and isinstance(v[1], dict)) or isinstance(v, bpy.props._PropertyDeferred)}
         if bl_props:
             if '__annotations__' not in cls.__dict__:
                 setattr(cls, '__annotations__', {})

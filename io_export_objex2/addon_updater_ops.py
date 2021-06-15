@@ -72,7 +72,7 @@ def make_annotations(cls):
 	"""Add annotation attribute to class fields to avoid Blender 2.8 warnings"""
 	if not hasattr(bpy.app, "version") or bpy.app.version < (2, 80):
 		return cls
-	bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, tuple)}
+	bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, tuple) or isinstance(v, bpy.props._PropertyDeferred)}
 	if bl_props:
 		if '__annotations__' not in cls.__dict__:
 			setattr(cls, '__annotations__', {})
@@ -122,13 +122,13 @@ class addon_updater_install_popup(bpy.types.Operator):
 	# if true, run clean install - ie remove all files before adding new
 	# equivalent to deleting the addon and reinstalling, except the
 	# updater folder/backup folder remains
-	clean_install : bpy.props.BoolProperty(
+	clean_install = bpy.props.BoolProperty(
 		name="Clean install",
 		description="If enabled, completely clear the addon's folder before installing new update, creating a fresh install",
 		default=False,
 		options={'HIDDEN'}
 	)
-	ignore_enum : bpy.props.EnumProperty(
+	ignore_enum = bpy.props.EnumProperty(
 		name="Process update",
 		description="Decide to install, ignore, or defer new addon update",
 		items=[
@@ -264,7 +264,7 @@ class addon_updater_update_now(bpy.types.Operator):
 	# if true, run clean install - ie remove all files before adding new
 	# equivalent to deleting the addon and reinstalling, except the
 	# updater folder/backup folder remains
-	clean_install : bpy.props.BoolProperty(
+	clean_install = bpy.props.BoolProperty(
 		name="Clean install",
 		description="If enabled, completely clear the addon's folder before installing new update, creating a fresh install",
 		default=False,
@@ -332,7 +332,7 @@ class addon_updater_update_target(bpy.types.Operator):
 			i+=1
 		return ret
 
-	target : bpy.props.EnumProperty(
+	target = bpy.props.EnumProperty(
 		name="Target version to install",
 		description="Select the version to install",
 		items=target_version
@@ -341,7 +341,7 @@ class addon_updater_update_target(bpy.types.Operator):
 	# if true, run clean install - ie remove all files before adding new
 	# equivalent to deleting the addon and reinstalling, except the
 	# updater folder/backup folder remains
-	clean_install : bpy.props.BoolProperty(
+	clean_install = bpy.props.BoolProperty(
 		name="Clean install",
 		description="If enabled, completely clear the addon's folder before installing new update, creating a fresh install",
 		default=False,
@@ -399,7 +399,7 @@ class addon_updater_install_manually(bpy.types.Operator):
 	bl_description = "Proceed to manually install update"
 	bl_options = {'REGISTER', 'INTERNAL'}
 
-	error : bpy.props.StringProperty(
+	error = bpy.props.StringProperty(
 		name="Error Occurred",
 		default="",
 		options={'HIDDEN'}
@@ -461,7 +461,7 @@ class addon_updater_updated_successful(bpy.types.Operator):
 	bl_description = "Update installation response"
 	bl_options = {'REGISTER', 'INTERNAL', 'UNDO'}
 
-	error : bpy.props.StringProperty(
+	error = bpy.props.StringProperty(
 		name="Error Occurred",
 		default="",
 		options={'HIDDEN'}
@@ -872,32 +872,32 @@ def showReloadPopup():
 @make_annotations
 class AddonUpdaterPreferences():
 
-	auto_check_update : bpy.props.BoolProperty(
+	auto_check_update = bpy.props.BoolProperty(
 		name="Auto-check for Update",
 		description="If enabled, auto-check for updates using an interval",
 		default=False,
 		)
-	updater_intrval_months : bpy.props.IntProperty(
+	updater_intrval_months = bpy.props.IntProperty(
 		name='Months',
 		description="Number of months between checking for updates",
 		default=0,
 		min=0
 		)
-	updater_intrval_days : bpy.props.IntProperty(
+	updater_intrval_days = bpy.props.IntProperty(
 		name='Days',
 		description="Number of days between checking for updates",
 		default=7,
 		min=0,
 		max=31
 		)
-	updater_intrval_hours : bpy.props.IntProperty(
+	updater_intrval_hours = bpy.props.IntProperty(
 		name='Hours',
 		description="Number of hours between checking for updates",
 		default=0,
 		min=0,
 		max=23
 		)
-	updater_intrval_minutes : bpy.props.IntProperty(
+	updater_intrval_minutes = bpy.props.IntProperty(
 		name='Minutes',
 		description="Number of minutes between checking for updates",
 		default=0,
