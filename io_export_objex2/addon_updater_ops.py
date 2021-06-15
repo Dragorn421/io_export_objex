@@ -72,7 +72,11 @@ def make_annotations(cls):
 	"""Add annotation attribute to class fields to avoid Blender 2.8 warnings"""
 	if not hasattr(bpy.app, "version") or bpy.app.version < (2, 80):
 		return cls
-	bl_props = {k: v for k, v in cls.__dict__.items() if isinstance(v, tuple) or isinstance(v, bpy.props._PropertyDeferred)}
+	elif bpy.app.version < (2, 93):
+		isPropertyDeferred = lambda v: (isinstance(v, tuple))
+	else:
+		isPropertyDeferred = lambda v: (isinstance(v, bpy.props._PropertyDeferred))
+	bl_props = {k: v for k, v in cls.__dict__.items() if isPropertyDeferred(v)}
 	if bl_props:
 		if '__annotations__' not in cls.__dict__:
 			setattr(cls, '__annotations__', {})
