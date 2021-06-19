@@ -32,6 +32,7 @@ very nice bare-bones example with custom node and ui https://gist.github.com/OEP
 other useful reference
 GPL https://www.gnu.org/licenses/gpl-3.0.en.html
 API changes https://docs.blender.org/api/current/change_log.html
+More up-to-date-ish but somewhat vague and summarized version changes https://wiki.blender.org/wiki/Reference/Release_Notes
 Addon Tutorial (not part of the addon doc) https://docs.blender.org/manual/en/latest/advanced/scripting/addon_tutorial.html
 Operator examples https://docs.blender.org/api/2.79/bpy.types.Operator.html
 bl_idname requirements https://github.com/blender/blender/blob/f149d5e4b21f372f779fdb28b39984355c9682a6/source/blender/windowmanager/intern/wm_operators.c#L167
