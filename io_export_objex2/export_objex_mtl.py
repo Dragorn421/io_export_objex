@@ -604,7 +604,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     otherModeLowerHalfFlags.append('ALPHA_CVG_SEL')
                 if (objex_data.rendermode_forceblending == 'YES'
                     or (objex_data.rendermode_forceblending == 'AUTO'
-                        and use_alpha_transparency != 'NONE')
+                        and use_alpha_transparency == 'BLEND')
                 ):
                     otherModeLowerHalfFlags.append('FORCE_BL')
                 # blender cycles

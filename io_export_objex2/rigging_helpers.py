@@ -622,7 +622,7 @@ class OBJEX_OT_autofold_fold_unfold(bpy.types.Operator, AutofoldOperator):
         box = self.layout.box() if default_to_saved_pose else self.layout
         box.prop_search(self, 'pose_name', scene.objex_bonus, 'saved_poses')
         if default_to_saved_pose:
-            box.label('Using {}'.format(default_to_saved_pose.name))
+            box.label(text='Using {}'.format(default_to_saved_pose.name))
 
 
 classes = (
