@@ -181,9 +181,200 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
 
 # material
 
+class ObjexMaterialCollisionProperties(bpy.types.PropertyGroup):
+    WATERBOX = bpy.props.BoolProperty()
+    # 421todo WATERBOX properties
+    ignore_camera = bpy.props.BoolProperty(
+            name='Ignore Camera',
+            description='Camera can pass through',
+            default=False
+        )
+    ignore_entity = bpy.props.BoolProperty(
+            name='Ignore Entities',
+            description='Player, enemies... can pass through',
+            default=False
+        )
+    ignore_ammo = bpy.props.BoolProperty(
+            name='Ignore Ammos',
+            description='Deku seeds, arrows, bombchus... can pass through',
+            default=False
+        )
+    sound = bpy.props.EnumProperty(
+            items=[
+                ('UNSET',             '',                                         '',  0),
+                ('SOUND_DIRT',        'Earth/Dirt',                               '',  1),
+                ('SOUND_DIRT_LOOSE',  'Loose Earth/Dirt',                         '',  2),
+                ('SOUND_GRASS',       'Underbrush/Grass',                         '',  3),
+                ('SOUND_SAND',        'Sand',                                     '',  4),
+                ('SOUND_WOOD',        'Wooden',                                   '',  5),
+                ('SOUND_WOOD_STRUCK', 'Packed Earth/Wood (struck: wooden sound)', '',  6),
+                ('SOUND_STONE',       'Stone',                                    '',  7),
+                ('SOUND_STONE_WET',   'Stone (wet)',                              '',  8),
+                ('SOUND_CERAMIC',     'Ceramic',                                  '',  9),
+                ('SOUND_SPLASH',      'Shallow water',                            '', 10),
+                ('SOUND_SPLASH_1',    'Shallow water (lower-pitched)',            '', 11),
+                ('SOUND_LAVA',        'Lava/Goo',                                 '', 12),
+                ('SOUND_DIRT_1',      'Earth/Dirt (duplicate 1)',                 '', 13),
+                ('SOUND_DIRT_2',      'Earth/Dirt (duplicate 2)',                 '', 14),
+                ('SOUND_DIRT_3',      'Earth/Dirt (duplicate 3)',                 '', 15),
+                ('SOUND_DIRT_4',      'Earth/Dirt (duplicate 4)',                 '', 16),
+            ],
+            name='Sound',
+            description='Sound used when walking on or hitting the collision.\n'
+                        'Unless otherwise stated, the sound made when struck with a sword is the default metallic one',
+            default='UNSET'
+        )
+    floor = bpy.props.EnumProperty(
+            items=[
+                ('UNSET',            '',              '',                                                             0),
+                ('FLOOR_VOID_SCENE', 'Void to Scene', 'Void out to the last scene entered',                           1),
+                ('FLOOR_VOID_ROOM',  'Void to Room',  'Void out to the last room entered',                            2),
+                ('FLOOR_JUMP_VINE',  'Climb (vines)', 'Instead of jumping, climb down',                               3),
+                ('FLOOR_JUMP_HANG',  'Grab ledge',    'Instead of jumping, hang from ledge',                          4),
+                ('FLOOR_JUMP_FALL',  'Step off',      'Instead of jumping, step off the platform into falling state', 5),
+                ('FLOOR_JUMP_DIVE',  'Dive',          'Instead of jumping, activate diving animation/state',          6),
+            ],
+            name='Floor',
+            default='UNSET'
+        )
+    wall = bpy.props.EnumProperty(
+            items=[
+                ('UNSET',           '',            '',                                                       0),
+                ('WALL_BARRIER',    'No Grab',     'Link will not jump over or attempt to climb the wall,\n'
+                                                   'even if the wall is short enough for these actions',     1),
+                ('WALL_LADDER',     'Ladder',      '',                                                       2),
+                ('WALL_LADDER_TOP', 'Ladder Top',  'Makes Link climb down onto a ladder',                    3),
+                ('WALL_VINES',      'Vines',       'Climbable vine wall',                                    4),
+                ('WALL_CRAWL',      'Crawl',       'Wall used to activate/deactivate crawling',              5),
+                ('WALL_CRAWL_1',    'Crawl 1',     'Difference from Crawl unknown',                          6),
+                ('WALL_PUSHBLOCK',  'Pushblock',   '',                                                       7),
+            ],
+            name='Wall',
+            default='UNSET'
+        )
+    special = bpy.props.EnumProperty(
+            items=[
+                ('UNSET', '', '', 0),
+                # floor
+                ('FLOOR_LAVA',       'Lava',                '',                                                    1),
+                ('FLOOR_LAVA_1',     'Lava 1',              'Difference from Lava unknown',                        2),
+                ('FLOOR_SAND',       'Sand',                '',                                                    3),
+                ('FLOOR_ICE',        'Ice',                 '',                                                    4),
+                ('FLOOR_NOFALLDMG',  'No Fall Damage',      '',                                                    5),
+                ('FLOOR_QUICKHORSE', 'Quicksand (horse)',   'Quicksand, passable on horseback',                    6),
+                ('FLOOR_QUICKSAND',  'Quicksand (no horse)','Quicksand, NOT passable on horseback',                7),
+                ('SPECIAL_LOOKUP',   'Look Up',             'Makes the player look upwards when standing on it',   8),
+                # wall
+                ('SPECIAL_BLEEDWALL','Bleed Wall',          'Spawns "blood" particles when struck, special sound'
+                                                            'when struck with sword (used in Jabu-Jabu\'s Belly)', 9),
+                # other
+                ('SPECIAL_INSTAVOID','Instavoid',           'Instantly void out on contact',                       10),
+            ],
+            name='Special',
+            default='UNSET'
+        )
+    horse = bpy.props.BoolProperty(
+            name='Horse',
+            description='Epona can walk on the polygon',
+            default=True
+        )
+    one_lower = bpy.props.BoolProperty(
+            name='1 Lower',
+            description='Sink 1 unit into the ground',
+            default=False
+        )
+    wall_damage = bpy.props.BoolProperty(
+            name='Wall Damage',
+            default=False
+        )
+    hookshot = bpy.props.BoolProperty(
+            name='Hookshot',
+            default=False
+        )
+    steep = bpy.props.BoolProperty(
+            name='Steep',
+            description='Steep Surface (makes the player slide)',
+            default=False
+        )
+    warp_enabled = bpy.props.BoolProperty(
+            name='Exit',
+            description='Scene exit to warp somewhere',
+            default=False
+        )
+    warp_exit_index = bpy.props.IntProperty(
+            name='Exit Index',
+            description='0-indexes into the scene exit table',
+            default=0
+        )
+    camera_enabled = bpy.props.BoolProperty(
+            name='Camera',
+            description='Use a specific camera',
+            default=False
+        )
+    camera_index = bpy.props.IntProperty(
+            name='Camera Index',
+            default=False
+        )
+    echo_enabled = bpy.props.BoolProperty(
+            name='Echo',
+            default=False
+        )
+    echo_index = bpy.props.IntProperty(
+            name='Echo Index',
+            default=False
+        )
+    lighting_enabled = bpy.props.BoolProperty(
+            name='Lighting',
+            default=False
+        )
+    lighting_index = bpy.props.IntProperty(
+            name='Lighting Index',
+            default=False
+        )
+    conveyor_enabled = bpy.props.BoolProperty(
+            name='Conveyor Surface',
+            description='',
+            default=False
+        )
+    # 421todo conveyor_outside_water
+    conveyor_direction = bpy.props.IntProperty(
+            name='Direction',
+            description='Conveyor direction in degrees',
+            min=0, max=360,
+            default=0
+        )
+    conveyor_speed = bpy.props.EnumProperty(
+            items=[
+                ('NONE',    'None',     '', 0),
+                ('SLOW',    'Slow',     '', 1),
+                ('MEDIUM',  'Medium',   '', 2),
+                ('FAST',    'Fast',     '', 3),
+            ],
+            name='Speed',
+            default='NONE'
+        )
+    conveyor_inherit = bpy.props.BoolProperty(
+            name='Inherit',
+            description='Inherit speed from previously stepped-on conveyor surface',
+            default=False
+        )
+
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
     objex_version = bpy.props.IntProperty(default=0) # see data_updater.py
+
+    # Use this material as display properties
+    use_display = bpy.props.BoolProperty(
+            default=True
+        )
+    # Use this material as collision properties
+    use_collision = bpy.props.BoolProperty(
+            default=False
+        )
+
+    collision = bpy.props.PointerProperty(
+            type=ObjexMaterialCollisionProperties
+        )
 
     backface_culling = bpy.props.BoolProperty(
             name='Cull backfaces',
@@ -480,6 +671,7 @@ classes = (
     ObjexArmatureExportActionsItem,
     ObjexArmatureProperties,
 
+    ObjexMaterialCollisionProperties,
     ObjexMaterialProperties,
 
     ObjexImageProperties,

@@ -547,6 +547,33 @@ class ObjexWriter():
                             # remember the pair
                             self.mtl_dict[(face_material, face_image)] = name, name_q, face_material, face_image
 
+                            if self.options['EXPORT_MTL']:
+                                objectUseCollision = ob.name.startswith('collision.')
+                                # 421fixme
+                                # if the export is done right after material initialization, material properties
+                                # are for some reason still reading the old values. They update at least
+                                # when modifying objex_bonus properties in the UI or renaming the material
+                                # context.view_layer.update() doesn't help
+                                if objectUseCollision and not face_material.objex_bonus.is_objex_material:
+                                    raise util.ObjexExportAbort(
+                                        'Object {} is for collision (has "collision." prefix) '
+                                        'but material {} used by this object is not for collision '
+                                        '(not even initialized as an objex material)'
+                                        .format(ob.name, face_material.name)
+                                    )
+                                if objectUseCollision and not face_material.objex_bonus.use_collision:
+                                    raise util.ObjexExportAbort(
+                                        'Object {} is for collision (has "collision." prefix) '
+                                        'but material {} used by this object is not for collision'
+                                        .format(ob.name, face_material.name)
+                                    )
+                                if not objectUseCollision and face_material.objex_bonus.use_collision:
+                                    raise util.ObjexExportAbort(
+                                        'Object {} is not for collision (does not have "collision." prefix) '
+                                        'but material {} used by this object is for collision'
+                                        .format(ob.name, face_material.name)
+                                    )
+
                         if self.options['EXPORT_MTL']:
                             fw('usemtl %s\n' % name_q)
 

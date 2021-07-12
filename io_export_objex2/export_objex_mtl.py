@@ -462,7 +462,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
             # the name used for writing the image path (quoted)
             return texture_name_q
 
-        # mind the continue used in this loop to skip writing most stuff for empty materials
+        # mind the continue used in this loop to skip writing most stuff for collision / empty materials
         for name, name_q, material, face_img in mtl_dict.values():
             log.trace('Writing name={!r} name_q={!r} material={!r} face_img={!r}', name, name_q, material, face_img)
             util.detect_zztag(log, name)
@@ -477,6 +477,12 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     'and paste the actual nodes from the duplicate)'
                     , material)
             if objex_data and objex_data.is_objex_material:
+                # checking if the prefix "collision." on the object name is consistent with
+                # objex_data.use_collision is done in ObjexWriter#write_object in export_objex.py
+                if objex_data.use_collision:
+                    fw('newmtl %s\n' % name_q)
+                    write_collision_material(fw, objex_data.collision)
+                    continue
                 # raises ObjexExportAbort if the material version doesn't match the current addon material version
                 data_updater.assert_material_at_current_version(material, util.ObjexExportAbort)
                 # 421todo attrib, collision/colliders
@@ -853,3 +859,41 @@ count  P              A              M              B            comment
                 if texture_name_q:
                     fw('texel0 %s\n' % texture_name_q)
 
+def write_collision_material(fw, collision):
+    if collision.ignore_camera:
+        fw('attrib collision.IGNORE_CAMERA\n')
+    if collision.ignore_entity:
+        fw('attrib collision.IGNORE_ENTITY\n')
+    if collision.ignore_ammo:
+        fw('attrib collision.IGNORE_AMMO\n')
+    if collision.sound != 'UNSET':
+        fw('attrib collision.{}\n'.format(collision.sound))
+    if collision.floor != 'UNSET':
+        fw('attrib collision.{}\n'.format(collision.floor))
+    if collision.wall != 'UNSET':
+        fw('attrib collision.{}\n'.format(collision.wall))
+    if collision.special != 'UNSET':
+        fw('attrib collision.{}\n'.format(collision.special))
+    if not collision.horse:
+        fw('attrib collision.NOHORSE\n')
+    if collision.one_lower:
+        fw('attrib collision.RAYCAST\n')
+    if collision.wall_damage:
+        fw('attrib collision.WALL_DAMAGE\n')
+    if collision.hookshot:
+        fw('attrib collision.HOOKSHOT\n')
+    if collision.steep:
+        fw('attrib collision.FLOOR_STEEP\n')
+    if collision.warp_enabled:
+        fw('attrib collision.WARP,exit={}\n'.format(collision.warp_exit_index))
+    if collision.camera_enabled:
+        fw('attrib collision.CAMERA,id={}\n'.format(collision.camera_index))
+    if collision.echo_enabled:
+        fw('attrib collision.ECHO,value={}\n'.format(collision.echo_index))
+    if collision.lighting_enabled:
+        fw('attrib collision.LIGHTING,value={}\n'.format(collision.lighting_index))
+    if collision.conveyor_enabled:
+        fw('attrib collision.CONVEYOR,direction={},speed={}{}\n'
+            .format(collision.conveyor_direction, collision.conveyor_speed,
+                ',inherit' if collision.conveyor_inherit else '')
+        )

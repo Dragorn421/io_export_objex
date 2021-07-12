@@ -1151,7 +1151,26 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             watch_objex_material(material)
         # 421fixme why is objex_version set here? data_updater says it's up to the update functions to do it
         material.objex_bonus.objex_version = data_updater.addon_material_objex_version
+        material.objex_bonus.use_display = True
+        material.objex_bonus.use_collision = False
 
+        return {'FINISHED'}
+
+class OBJEX_OT_material_init_collision(bpy.types.Operator):
+
+    bl_idname = 'objex.material_init_collision'
+    bl_label = 'Initialize a material for use on Objex export as collision'
+    bl_options = {'INTERNAL', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.name.startswith('collision.')
+
+    def execute(self, context):
+        material = context.material
+        material.objex_bonus.is_objex_material = True
+        material.objex_bonus.use_display = False
+        material.objex_bonus.use_collision = True
         return {'FINISHED'}
 
 # properties and non-node UI
@@ -1241,7 +1260,71 @@ class OBJEX_PT_material(bpy.types.Panel):
         data = material.objex_bonus
         # setup operators
         if not data.is_objex_material:
-            draw_build_nodes_operator(self.layout, 'Init Objex material', init=True)
+            draw_build_nodes_operator(self.layout, 'Init Display Objex material', init=True)
+            self.layout.operator('objex.material_init_collision', text='Init Collision Objex material')
+            if context.object and not context.object.name.startswith('collision.'):
+                self.layout.label(text='Objects used as collision', icon='INFO')
+                self.layout.label(text='must be prefixed with')
+                self.layout.label(text='"collision.", for example')
+                self.layout.label(text='"collision.{}"'.format(context.object.name))
+            return
+        if data.use_collision:
+            if not context.object.name.startswith('collision.'):
+                self.layout.label(text='This material is for', icon='ERROR')
+                self.layout.label(text='collision but the')
+                self.layout.label(text='object is not prefixed')
+                self.layout.label(text='with "collision."')
+                self.layout.label(text='Remove this material', icon='INFO')
+                self.layout.label(text='or rename the object.')
+                self.layout.label(text='For example:')
+                self.layout.label(text='"collision.{}"'.format(context.object.name))
+                return
+            col = data.collision
+            self.layout.prop(col, 'ignore_camera')
+            self.layout.prop(col, 'ignore_entity')
+            self.layout.prop(col, 'ignore_ammo')
+            self.layout.prop(col, 'sound')
+            self.layout.prop(col, 'floor')
+            self.layout.prop(col, 'wall')
+            self.layout.prop(col, 'special')
+            self.layout.prop(col, 'horse')
+            self.layout.prop(col, 'one_lower')
+            self.layout.prop(col, 'wall_damage')
+            self.layout.prop(col, 'hookshot')
+            self.layout.prop(col, 'steep')
+
+            def draw_optional(prop_enable, prop_data):
+                if getattr(col, prop_enable):
+                    row = self.layout.row()
+                    row.prop(col, prop_enable, text='')
+                    row.prop(col, prop_data)
+                else:
+                    self.layout.prop(col, prop_enable)
+
+            draw_optional('warp_enabled', 'warp_exit_index')
+            draw_optional('camera_enabled', 'camera_index')
+            draw_optional('echo_enabled', 'echo_index')
+            draw_optional('lighting_enabled', 'lighting_index')
+
+            if col.conveyor_enabled:
+                box = self.layout.box()
+                box.prop(col, 'conveyor_enabled')
+                box.prop(col, 'conveyor_direction')
+                box.prop(col, 'conveyor_speed')
+                box.prop(col, 'conveyor_inherit')
+            else:
+                self.layout.prop(col, 'conveyor_enabled')
+
+            return
+        if context.object and context.object.name.startswith('collision.'):
+            self.layout.label(text='This material is not', icon='ERROR')
+            self.layout.label(text='for collision, but')
+            self.layout.label(text='the object is prefixed')
+            self.layout.label(text='with "collision."')
+            self.layout.label(text='Remove this material', icon='INFO')
+            self.layout.label(text='or rename the object.')
+            self.layout.label(text='For example:')
+            self.layout.label(text=context.object.name[len('collision.'):])
             return
         # handle is_objex_material, use_nodes mismatch
         if not material.use_nodes:
@@ -1442,6 +1525,7 @@ classes = (
     OBJEX_NodeSocket_RGBA_Color,
 
     OBJEX_OT_material_build_nodes,
+    OBJEX_OT_material_init_collision,
     OBJEX_OT_set_pixels_along_uv_from_image_dimensions,
     OBJEX_PT_material,
 )
