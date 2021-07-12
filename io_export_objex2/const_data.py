@@ -278,8 +278,8 @@ node_setup = {
             0: ('G_CCMUX_1', 'G_ACMUX_1'),
         },
     },
-    'OBJEX_LodFrac': {
-        'group': 'OBJEX_Color1',
+    'OBJEX_PrimLodFrac': {
+        'group': 'OBJEX_single_value',
         'label': 'Prim Lod Frac',
         'location': (300, -510),
         'outputs-combiner-flags': {
@@ -408,7 +408,7 @@ node_setup = {
     'OBJEX_Frame_CombinerInputs': {
         'type': 'NodeFrame',
         'label': 'Combiner Inputs',
-        'children': ('OBJEX_PrimColor', 'OBJEX_EnvColor', 'OBJEX_Texel0', 'OBJEX_Texel1', 'OBJEX_Shade', 'OBJEX_Color0', 'OBJEX_Color1', 'OBJEX_LodFrac'),
+        'children': ('OBJEX_PrimColor', 'OBJEX_EnvColor', 'OBJEX_Texel0', 'OBJEX_Texel1', 'OBJEX_Shade', 'OBJEX_Color0', 'OBJEX_Color1', 'OBJEX_PrimLodFrac'),
     },
 }
 

@@ -769,6 +769,32 @@ def create_node_group_rgba_pipe(group_name):
 
     return tree
 
+def create_node_group_single_value(group_name):
+    """
+    Simple group to input a single value
+    Inputs: NodeSocketFloat 'Value'
+    Outputs: {combinerOutputClassName} 'Value'
+    """
+    tree = bpy.data.node_groups.new(group_name, 'ShaderNodeTree')
+
+    inputs_node = tree.nodes.new('NodeGroupInput')
+    inputs_node.location = (-100,50)
+    input_socket = tree.inputs.new('NodeSocketFloat', 'Value')
+    input_socket.default_value = 1
+    input_socket.min_value = 0
+    input_socket.max_value = 1
+
+    value_3d = tree.nodes.new('ShaderNodeCombineRGB')
+    for i in range(3):
+        tree.links.new(inputs_node.outputs[0], value_3d.inputs[i])
+
+    outputs_node = tree.nodes.new('NodeGroupOutput')
+    outputs_node.location = (100,50)
+    tree.outputs.new(combinerOutputClassName, 'Value')
+    tree.links.new(value_3d.outputs[0], outputs_node.inputs['Value'])
+
+    return tree
+
 def update_node_groups():
     log = getLogger('interface')
     # dict mapping group names (keys in bpy.data.node_groups) to (latest_version, create_function) tuples
@@ -782,6 +808,7 @@ def update_node_groups():
         'OBJEX_UV_pipe_main': (1, create_node_group_uv_pipe_main),
         'OBJEX_UV_pipe': (2, create_node_group_uv_pipe),
         'OBJEX_rgba_pipe': (2, create_node_group_rgba_pipe),
+        'OBJEX_single_value': (1, create_node_group_single_value),
     }
     for group_name, (latest_version, group_create) in groups.items():
         old_node_group = None
@@ -904,6 +931,9 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             if not self.reset:
                 # find a node with same name, or same type
                 node = nodes.get(node_name)
+                if node and node.bl_idname != node_type:
+                    node.name = node.name + '_old'
+                    node = None
                 if not node:
                     for n in nodes:
                         if (n.bl_idname == node_type

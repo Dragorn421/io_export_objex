@@ -107,7 +107,7 @@ class OBJEX_OT_export_base():
 
     filename_ext = '.objex'
     filter_glob = StringProperty(
-            default='*.objex;*.mtl',
+            default='*.objex',
             options={'HIDDEN'},
             )
 
@@ -322,11 +322,13 @@ class OBJEX_OT_export_base():
         if self.use_skeletons:
             box = self.layout.box()
             box.prop(self, 'use_skeletons')
-            box.prop(self, 'use_animations')
             if self.use_animations:
                 box2 = box.box()
+                box2.prop(self, 'use_animations')
                 box2.prop(self, 'link_anim_bin')
                 box2.prop(self, 'link_bin_scale')
+            else:
+                box.prop(self, 'use_animations')
             if self.use_weights:
                 box2 = box.box()
                 box2.prop(self, 'use_weights')

@@ -2,6 +2,7 @@ from . import blender_version_compatibility
 
 import bpy
 import mathutils
+import math
 
 from . import util
 from .logging_util import getLogger
@@ -137,26 +138,35 @@ def write_armatures(file_write_skel, file_write_anim, scene, global_matrix, arma
     scene.frame_set(user_frame_current, subframe=user_frame_subframe)
 
 def write_animations(file_write_anim, scene, global_matrix, object_transform, armature, armature_name_q, root_bone, bones_ordered, actions, link_anim_basepath, link_bin_scale):
+    log = getLogger('anim')
     fw = file_write_anim
     fw('# %s\n' % armature.name)
+
     if link_anim_basepath is not None and len(bones_ordered) != 21:
         log.warning('Requested exporting Link animation binary, but armature does not have 21 bones')
         link_anim_basepath = None
+
     for action in actions:
         frame_start, frame_end = action.frame_range
         frame_count = int(frame_end - frame_start + 1)
         fw('newanim %s %s %d\n' % (armature_name_q, util.quote(action.name), frame_count))
+
         link_anim_file = None
         if link_anim_basepath is not None:
             link_anim_filename = link_anim_basepath + ''.join(c for c in action.name if c.isalnum()) + '_' + str(frame_count) + '.bin'
             link_anim_file = open(link_anim_filename, 'wb')
-        write_action(fw, link_anim_file, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count, link_bin_scale)
-        if link_anim_file is not None:
-            link_anim_file.close()
+
+        try:
+            write_action(fw, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count, link_anim_file, link_bin_scale)
+        finally:
+            if link_anim_file is not None:
+                link_anim_file.close()
+
         fw('\n')
+
     fw('\n')
 
-def write_action(fw, link_anim_file, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count, link_bin_scale):
+def write_action(fw, scene, global_matrix, object_transform, armature, root_bone, bones_ordered, action, frame_start, frame_count, link_anim_file, link_bin_scale):
     log = getLogger('anim')
     transform = blender_version_compatibility.matmul(global_matrix, object_transform)
     transform3 = transform.to_3x3()
@@ -243,14 +253,13 @@ def write_action(fw, link_anim_file, scene, global_matrix, object_transform, arm
             # 5 digits: precision of s16 angles in radians is 2pi/2^16 ~ ‭0.000096
             fw('rot %.5f %.5f %.5f\n' % (rotation_euler_zyx.x, rotation_euler_zyx.y, rotation_euler_zyx.z))
             if link_anim_file is not None:
-                def rot_to_short(r):
-                    r *= 180.0 / 3.14159265358
-                    r *= 182.044444444444
+                def rad_to_shortang(r):
+                    r *= 0x8000 / math.pi
                     r = int(r) & 0xFFFF
                     if r >= 0x8000:
                         r -= 0x10000
                     return r
-                link_write_shorts(rot_to_short(rotation_euler_zyx.x), rot_to_short(rotation_euler_zyx.y), rot_to_short(rotation_euler_zyx.z))
+                link_write_shorts(rad_to_shortang(rotation_euler_zyx.x), rad_to_shortang(rotation_euler_zyx.y), rad_to_shortang(rotation_euler_zyx.z))
         
         if link_anim_file is not None:
             texanimvalue = 0

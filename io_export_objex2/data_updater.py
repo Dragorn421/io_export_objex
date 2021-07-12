@@ -165,8 +165,9 @@ update_material_functions = {
     3: node_setup_simple_change_update_material_function(5), # add Vertex Color node to tree (2.80+)
     4: node_setup_simple_change_update_material_function(5), # fix version 4's update_material_function using create=False
     5: nodes_from_5, # custom cycle input sockets in 2.8x
+    6: node_setup_simple_change_update_material_function(7), # add OBJEX_PrimLodFrac
 }
-addon_material_objex_version = 6
+addon_material_objex_version = 7
 
 # called by OBJEX_PT_material#draw
 def handle_material(material, layout):

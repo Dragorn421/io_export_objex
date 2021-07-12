@@ -180,6 +180,7 @@ class ObjexMaterialNodeTreeExplorer():
             # color registers
             'primitiveRGB': (('G_CCMUX_PRIMITIVE',),self.buildColorInputRGB),
             'primitiveA': (('G_CCMUX_PRIMITIVE_ALPHA','G_ACMUX_PRIMITIVE',),self.buildColorInputA),
+            'primitiveLodFrac': (('G_CCMUX_PRIM_LOD_FRAC','G_ACMUX_PRIM_LOD_FRAC',),self.buildSingleValue),
             'environmentRGB': (('G_CCMUX_ENVIRONMENT',),self.buildColorInputRGB),
             'environmentA': (('G_CCMUX_ENV_ALPHA','G_ACMUX_ENVIRONMENT',),self.buildColorInputA),
             # texels
@@ -264,6 +265,8 @@ class ObjexMaterialNodeTreeExplorer():
             else: # neither texel0 nor texel1
                 pass
         self.data = mergedData
+        if 'primitiveLodFrac' in data:
+            self.data['primitiveLodFrac'] = data['primitiveLodFrac']
 
     def buildColorInputRGB(self, k, socket):
         log = self.log
@@ -288,6 +291,14 @@ class ObjexMaterialNodeTreeExplorer():
         socket = socket.node.inputs[1]
         if socket.links:
             log.error('(data key: {}) alpha socket {!r} should not be linked', k, socket)
+        self.data[k] = socket.default_value
+
+    def buildSingleValue(self, k, socket):
+        log = self.log
+        # NodeSocketFloat <- OBJEX_NodeSocket_CombinerInput in node group OBJEX_single_value
+        socket = socket.node.inputs[0]
+        if socket.links:
+            log.error('(data key: {}) value socket {!r} should not be linked', k, socket)
         self.data[k] = socket.default_value
 
     def buildTexelDataFromColorSocket(self, k, socket):
@@ -706,7 +717,18 @@ count  P              A              M              B            comment
                 if 'primitive' in data and (objex_data.write_primitive_color == 'YES'
                     or (objex_data.write_primitive_color == 'GLOBAL' and scene.objex_bonus.write_primitive_color)
                 ):
-                    fw('gbi gsDPSetPrimColor(0, qu08(0.5), %d, %d, %d, %d)\n' % rgba32(data['primitive'])) # 421fixme minlevel, lodfrac
+                    rgbaPrimColor = rgba32(data['primitive'])
+                    primLodFrac = data['primitiveLodFrac'] if 'primitiveLodFrac' in data else 0
+                    primLodFracClamped = min(1, max(0, primLodFrac))
+                    if primLodFrac != primLodFracClamped:
+                        log.error('Material {} has Prim Lod Frac value {} not in 0-1 range, clamping to {}',
+                                    name, primLodFrac, primLodFracClamped)
+                        primLodFrac = primLodFracClamped
+                    primLodFrac = min(primLodFrac, 0xFF/0x100)
+                    fw('gbi gsDPSetPrimColor(0, qu08({4}), {0}, {1}, {2}, {3})\n'.format(
+                        rgbaPrimColor[0], rgbaPrimColor[1], rgbaPrimColor[2], rgbaPrimColor[3],
+                        primLodFrac)
+                    ) # 421fixme minlevel
                 if 'environment' in data and (objex_data.write_environment_color == 'YES'
                     or (objex_data.write_environment_color == 'GLOBAL' and scene.objex_bonus.write_environment_color)
                 ):
@@ -781,17 +803,16 @@ count  P              A              M              B            comment
                         fw('gbivar shiftt%s %d\n' % (i, shiftFromScale(texelData['uv_scale_v'])))
                 if texel0data or texel1data:
                     fw('gbi _loadtexels\n')
-                    objex_data = material.objex_bonus if material else None
                     if objex_data.external_material_segment:
-                    	fw('gbi gsSPDisplayList(%s%s)\n' % (
-                        '' if objex_data.external_material_segment.startswith('0x') else '0x',
-                            objex_data.external_material_segment
-                        ))
+                    	fw('gbi gsSPDisplayList({0}{1}})\n'.format(
+                            '' if objex_data.external_material_segment.startswith('0x') else '0x',
+                            objex_data.external_material_segment)
+                        )
                     else:
                         fw('gbi gsDPSetTileSize(G_TX_RENDERTILE, 0, 0, '
                             'qu102(_texel{0}width-1), qu102(_texel{0}height-1))\n'
                             .format('0' if texel0data else '1')
-                    ) # 421fixme ?
+                        ) # 421fixme ?
             else:
                 image = None
                 # Write images!
