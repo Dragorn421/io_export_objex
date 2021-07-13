@@ -232,7 +232,7 @@ class OBJEX_OT_material_update(bpy.types.Operator):
             if self.update_all:
                 materials = (
                     m for m in bpy.data.materials
-                    if m.objex_bonus.is_objex_material
+                    if m.objex_bonus.is_objex_material and m.objex_bonus.use_display
                         and m.objex_bonus.objex_version != addon_material_objex_version
                 )
             else:

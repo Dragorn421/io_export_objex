@@ -106,7 +106,7 @@ class OBJEX_OT_material_single_texture(bpy.types.Operator):
     @classmethod
     def poll(self, context):
         material = context.material if hasattr(context, 'material') else None
-        return material and material.objex_bonus.is_objex_material
+        return material and material.objex_bonus.is_objex_material and material.objex_bonus.use_display
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
@@ -207,7 +207,7 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
     @classmethod
     def poll(self, context):
         material = context.material if hasattr(context, 'material') else None
-        return material and material.objex_bonus.is_objex_material
+        return material and material.objex_bonus.is_objex_material and material.objex_bonus.use_display
 
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)

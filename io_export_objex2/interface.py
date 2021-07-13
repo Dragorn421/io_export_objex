@@ -1196,7 +1196,7 @@ def init_watch_objex_materials():
     watched = []
     ignored = []
     for material in bpy.data.materials:
-        if material.objex_bonus.is_objex_material:
+        if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
             watch_objex_material(material)
             watched.append(material)
         else:
@@ -1239,10 +1239,10 @@ def blender_use_backface_culling_update(material):
         and 'BLENDER_TO_OBJEX' in bpy.context.scene.objex_bonus.sync_backface_culling
     ):
         log.trace('{} Blender use_backface_culling = {}', material.name, material.use_backface_culling)
-        if material.objex_bonus.is_objex_material:
+        if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
             material.objex_bonus.backface_culling = material.use_backface_culling
         else:
-            log.trace('But material is not an objex material, ignoring it.')
+            log.trace('But material is not a display objex material, ignoring it.')
 
 def objex_backface_culling_update(self, context):
     if not blender_version_compatibility.has_per_material_backface_culling:
@@ -1254,10 +1254,10 @@ def objex_backface_culling_update(self, context):
         and 'OBJEX_TO_BLENDER' in bpy.context.scene.objex_bonus.sync_backface_culling
     ):
         log.trace('{} objex backface_culling = {}', material.name, material.objex_bonus.backface_culling)
-        if material.objex_bonus.is_objex_material:
+        if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
             material.use_backface_culling = material.objex_bonus.backface_culling
         else:
-            log.trace('But material is not an objex material, ignoring it.')
+            log.trace('But material is not a display objex material, ignoring it.')
 
 class OBJEX_PT_material(bpy.types.Panel):
     bl_label = 'Objex'
@@ -1498,7 +1498,7 @@ class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
 
     def execute(self, context):
         for material in bpy.data.materials:
-            if not material.objex_bonus.is_objex_material:
+            if not (material.objex_bonus.is_objex_material and material.objex_bonus.use_display):
                 continue
             for node in material.node_tree.nodes:
                 if node.type != 'GROUP':
