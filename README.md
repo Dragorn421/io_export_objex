@@ -1,8 +1,13 @@
 # io_export_objex
 
-A modified .OBJ export plugin co-developed by Dr. Disco and myself to support new arguments with [zzconvert](http://www.z64.me/tools) in mind, the newest OBJ(EX) to F3DZEX converter for games that use said microcode.
+[Old addon version](https://github.com/CrookedPoe/io_export_objex/blob/285f65b70b97beb90feeccaa7d6d02a2b48d53d6/io_export_objex_outdated.zip)
 
-[Play-As Guide Here](http://www.z64.me/guides/blender-play-as)
+[Old README](https://github.com/CrookedPoe/io_export_objex/blob/285f65b70b97beb90feeccaa7d6d02a2b48d53d6/README.md)
 
-[Blender Addon Installation Guide Here](https://docs.blender.org/manual/en/dev/preferences/addons.html)
+# io_export_objex2
 
+Export from Blender to .objex, to be used with [z64convert](https://old.z64.me/tools/z64convert.html) to produce binaries for use in Zelda64 modding.
+
+[Play-As Guide](https://old.z64.me/guides/new-blender-play-as.html)
+
+[Blender Addon Installation Guide](https://docs.blender.org/manual/en/dev/editors/preferences/addons.html)
