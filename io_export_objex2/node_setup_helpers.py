@@ -282,9 +282,95 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
         setLinks_multiply_by(tree, cc1.inputs['C'], ac1.inputs['C'], self.multiply_by)
         return {'FINISHED'}
 
+class OBJEX_OT_material_set_shade_source(bpy.types.Operator):
+
+    bl_idname = 'objex.material_set_shade_source'
+    bl_label = 'Set Shade Source'
+    bl_description = 'Link the Shade node of objex materials to use vertex colors or lighting'
+    bl_options = set()
+
+    def draw(self, context):
+        layout = self.layout
+        material = context.material if hasattr(context, 'material') else None
+        if not material:
+            layout.label(text='Apply to all materials')
+            layout.label(text='used in selection')
+        layout.operator('objex.material_set_shade_source_vertex_colors')
+        layout.operator('objex.material_set_shade_source_lighting')
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def execute(self, context):
+        return {'FINISHED'}
+
+class OBJEX_OT_material_set_shade_source_vertex_colors(bpy.types.Operator):
+
+    bl_idname = 'objex.material_set_shade_source_vertex_colors'
+    bl_label = 'Set Shade Source Vertex Colors'
+    bl_description = 'Link the Shade node of objex materials to use vertex colors'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        if hasattr(context, 'material'):
+            materials = [context.material]
+        else:
+            materials = set()
+            for obj in context.selected_objects:
+                if obj.type == 'MESH':
+                    for material in obj.data.materials:
+                        if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
+                            materials.add(material)
+        for material in materials:
+            tree = material.node_tree
+            shadeNode = tree.nodes['OBJEX_Shade']
+            if hasattr(bpy.types, 'ShaderNodeVertexColor'): # 2.80+
+                vertexColorNode = tree.nodes['Vertex Color']
+                vertexColorSocketColor = vertexColorNode.outputs['Color']
+                vertexColorSocketAlpha = vertexColorNode.outputs['Alpha']
+            else: # < 2.80
+                geometryNode = tree.nodes['Geometry']
+                vertexColorSocketColor = geometryNode.outputs['Vertex Color']
+                vertexColorSocketAlpha = geometryNode.outputs['Vertex Alpha']
+            clearLinks(tree, shadeNode.inputs['Color'])
+            clearLinks(tree, shadeNode.inputs['Alpha'])
+            tree.links.new(vertexColorSocketColor, shadeNode.inputs['Color'])
+            tree.links.new(vertexColorSocketAlpha, shadeNode.inputs['Alpha'])
+        return {'FINISHED'}
+
+class OBJEX_OT_material_set_shade_source_lighting(bpy.types.Operator):
+
+    bl_idname = 'objex.material_set_shade_source_lighting'
+    bl_label = 'Set Shade Source Lighting'
+    bl_description = 'Link the Shade node of objex materials to use lighting'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        if hasattr(context, 'material'):
+            materials = [context.material]
+        else:
+            materials = set()
+            for obj in context.selected_objects:
+                if obj.type == 'MESH':
+                    for material in obj.data.materials:
+                        if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
+                            materials.add(material)
+        for material in materials:
+            tree = material.node_tree
+            shadeNode = tree.nodes['OBJEX_Shade']
+            clearLinks(tree, shadeNode.inputs['Color'])
+            clearLinks(tree, shadeNode.inputs['Alpha'])
+            color1socket = tree.nodes['OBJEX_Color1'].outputs[0]
+            tree.links.new(color1socket, shadeNode.inputs['Color'])
+            tree.links.new(color1socket, shadeNode.inputs['Alpha'])
+        return {'FINISHED'}
+
 classes = (
     OBJEX_OT_material_single_texture,
     OBJEX_OT_material_multitexture,
+    OBJEX_OT_material_set_shade_source,
+    OBJEX_OT_material_set_shade_source_vertex_colors,
+    OBJEX_OT_material_set_shade_source_lighting,
 )
 
 def register():
