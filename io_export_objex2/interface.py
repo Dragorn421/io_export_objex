@@ -417,6 +417,22 @@ del input_flag_list_choose_get
 
 combinerInputClassName = 'OBJEX_NodeSocket_CombinerInput'
 
+# called on addon load and on file load
+# sets the value of all input_flags_%s_%s EnumProperties as defined above to "_"
+# fixes these enums not showing "..." when a combiner input flag is newly implemented
+def reset_input_flag_lists():
+    for material in bpy.data.materials:
+        if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
+            node_tree = material.node_tree
+            if node_tree:
+                for node in node_tree.nodes:
+                    if node.bl_idname == 'ShaderNodeGroup' and node.node_tree and node.node_tree.name == 'OBJEX_Cycle':
+                        for input in node.inputs:
+                            if input.bl_idname == combinerInputClassName:
+                                for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
+                                    for variable in ('A','B','C','D'):
+                                        setattr(input, 'input_flags_%s_%s' % (cycle, variable), '_')
+
 if bpy.app.version < (2, 80, 0):
 
     class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
@@ -1556,10 +1572,12 @@ def handler_scene_or_depsgraph_update_post_once(*args):
         update_handlers = bpy.app.handlers.depsgraph_update_post
     update_handlers.remove(handler_scene_or_depsgraph_update_post_once)
     init_watch_objex_materials()
+    reset_input_flag_lists()
 
 @bpy.app.handlers.persistent
 def handler_load_post(*args):
     init_watch_objex_materials()
+    reset_input_flag_lists()
 
 def register_interface():
     log = getLogger('interface')
