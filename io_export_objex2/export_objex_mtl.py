@@ -718,10 +718,10 @@ count  P              A              M              B            comment
                     else:
                         log.warning('Unimplemented display_device = {}, colors in-game may differ from the Blender preview', display_device)
                     return tuple(int(c*255) for c in rgba)
-                if 'primitive' in data and (objex_data.write_primitive_color == 'YES'
+                if ('primitive' in data or 'primitiveLodFrac' in data) and (objex_data.write_primitive_color == 'YES'
                     or (objex_data.write_primitive_color == 'GLOBAL' and scene.objex_bonus.write_primitive_color)
                 ):
-                    rgbaPrimColor = rgba32(data['primitive'])
+                    rgbaPrimColor = rgba32(data['primitive']) if 'primitive' in data else (255,255,255,255)
                     primLodFrac = data['primitiveLodFrac'] if 'primitiveLodFrac' in data else 0
                     primLodFracClamped = min(1, max(0, primLodFrac))
                     if primLodFrac != primLodFracClamped:
