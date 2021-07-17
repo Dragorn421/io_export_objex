@@ -365,23 +365,27 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
             and flag in CST.COMBINER_FLAGS_SUPPORT[cycle][name]
         ) else CST.COLOR_BAD
 
-def input_flag_list_choose_get(variable):
+def input_flag_list_choose_get(cycle, variable):
     def input_flag_list_choose(self, context):
         log = getLogger('interface')
-        input_flags_prop_name = 'input_flags_%s_%s' % (self.node['cycle'], variable)
+        input_flags_prop_name = 'input_flags_%s_%s' % (cycle, variable)
         flag = getattr(self, input_flags_prop_name)
         if flag == '_':
             return
+        log.debug('Material {} {} -> {}',
+            [mat.name for mat in bpy.data.materials if mat.node_tree == self.id_data],
+            input_flags_prop_name, flag
+        )
         tree = self.id_data
         matching_socket = None
         for n in tree.nodes:
             for s in n.outputs:
                 if s.bl_idname == combinerOutputClassName:
                     if OBJEX_NodeSocket_CombinerOutput is not None: # < 2.80
-                        socket_flag = s.flagColorCycle if self.node['cycle'] == CST.CYCLE_COLOR else s.flagAlphaCycle
+                        socket_flag = s.flagColorCycle if cycle == CST.CYCLE_COLOR else s.flagAlphaCycle
                     else: # 2.80+
                         key = '%s %s' % (
-                                'flagColorCycle' if self.node['cycle'] == CST.CYCLE_COLOR else 'flagAlphaCycle',
+                                'flagColorCycle' if cycle == CST.CYCLE_COLOR else 'flagAlphaCycle',
                                 s.identifier)
                         socket_flag = n[key] if key in n else None
                     if flag == socket_flag:
@@ -410,7 +414,7 @@ for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
                 ) + [('_','...','')],
                 name='%s' % variable,
                 default='_',
-                update=input_flag_list_choose_get(variable)
+                update=input_flag_list_choose_get(cycle, variable)
             )
         )
 del input_flag_list_choose_get
@@ -421,16 +425,31 @@ combinerInputClassName = 'OBJEX_NodeSocket_CombinerInput'
 # sets the value of all input_flags_%s_%s EnumProperties as defined above to "_"
 # fixes these enums not showing "..." when a combiner input flag is newly implemented
 def reset_input_flag_lists():
+    log = getLogger('interface')
+    log.debug('running...')
+    traceMaterialName = None
     for material in bpy.data.materials:
+        if material.name == traceMaterialName:
+            log.trace('found traced material {}', material)
         if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
+            if material.name == traceMaterialName:
+                log.trace('display objex material {}', material)
             node_tree = material.node_tree
             if node_tree:
+                if material.name == traceMaterialName:
+                    log.trace('has node_tree {}', material)
                 for node in node_tree.nodes:
+                    if material.name == traceMaterialName:
+                        log.trace('node of {} : {}', material, node)
                     if node.bl_idname == 'ShaderNodeGroup' and node.node_tree and node.node_tree.name == 'OBJEX_Cycle':
+                        if material.name == traceMaterialName:
+                            log.trace('is OBJEX_Cycle')
                         for input in node.inputs:
                             if input.bl_idname == combinerInputClassName:
                                 for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
                                     for variable in ('A','B','C','D'):
+                                        if material.name == traceMaterialName:
+                                            log.trace(f'setting {material.name} -> {node.label} -> {input.name} input_flags_%s_%s to _' % (cycle, variable))
                                         setattr(input, 'input_flags_%s_%s' % (cycle, variable), '_')
 
 if bpy.app.version < (2, 80, 0):
