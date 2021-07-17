@@ -198,7 +198,7 @@ class ObjexMaterialNodeTreeExplorer():
                 log.error('Different sockets {!r} are used by different flags {!r} but these flags should refer to the same data {}', sockets, flags, k)
             if sockets:
                 socket = next(iter(sockets))
-                log.debug('getting {} from {!r}', k, socket)
+                log.debug('getting {} from {!r} (socket node: {!r})', k, socket, socket.node)
                 socketReader(k, socket)
         # FIXME
         def mergeRGBA(rgb, a):
@@ -508,7 +508,11 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 if not material.use_nodes:
                     raise util.ObjexExportAbort('Material {0!r} {0.name} is_objex_material but not use_nodes (was "Use Nodes" unchecked after adding objex nodes to it?)'.format(material))
                 explorer = ObjexMaterialNodeTreeExplorer(material)
-                explorer.build()
+                try:
+                    explorer.build()
+                except:
+                    log.error('Failed to explore nodes of material {.name}', material)
+                    raise
                 if len(explorer.combinerFlags) != 16:
                     log.error('Unexpected combiner flags amount {:d} (are both cycles used?), flags: {!r}', len(explorer.combinerFlags), explorer.combinerFlags)
                 data = explorer.data
@@ -808,7 +812,7 @@ count  P              A              M              B            comment
                 if texel0data or texel1data:
                     fw('gbi _loadtexels\n')
                     if objex_data.external_material_segment:
-                    	fw('gbi gsSPDisplayList({0}{1}})\n'.format(
+                        fw('gbi gsSPDisplayList({0}{1})\n'.format(
                             '' if objex_data.external_material_segment.startswith('0x') else '0x',
                             objex_data.external_material_segment)
                         )
