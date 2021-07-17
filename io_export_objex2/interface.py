@@ -1402,6 +1402,9 @@ class OBJEX_PT_material(bpy.types.Panel):
             self.layout.separator()
             draw_build_nodes_operator(self.layout, 'Reset nodes', init=True, reset=True)
             return
+        if hasattr(self.layout, 'use_property_split') and hasattr(self.layout, 'use_property_decorate'): # 2.80+
+            self.layout.use_property_split = True
+            self.layout.use_property_decorate = False
         # empty: only draw the exported properties empty, branch_to_object, branch_to_object_bone
         if data.empty or material.name.startswith('empty.'):
             self.layout.label(text='Empty materials only', icon='INFO')
@@ -1441,6 +1444,10 @@ class OBJEX_PT_material(bpy.types.Panel):
         self.layout.operator('objex.material_set_shade_source', text='Set Shade Source')
         # 421todo more quick-setup operators
         # often-used options
+        if hasattr(material, 'use_transparency'): # < 2.80
+            self.layout.prop(material, 'use_transparency')
+        if hasattr(material, 'blend_method'): # 2.80+
+            self.layout.prop(material, 'blend_method')
         self.layout.prop(data, 'backface_culling')
         self.layout.prop(data, 'frontface_culling')
         for prop in ('write_primitive_color','write_environment_color'):
