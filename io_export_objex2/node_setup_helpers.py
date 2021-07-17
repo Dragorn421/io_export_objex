@@ -282,6 +282,110 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
         setLinks_multiply_by(tree, cc1.inputs['C'], ac1.inputs['C'], self.multiply_by)
         return {'FINISHED'}
 
+class OBJEX_OT_material_flat_color(bpy.types.Operator):
+
+    bl_idname = 'objex.material_flat_color'
+    bl_label = 'Use a flat color'
+    bl_description = 'Configures nodes of an objex material for using a flat color'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    colorRGB = bpy.props.FloatVectorProperty(
+            subtype='COLOR',
+            name='Color',
+            description='The color to use',
+            default=(1,1,1)
+        )
+    colorA = bpy.props.FloatProperty(
+            name='Color Alpha',
+            description='The color alpha to use',
+            min=0, max=1, step=10,
+            default=1
+        )
+    mainColorRegister = bpy.props.EnumProperty(
+            items=[
+                ('ENV_COLOR','Environment Color','Use environment color',1),
+                ('PRIM_COLOR','Primitive Color','Use primitive color',2),
+            ],
+            name='Register',
+            description='Which register to use for the main color.',
+            default='PRIM_COLOR'
+        )
+    multiply_by0 = bpy.props.EnumProperty(
+            items=[
+                ('LIGHTING','Lighting','Use shading from lighting',1),
+                ('VERTEX_COLORS','Vertex Colors','Use shading from vertex colors',2),
+                ('ENV_COLOR','Environment Color','Use environment color',3),
+                ('PRIM_COLOR','Primitive Color','Use primitive color',4),
+                ('NONE','None','',5),
+            ],
+            name='With',
+            description='What to combine (multiply) the color with.',
+            default='ENV_COLOR'
+        )
+    multiply_by1 = bpy.props.EnumProperty(
+            items=[
+                ('LIGHTING','Lighting','Use shading from lighting',1),
+                ('VERTEX_COLORS','Vertex Colors','Use shading from vertex colors',2),
+                ('ENV_COLOR','Environment Color','Use environment color',3),
+                ('PRIM_COLOR','Primitive Color','Use primitive color',4),
+                ('NONE','None','',5),
+            ],
+            name='With',
+            description='What to combine (multiply) the color with.',
+            default='LIGHTING'
+        )
+
+    def draw(self, context):
+        layout = self.layout
+        layout.prop(self, 'colorRGB')
+        layout.prop(self, 'colorA')
+        layout.prop(self, 'mainColorRegister')
+        layout.prop(self, 'multiply_by0')
+        layout.prop(self, 'multiply_by1')
+        if set((self.multiply_by0, self.multiply_by1,)) == set(('LIGHTING', 'VERTEX_COLORS',)):
+            layout.label(text='Lighting and Vertex Colors', icon='ERROR')
+            layout.label(text='cannot be used together', icon='ERROR')
+
+    @classmethod
+    def poll(self, context):
+        material = context.material if hasattr(context, 'material') else None
+        return material and material.objex_bonus.is_objex_material and material.objex_bonus.use_display
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
+    def execute(self, context):
+        material = context.material
+        tree = material.node_tree
+        if set((self.multiply_by0, self.multiply_by1,)) == set(('LIGHTING', 'VERTEX_COLORS',)):
+            self.report({'WARNING'}, 'Lighting and Vertex Colors cannot be used together')
+            return {'CANCELLED'}
+        if self.mainColorRegister == 'PRIM_COLOR':
+            mainColorRegisterNode = tree.nodes['OBJEX_PrimColor']
+        elif self.mainColorRegister == 'ENV_COLOR':
+            mainColorRegisterNode = tree.nodes['OBJEX_EnvColor']
+        mainColorRegisterNode.inputs[0].links[0].from_node.outputs[0].default_value = list(self.colorRGB) + [1];
+        mainColorRegisterNode.inputs[1].default_value = self.colorA;
+        cc0 = tree.nodes['OBJEX_ColorCycle0']
+        cc1 = tree.nodes['OBJEX_ColorCycle1']
+        ac0 = tree.nodes['OBJEX_AlphaCycle0']
+        ac1 = tree.nodes['OBJEX_AlphaCycle1']
+        for c in (cc0,cc1,ac0,ac1):
+            for variable in ('A','B','C','D'):
+                clearLinks(tree, c.inputs[variable])
+        # color cycles
+        tree.links.new(mainColorRegisterNode.outputs['Color'], cc0.inputs['D' if self.multiply_by0 == 'NONE' else 'A'])
+        tree.links.new(cc0.outputs[0], cc1.inputs['D' if self.multiply_by1 == 'NONE' else 'A'])
+        # alpha cycles
+        tree.links.new(mainColorRegisterNode.outputs['Alpha'], ac0.inputs['D' if self.multiply_by0 == 'NONE' else 'A'])
+        tree.links.new(ac0.outputs[0], ac1.inputs['D' if self.multiply_by1 == 'NONE' else 'A'])
+        # set C of all cycle
+        if self.multiply_by0 != 'NONE':
+            setLinks_multiply_by(tree, cc0.inputs['C'], ac0.inputs['C'], self.multiply_by0)
+        if self.multiply_by1 != 'NONE':
+            setLinks_multiply_by(tree, cc1.inputs['C'], ac1.inputs['C'], self.multiply_by1)
+        return {'FINISHED'}
+
 class OBJEX_OT_material_set_shade_source(bpy.types.Operator):
 
     bl_idname = 'objex.material_set_shade_source'
@@ -368,6 +472,7 @@ class OBJEX_OT_material_set_shade_source_lighting(bpy.types.Operator):
 classes = (
     OBJEX_OT_material_single_texture,
     OBJEX_OT_material_multitexture,
+    OBJEX_OT_material_flat_color,
     OBJEX_OT_material_set_shade_source,
     OBJEX_OT_material_set_shade_source_vertex_colors,
     OBJEX_OT_material_set_shade_source_lighting,

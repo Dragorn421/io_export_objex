@@ -1441,6 +1441,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         draw_build_nodes_operator(row, 'Fix nodes')
         self.layout.operator('objex.material_single_texture', text='Single Texture Setup')
         self.layout.operator('objex.material_multitexture', text='Multitexture Setup')
+        self.layout.operator('objex.material_flat_color', text='Flat Color Setup')
         self.layout.operator('objex.material_set_shade_source', text='Set Shade Source')
         # 421todo more quick-setup operators
         # often-used options
