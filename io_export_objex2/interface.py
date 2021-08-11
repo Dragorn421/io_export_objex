@@ -449,7 +449,7 @@ def reset_input_flag_lists():
                                 for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
                                     for variable in ('A','B','C','D'):
                                         if material.name == traceMaterialName:
-                                            log.trace(f'setting {material.name} -> {node.label} -> {input.name} input_flags_%s_%s to _' % (cycle, variable))
+                                            log.trace('setting %s -> %s -> %s input_flags_%s_%s to _' % (material.name, node.label, input.name, cycle, variable))
                                         setattr(input, 'input_flags_%s_%s' % (cycle, variable), '_')
 
 if bpy.app.version < (2, 80, 0):
