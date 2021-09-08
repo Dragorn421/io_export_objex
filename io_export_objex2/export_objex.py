@@ -125,7 +125,7 @@ class ObjexWriter():
         rigged_to_armature = ob.find_armature()
 
         apply_modifiers = self.options['APPLY_MODIFIERS']
-        using_depsgraph = self.depsgraph is not None # True in 2.80+
+        using_depsgraph = hasattr(self.context, 'evaluated_depsgraph_get') # True in 2.80+
         # disable armature deform modifiers
         user_show_armature_modifiers = []
         if apply_modifiers:
@@ -135,20 +135,26 @@ class ObjexWriter():
                 if found_armature_deform and not self.options['APPLY_MODIFIERS_AFTER_ARMATURE_DEFORM']:
                     log.info('Skipped modifier {} which is down of the armature deform modifier', modifier.name)
                     disable_modifier = True
-                if modifier.type == 'ARMATURE' and rigged_to_armature and (
-                    # don't apply armature deform (aka disable modifier) if armature is exported,
-                    # or if the armature deform should be applied for armatures that aren't exported ("UNUSED")
-                    rigged_to_armature in self.objects or not self.options['APPLY_UNUSED_ARMATURE_DEFORM']
-                ):
-                    if modifier.object == rigged_to_armature:
-                        if found_armature_deform:
-                            log.warning('Found several armature deform modifiers on object {} using armature {}',
-                                ob.name, rigged_to_armature.name)
-                        found_armature_deform = True
-                        disable_modifier = True
+                if modifier.type == 'ARMATURE':
+                    if rigged_to_armature:
+                        # don't apply armature deform (aka disable modifier) if armature is exported,
+                        # or if the armature deform should be applied for armatures that aren't exported ("UNUSED")
+                        if rigged_to_armature in self.objects or not self.options['APPLY_UNUSED_ARMATURE_DEFORM']:
+                            if modifier.object == rigged_to_armature:
+                                if found_armature_deform:
+                                    log.warning('Found several armature deform modifiers on object {} using armature {}',
+                                        ob.name, rigged_to_armature.name)
+                                found_armature_deform = True
+                                disable_modifier = True
+                            else:
+                                log.warning('Object {} was found to be rigged to {} but it also has an armature deform modifier using {}',
+                                    ob.name, rigged_to_armature.name, modifier.object.name if modifier.object else None)
+                        else:
+                            if rigged_to_armature not in self.objects:
+                                log.debug("Leaving armature deform modifier {!r} as is, object {!r} is rigged to {!r} but that armature is not exported",
+                                    modifier, ob, rigged_to_armature)
                     else:
-                        log.warning('Object {} was found to be rigged to {} but it also has an armature deform modifier using {}',
-                            ob.name, rigged_to_armature.name, modifier.object.name if modifier.object else None)
+                        log.debug("Leaving armature deform modifier {!r} as is, object {!r} is not rigged", modifier, ob)
                 modifier_show = None
                 if disable_modifier:
                     modifier_show = False
@@ -158,9 +164,12 @@ class ObjexWriter():
                     user_show_armature_modifiers.append((modifier, modifier.show_viewport, modifier.show_render))
                     modifier.show_viewport = modifier_show
                     modifier.show_render = modifier_show
+                    log.trace("Set modifier {!r} on object {!r} to " + ("active" if modifier_show else "disabled"), modifier, ob)
+                else:
+                    log.trace("Leaving modifier {!r} on object {!r} as is", modifier, ob)
 
         if using_depsgraph: # 2.80+
-            ob_for_convert = ob.evaluated_get(self.depsgraph) if apply_modifiers else ob.original
+            ob_for_convert = ob.evaluated_get(self.context.evaluated_depsgraph_get()) if apply_modifiers else ob.original
         else:
             ob_for_convert = None
 
@@ -581,11 +590,6 @@ class ObjexWriter():
                 self.collected_armatures = []
                 self.collected_armatures_dict = dict()
 
-                if hasattr(self.context, 'evaluated_depsgraph_get'): # 2.80+
-                    self.depsgraph = self.context.evaluated_depsgraph_get()
-                else: # < 2.80
-                    self.depsgraph = None
-
                 for ob_main in self.objects:
                     # 421todo I don't know what this dupli stuff is about
                     # ("instancer" stuff in 2.80+)
@@ -608,7 +612,7 @@ class ObjexWriter():
                         obs += [(dob.object, dob.matrix) for dob in ob_main.dupli_list]
                     elif not use_old_dupli and ob_main.is_instancer:
                         obs += [(dup.instance_object.original, dup.matrix_world.copy())
-                                for dup in self.depsgraph.object_instances
+                                for dup in self.context.evaluated_depsgraph_get().object_instances
                                 if dup.parent and dup.parent.original == ob_main]
                     else:
                         added_dupli_children = False
@@ -620,7 +624,6 @@ class ObjexWriter():
                         self.collect_object(subprogress1, ob, ob_mat)
                         subprogress1.step("Finished collecting object {}.".format(ob.name))
                     subprogress1.leave_substeps("Finished collecting all instances of object {}.".format(ob_main.name))
-                del self.depsgraph
                 subprogress1.leave_substeps()
 
                 if self.options['EXPORT_MTL']:
