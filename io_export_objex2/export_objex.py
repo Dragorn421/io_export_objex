@@ -287,7 +287,7 @@ class ObjexWriter():
             cd_mesh.mesh_objex_bonus = None
 
         cd_mesh.rigged_to_armature = rigged_to_armature
-        cd_mesh.rigged_to_armature_name = rigged_to_armature.name
+        cd_mesh.rigged_to_armature_name = None if rigged_to_armature is None else rigged_to_armature.name
         cd_mesh.vertex_groups_names = list(ob.vertex_groups.keys())
 
         # clean up
@@ -650,6 +650,8 @@ class ObjexWriter():
                 for cd_mesh in self.collected_display_meshes:
                     if cd_mesh.rigged_to_armature is not None:
                         cd_mesh.armature_collected = self.collected_armatures_dict[cd_mesh.rigged_to_armature]
+                    else:
+                        cd_mesh.armature_collected = None
                     del cd_mesh.rigged_to_armature
                 del self.collected_armatures_dict
 
