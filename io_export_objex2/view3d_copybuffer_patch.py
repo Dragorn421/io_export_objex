@@ -145,6 +145,9 @@ def remove_from_handlers():
 @bpy.app.handlers.persistent
 def monkeyPatch_view3d_copybuffer_handler(_):
     addon_preferences = util.get_addon_preferences()
+    if addon_preferences is None:
+        log.debug('No addon preferences (yet?)')
+        return
     kc = bpy.context.window_manager.keyconfigs.addon if addon_preferences else None
     # don't call get_context_user_keymaps if addon_preferences or kc isn't defined (if --background)
     if addon_preferences and kc and not get_context_user_keymaps():

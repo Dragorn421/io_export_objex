@@ -22,6 +22,10 @@ from . import blender_version_compatibility
 def quote(s):
     return json.dumps(s)
 
+class CollectAbort(Exception):
+    def __init__(self, reason):
+        self.reason = reason
+
 class ObjexExportAbort(Exception):
     def __init__(self, reason):
         self.reason = reason
@@ -37,7 +41,10 @@ def get_addon_version():
     return addon_version
 
 def get_addon_preferences():
-    addons_preferences = blender_version_compatibility.get_preferences(bpy.context).addons
+    preferences = blender_version_compatibility.get_preferences(bpy.context)
+    if preferences is None:
+        return None
+    addons_preferences = preferences.addons
     if __package__ in addons_preferences:
         return addons_preferences[__package__].preferences
     else:

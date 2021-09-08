@@ -70,17 +70,35 @@ except ImportError:
 # import/reload files
 import importlib
 loc = locals()
+if 'modules' not in loc:
+    print("'modules' not in loc")
+    modules = dict()
 for n in (
-    'export_objex', 'export_objex_mtl', 'export_objex_anim',
-    'properties', 'interface', 'const_data', 'util', 'logging_util',
-    'rigging_helpers', 'data_updater', 'view3d_copybuffer_patch',
-    'addon_updater', 'addon_updater_ops', 'blender_version_compatibility',
-    'node_setup_helpers',
+    '.export_collect.collect_armature',
+    '.export_collect.collect_display_material',
+    '.export_collect.collect_display_mesh',
+    '.addon_updater_ops',
+    '.addon_updater',
+    '.blender_version_compatibility',
+    '.const_data',
+    '.data_updater',
+    '.export_objex_anim',
+    '.export_objex_mtl',
+    '.export_objex',
+    '.interface',
+    '.logging_util',
+    '.node_setup_helpers',
+    '.properties',
+    '.rigging_helpers',
+    '.util',
+    '.view3d_copybuffer_patch',
 ):
-    if n in loc:
-        importlib.reload(loc[n])
+    if n in modules:
+        print("importlib.reload(modules[n={!r}])".format(n))
+        importlib.reload(modules[n])
     else:
-        importlib.import_module('.%s' % n, __package__)
+        print("modules[n={!r}] = importlib.import_module(n={!r}, __package__={!r})".format(n,n,__package__))
+        modules[n] = importlib.import_module(n, __package__)
 del importlib
 
 from . import export_objex
@@ -152,17 +170,6 @@ class OBJEX_OT_export_base():
             )
 
     # extra data group
-    use_smooth_groups = BoolProperty(
-            name='Smooth Groups',
-            description='Write sharp edges as smooth groups',
-            default=export_objex.ObjexWriter.default_options['EXPORT_SMOOTH_GROUPS'],
-            )
-    use_smooth_groups_bitflags = BoolProperty(
-            name='Bitflag Smooth Groups',
-            description='Same as Smooth Groups, but generate smooth groups IDs as bitflags '
-                        '(produces at most 32 different smooth groups, usually much less)',
-            default=export_objex.ObjexWriter.default_options['EXPORT_SMOOTH_GROUPS_BITFLAGS'],
-            )
     use_normals = BoolProperty(
             name='Write Normals',
             description='Export one normal per vertex and per face, to represent flat faces and sharp edges',
@@ -229,12 +236,6 @@ class OBJEX_OT_export_base():
             name='Export packed images directory',
             description='Where to save packed images',
             default=export_objex.ObjexWriter.default_options['EXPORT_PACKED_IMAGES_DIR'],
-            )
-
-    keep_vertex_order = BoolProperty(
-            name='Keep Vertex Order',
-            description='',
-            default=export_objex.ObjexWriter.default_options['KEEP_VERTEX_ORDER'],
             )
 
     global_scale = FloatProperty(
@@ -310,12 +311,6 @@ class OBJEX_OT_export_base():
         self.layout.prop(self, 'use_uvs')
         self.layout.prop(self, 'use_normals')
         self.layout.prop(self, 'use_vertex_colors')
-        if self.use_smooth_groups:
-            box = self.layout.box()
-            box.prop(self, 'use_smooth_groups')
-            box.prop(self, 'use_smooth_groups_bitflags')
-        else:
-            self.layout.prop(self, 'use_smooth_groups')
         self.layout.prop(self, 'use_materials')
         if self.use_skeletons:
             box = self.layout.box()
@@ -337,7 +332,6 @@ class OBJEX_OT_export_base():
             self.layout.prop(self, 'use_skeletons')
         self.layout.prop(self, 'axis_forward')
         self.layout.prop(self, 'axis_up')
-        self.layout.prop(self, 'keep_vertex_order')
         self.layout.prop(self, 'use_triangles')
         if self.export_packed_images:
             box = self.layout.box()
@@ -426,8 +420,7 @@ class OBJEX_OT_export_base():
             ):
                 log.warning('There is a 3d view area in the current screen which is\n'
                             'using Texture as Viewport Shading and not Material,\n'
-                            'which is required to correctly preview objex-enabled materials.',
-                            shading_type)
+                            'which is required to correctly preview objex-enabled materials.')
 
             view_transform = context.scene.view_settings.view_transform
             if bpy.app.version < (2, 80, 0):
