@@ -30,6 +30,7 @@ except ImportError:
 
 from .export_collect import collect_display_mesh
 from .export_collect import collect_armature
+from .export_collect import collect_collision_mesh
 from . import export_objex_mtl
 from . import export_objex_anim
 from . import util
@@ -219,52 +220,6 @@ class ObjexWriter():
         if ob_mat.determinant() < 0.0:
             me.flip_normals()
 
-        # FIXME warnings and checks that became outdated with the material collecting,
-        # but would still be nice to put them somewhere
-        """
-                # FIXME this should be moved to collision-specific export stuff
-                objectUseCollision = ob.name.startswith('collision.')
-                # 421fixme
-                # if the export is done right after material initialization, material properties
-                # are for some reason still reading the old values. They update at least
-                # when modifying objex_bonus properties in the UI or renaming the material
-                # context.view_layer.update() doesn't help
-                if objectUseCollision and not material.objex_bonus.is_objex_material:
-                    raise util.ObjexExportAbort(
-                        'Object {} is for collision (has "collision." prefix) '
-                        'but material {} used by this object is not for collision '
-                        '(not even initialized as an objex material)'
-                        .format(ob.name, material.name)
-                    )
-                if objectUseCollision and not material.objex_bonus.use_collision:
-                    raise util.ObjexExportAbort(
-                        'Object {} is for collision (has "collision." prefix) '
-                        'but material {} used by this object is not for collision'
-                        .format(ob.name, material.name)
-                    )
-                if not objectUseCollision and material.objex_bonus.use_collision:
-                    raise util.ObjexExportAbort(
-                        'Object {} is not for collision (does not have "collision." prefix) '
-                        'but material {} used by this object is for collision'
-                        .format(ob.name, material.name)
-                    )
-
-
-
-        # assume non-objex materials using nodes are a rarity before 2.8x
-        if objex_data and material.use_nodes and not objex_data.is_objex_material and bpy.app.version < (2, 80, 0):
-            log.warning('Material {!r} use_nodes but not is_objex_material\n'
-                '(did you copy-paste nodes from another material instead of clicking the "Init..." button?),\n'
-                'nodes will be ignored and the face image will be used\n'
-                '(for now, to use the current nodes you can make a temporary duplicate of the material,\n'
-                'click the "Init..." button on the original material, delete all the generated nodes\n'
-                'and paste the actual nodes from the duplicate)'
-                , material)
-
-
-
-        """
-
         if self.options['EXPORT_NORMALS']:
             me.calc_normals_split()
             # No need to call me.free_normals_split later, as this mesh is deleted anyway!
@@ -276,7 +231,6 @@ class ObjexWriter():
             collect_vertex_colors=self.options['EXPORT_VERTEX_COLORS']
         )
 
-        cd_mesh.transform = ob_mat
         cd_mesh.location = ob.location.copy().freeze()
         cd_mesh.name = ob.name
         cd_mesh.name_q = util.quote(cd_mesh.name)
@@ -298,8 +252,82 @@ class ObjexWriter():
 
         self.collected_display_meshes.append(cd_mesh)
 
+    def collect_object_try_collision_mesh(self, progress, ob, ob_mat):
+        log = self.log
+        scene = self.context.scene
+
+        apply_modifiers = self.options['APPLY_MODIFIERS']
+        # TODO modifiers ?
+        if ob.modifiers:
+            log.warning("Didn't expect collision object {} to have modifiers, may currently not apply as expected if 2.80+", ob.name)
+
+        if hasattr(self.context, "evaluated_depsgraph_get"): # 2.80+
+            ob_for_convert = ob.evaluated_get(self.context.evaluated_depsgraph_get()) if apply_modifiers else ob.original
+        else:
+            ob_for_convert = None
+
+        try:
+            if not ob_for_convert: # < 2.80
+                me = ob.to_mesh(scene, apply_modifiers, calc_tessface=False,
+                                settings='RENDER' if self.options['APPLY_MODIFIERS_RENDER'] else 'PREVIEW')
+            else: # 2.80+
+                # 421fixme should preserve_all_data_layers=True be used?
+                me = ob_for_convert.to_mesh()
+        except RuntimeError:
+            me = None
+
+        if me is None:
+            return
+
+        # _must_ do this before applying transformation, else tessellation may differ
+        if self.options['TRIANGULATE']:
+            if not all(len(polygon.vertices) == 3 for polygon in me.polygons):
+                notes = []
+                if any(modifier.type == 'TRIANGULATE' for modifier in ob.modifiers):
+                    notes.append('mesh has a triangulate modifier')
+                    if apply_modifiers:
+                        notes.append('even after applying modifiers')
+                    else:
+                        notes.append('modifiers are not being applied (check export options)')
+                    if ob.find_armature() and not self.options['APPLY_MODIFIERS_AFTER_ARMATURE_DEFORM']:
+                        notes.append('mesh is rigged and only modifiers before armature deform are used\n'
+                            '(move the triangulate modifier up, or check export options)')
+                else:
+                    notes.append('mesh has no triangulate modifier')
+                log.warning('Mesh {} is not triangulated and will be triangulated automatically (for exporting only).\n'
+                    'Triangulation may differ from the viewport.'
+                    '{}', ob.name, ''.join('\nNote: %s' % note for note in notes))
+                # _must_ do this first since it re-allocs arrays
+                mesh_triangulate(me)
+            else:
+                log.debug('Skipped triangulating {}, mesh only has triangles', ob.name)
+
+        me.transform(blender_version_compatibility.matmul(self.options['GLOBAL_MATRIX'], ob_mat))
+        # If negative scaling, we have to invert the normals...
+        if ob_mat.determinant() < 0.0:
+            me.flip_normals()
+
+        cc_mesh = self.collision_collector.collect_collision_mesh(
+            me,
+            #collect_materials=self.options['EXPORT_OBJEX_COLLISION_MTL'] # TODO
+        )
+
+        cc_mesh.name = ob.name
+        cc_mesh.name_q = util.quote(cc_mesh.name)
+
+        # TODO ob.data.objex_bonus ?
+        # not using it here, if indeed collision meshes shouldnt have mesh properties,
+        # then they also shouldnt get displayed in mesh properties in the ui
+
+        # clean up
+        if not ob_for_convert: # < 2.80
+            bpy.data.meshes.remove(me)
+        else: # 2.80+
+            ob_for_convert.to_mesh_clear()
+
+        self.collected_collision_meshes.append(cc_mesh)
+
     def collect_object_armature(self, progress, ob, ob_mat):
-        # FIXME collect
         if self.options['EXPORT_ANIM']:
             objex_data = ob.data.objex_bonus
             if objex_data.export_all_actions:
@@ -334,6 +362,10 @@ class ObjexWriter():
         if ob.type == 'ARMATURE':
             if self.options['EXPORT_SKEL']:
                 self.collect_object_armature(progress, ob, ob_mat)
+        elif ob.name.startswith("collision."):
+            if ob.type != "MESH":
+                self.log.warning('Object {} is of type {}, not MESH, but will be collected as collision since it has the "collision." prefix', ob.name, ob.type)
+            self.collect_object_try_collision_mesh(progress, ob, ob_mat)
         else:
             self.collect_object_try_display_mesh(progress, ob, ob_mat)
 
@@ -348,13 +380,9 @@ class ObjexWriter():
 
             # Sort by material, so we dont over context switch in the obj file.
             i = 0
-            for materials in (
-                self.display_collector.collected_materials,
-                self.display_collector.face_image_materials,
-            ):
-                for cd_material in materials.values():
-                    cd_material.contextSortIndex = i
-                    i += 1
+            for cd_material in self.display_collector.collected_materials.values():
+                cd_material.contextSortIndex = i
+                i += 1
             cd_mesh.faces.sort(key=lambda cd_face: (cd_face.material.contextSortIndex if cd_face.material else -1))
 
             util.detect_zztag(log, cd_mesh.name)
@@ -547,6 +575,70 @@ class ObjexWriter():
             self.total_normal += normal_unique_count
             self.total_vertex_color += vertex_color_unique_count
 
+    # TODO this is copypasted from write_display_mesh, not sure it is worth making the code common though,
+    # since this is only a small subset of the display version
+    def write_collision_mesh(self, progress, cc_mesh):
+        fw = self.fw_objex
+
+        with ProgressReportSubstep(progress, 3) as subprogress2:
+
+            if not (cc_mesh.vertices or cc_mesh.faces):  # Make sure there is something to write
+                return  # dont bother with this mesh.
+
+            # Sort by material, so we dont over context switch in the obj file.
+            i = 0
+            for cc_material in self.collision_collector.collected_materials.values():
+                cc_material.contextSortIndex = i
+                i += 1
+            cc_mesh.faces.sort(key=lambda c_face: (c_face.material.contextSortIndex if c_face.material else -1))
+
+            subprogress2.step()
+
+            # Vert
+            for cc_vertex in cc_mesh.vertices:
+                # FIXME z64convert uses sscanf which should be able to read the scientific notation this
+                # formatting may use (eg `1e-07`), but it would be better to actually test it
+                # https://github.com/z64me/z64convert/blob/857e20bde09db17436001faa081326cc762d861f/src/objex.c#L2446
+                # (duplicated from write_display_mesh)
+                fw('v {0.x} {0.y} {0.z}\n'.format(cd_vertex.coords))
+            i = 0
+            for cc_vertex in cc_mesh.vertices:
+                cc_vertex.index = i
+                i += 1
+            vertex_unique_count = len(cc_mesh.vertices)
+
+            subprogress2.step()
+
+            # used to keep track of the last g/usemtl directive written, according to options
+            # Can never be 0, so we will label a new material the first chance we get. used for usemtl directives if EXPORT_MTL
+            context_cc_material = 0  
+
+            for c_face in cc_mesh.faces:
+                if self.options['EXPORT_MTL']: # TODO split EXPORT_MTL between EXPORT_DISPLAY_MTL and EXPORT_COLLISION_MTL
+                    # if context hasn't changed, do nothing
+                    if context_cc_material == c_face.material:
+                        pass
+                    else:
+                        # update context
+                        context_cc_material = c_face.material
+
+                        # clear context
+                        if context_cc_material is None:
+                            fw('clearmtl\n')
+                        # new context
+                        else:
+                            fw('usemtl {}\n'.format(context_cc_material.name_q))
+
+                fw('f')
+                for cc_vertex in c_face.vertices:
+                    fw(' {}'.format(cc_vertex.index))
+                fw('\n')
+
+            subprogress2.step()
+
+            # Make the indices global rather then per mesh
+            self.total_vertex += vertex_unique_count
+
     def write(self, filepath):
         """
         This function starts the exporting. It defines a few "globals" as class members, notably the total_* variables
@@ -576,6 +668,7 @@ class ObjexWriter():
                 self.total_vertex = self.total_uv = self.total_normal = self.total_vertex_color = 1
 
                 self.display_collector = collect_display_mesh.DisplayMeshCollector()
+                self.collision_collector = collect_collision_mesh.CollisionMeshCollector()
 
                 copy_set = set()
 
@@ -587,6 +680,7 @@ class ObjexWriter():
                 subprogress1.enter_substeps(len(self.objects))
 
                 self.collected_display_meshes = []
+                self.collected_collision_meshes = []
                 self.collected_armatures = []
                 self.collected_armatures_dict = dict()
 
@@ -627,24 +721,16 @@ class ObjexWriter():
                 subprogress1.leave_substeps()
 
                 if self.options['EXPORT_MTL']:
-                    for materials in (
-                        self.display_collector.collected_materials,
-                        self.display_collector.face_image_materials,
-                    ):
-                        # collected_materials: source is a Material
-                        # face_image_materials: source is an Image
-                        for source, cd_material in materials.items():
-                            cd_material.already_discovered = True
-                            name = source.name
-                            i = 0
-                            while name in (
-                                other_cd_material.name for other_cd_material in self.display_collector.collected_materials.values()
-                                if hasattr(other_cd_material, 'name')
-                            ):
-                                name = '{} {}'.format(source.name, i)
-                                i += 1
-                            cd_material.name = name
-                            cd_material.name_q = util.quote(name)
+                    used_names = set()
+                    for cd_material in self.display_collector.collected_materials.values():
+                        name = cd_material.original_name
+                        i = 0
+                        while name in used_names:
+                            name = '{} {}'.format(cd_material.original_name, i)
+                            i += 1
+                        used_names.add(name)
+                        cd_material.name = name
+                        cd_material.name_q = util.quote(name)
 
                 # map the rigged_to_armature armature object to the collected armature
                 for cd_mesh in self.collected_display_meshes:
@@ -680,6 +766,11 @@ class ObjexWriter():
                         self.write_display_mesh(subprogress1, cd_mesh)
                     subprogress1.leave_substeps()
 
+                    subprogress1.enter_substeps(len(self.collected_collision_meshes))
+                    for cc_mesh in self.collected_collision_meshes:
+                        self.write_collision_mesh(subprogress1, cc_mesh)
+                    subprogress1.leave_substeps()
+
                     del self.fw_objex
 
                 subprogress1.step("Finished exporting geometry, now exporting materials")
@@ -691,7 +782,7 @@ class ObjexWriter():
                     export_objex_mtl.write_mtl(
                         scene, self.filepath_mtl, append_header_mtl, self.options, copy_set,
                         self.display_collector.collected_materials,
-                        self.display_collector.face_image_materials,
+                        self.collision_collector.collected_materials,
                     )
 
                 subprogress1.step("Finished exporting materials, now exporting skeletons/animations")

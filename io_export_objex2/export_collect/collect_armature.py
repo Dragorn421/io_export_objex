@@ -13,6 +13,8 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this objex2 addon.  If not, see <https://www.gnu.org/licenses/>.
 
+from typing import List
+
 import mathutils
 
 from .. import blender_version_compatibility
@@ -22,7 +24,12 @@ from ..logging_util import getLogger
 
 
 class CollectedBone:
-    def __init__(self, name, parent, head_world):
+    def __init__(
+        self,
+        name,
+        parent,  # type: CollectedBone
+        head_world,
+    ):
         self.name = name
         self.parent = parent
         self.head_world = head_world
@@ -41,7 +48,11 @@ class CollectedActionFrame:
 
 
 class CollectedAction:
-    def __init__(self, name, frames):
+    def __init__(
+        self,
+        name,
+        frames,  # type: List[CollectedActionFrame]
+    ):
         self.name = name
         self.frames = frames
 
@@ -50,7 +61,11 @@ class CollectedAction:
 
 
 class CollectedArmature:
-    def __init__(self, bones_ordered, actions):
+    def __init__(
+        self,
+        bones_ordered,  # type: List[CollectedBone]
+        actions,  # type: List[CollectedAction]
+    ):
         self.bones_ordered = bones_ordered
         self.actions = actions
 
