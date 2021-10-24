@@ -413,7 +413,7 @@ def write_display_material(
     if cd_material.envColor is not None and (objex_data.write_environment_color == 'YES'
         or (objex_data.write_environment_color == 'GLOBAL' and scene_settings["write_environment_color"])
     ):
-        fw('gbi gsDPSetEnvColor({}, {}, {}, {})\n'.format(*cd_material.envColor))
+        fw('gbi gsDPSetEnvColor({}, {}, {}, {})\n'.format(*rgba32(cd_material.envColor)))
     geometryModeFlagsClear = []
     geometryModeFlagsSet = []
     for flag, set_flag in (
@@ -493,7 +493,7 @@ def write_collision_material(
     fw,
     cc_material,  # type: collect_collision_mesh.CollectedCollisionMaterial
 ):
-    import properties
+    fw('newmtl {}\n'.format(cc_material.name_q))
     collision = cc_material.properties
     if collision.ignore_camera:
         fw('attrib collision.IGNORE_CAMERA\n')

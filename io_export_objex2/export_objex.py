@@ -592,6 +592,9 @@ class ObjexWriter():
                 i += 1
             cc_mesh.faces.sort(key=lambda c_face: (c_face.material.contextSortIndex if c_face.material else -1))
 
+            util.detect_zztag(self.log, cc_mesh.name)
+            fw('g {}\n'.format(cc_mesh.name_q))
+
             subprogress2.step()
 
             # Vert
@@ -600,7 +603,7 @@ class ObjexWriter():
                 # formatting may use (eg `1e-07`), but it would be better to actually test it
                 # https://github.com/z64me/z64convert/blob/857e20bde09db17436001faa081326cc762d861f/src/objex.c#L2446
                 # (duplicated from write_display_mesh)
-                fw('v {0.x} {0.y} {0.z}\n'.format(cd_vertex.coords))
+                fw('v {0.x} {0.y} {0.z}\n'.format(cc_vertex.coords))
             i = 0
             for cc_vertex in cc_mesh.vertices:
                 cc_vertex.index = i
@@ -631,7 +634,7 @@ class ObjexWriter():
 
                 fw('f')
                 for cc_vertex in c_face.vertices:
-                    fw(' {}'.format(cc_vertex.index))
+                    fw(' {}'.format(self.total_vertex + cc_vertex.index))
                 fw('\n')
 
             subprogress2.step()
@@ -665,6 +668,7 @@ class ObjexWriter():
             with ProgressReportSubstep(progress, 6, "Objex Export path: %r" % filepath, "Objex Export Finished") as subprogress1:
 
                 # Initialize totals, these are updated each object
+                # TODO currently totals start at 1, would be better to handle 1-indexing explicitly
                 self.total_vertex = self.total_uv = self.total_normal = self.total_vertex_color = 1
 
                 self.display_collector = collect_display_mesh.DisplayMeshCollector()

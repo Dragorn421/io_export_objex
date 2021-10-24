@@ -31,7 +31,7 @@ from . import collect_display_material
 
 class CollectedDisplayVertex:
     def __init__(self, coords, uv_coords, normal, color, groups):
-        super().__init__(coords)
+        self.coords = coords
         self.uv_coords = uv_coords
         self.normal = normal
         self.color = color

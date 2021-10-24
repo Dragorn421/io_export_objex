@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .. import properties
 
-import collect_mesh
+from . import collect_mesh
 from .. import util
 from ..logging_util import getLogger
 
