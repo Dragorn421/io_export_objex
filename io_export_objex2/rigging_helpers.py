@@ -16,6 +16,7 @@
 from . import blender_version_compatibility
 
 import bpy
+import bmesh
 import mathutils
 
 from math import pi
@@ -269,7 +270,7 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
         log.trace('{} to_mesh...', mesh.name)
         # replace mesh data by mesh with modifier-applied
         if not hasattr(mesh, 'evaluated_get'): # < 2.80
-            mesh.data = mesh.to_mesh(scene, True, calc_tessface=False, settings='PREVIEW')
+            new_mesh = mesh.to_mesh(scene, True, calc_tessface=False, settings='PREVIEW')
         else: # 2.80+
             # 2.80+ to_mesh: The result is temporary and can not be used by objects from the main database
             # using new_from_object instead (with evaluated_get's result /!\, not mesh directly) works
@@ -278,7 +279,13 @@ def fold_unfold(scene, armature, do_folding, saved_pose, log=None):
             log.trace('evaluated_get')
             mesh_evaluated = mesh.evaluated_get(depsgraph)
             log.trace('new_from_object')
-            mesh.data = bpy.data.meshes.new_from_object(mesh_evaluated)
+            new_mesh = bpy.data.meshes.new_from_object(mesh_evaluated)
+
+        bm = bmesh.new()
+        bm.from_mesh(new_mesh)
+        bm.to_mesh(mesh.data)
+        bm.free()
+
         # restore modifier visibility
         log.trace('to_mesh done')
         for modifier in temporarily_disabled_modifiers:
