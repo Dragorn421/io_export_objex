@@ -336,6 +336,10 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
             return
         cycle = self.node.get('cycle')
         name = self.name # A,B,C,D
+        if node.name == 'OBJEX_AlphaCycle0' or node.name == 'OBJEX_ColorCycle0':
+            cycle_id = 0
+        else:
+            cycle_id = 1
         flag, warnMsg = self.linkToFlag()
         if flag is None:
             value = '?'
@@ -346,7 +350,7 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
             value = stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle])
             if flag not in CST.COMBINER_FLAGS_SUPPORT[cycle][name]:
                 warnMsg = 'Only for %s, not %s' % (','.join(var for var,flags in CST.COMBINER_FLAGS_SUPPORT[cycle].items() if flag in flags), name)
-        input_flags_prop_name = 'input_flags_%s_%s' % (cycle, name)
+        input_flags_prop_name = 'input_flags_%s_%s_%d' % (cycle, name, cycle_id)
         col = layout.column()
         if warnMsg:
             col = layout.column()
@@ -365,10 +369,10 @@ class OBJEX_NodeSocket_CombinerInput(bpy.types.NodeSocket):
             and flag in CST.COMBINER_FLAGS_SUPPORT[cycle][name]
         ) else CST.COLOR_BAD
 
-def input_flag_list_choose_get(cycle, variable):
+def input_flag_list_choose_get(cycle, variable, cycle_id):
     def input_flag_list_choose(self, context):
         log = getLogger('interface')
-        input_flags_prop_name = 'input_flags_%s_%s' % (cycle, variable)
+        input_flags_prop_name = 'input_flags_%s_%s_%d' % (cycle, variable, cycle_id)
         flag = getattr(self, input_flags_prop_name)
         if flag == '_':
             return
@@ -399,25 +403,26 @@ def input_flag_list_choose_get(cycle, variable):
             tree.links.remove(self.links[0])
         tree.links.new(matching_socket, self)
         # PLS, no more
-        # setattr(self, input_flags_prop_name, '_')
+        setattr(self, input_flags_prop_name, '_')
     return input_flag_list_choose
+
 for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
-    for variable in ('A','B','C','D'):
-        setattr(
-            OBJEX_NodeSocket_CombinerInput,
-            'input_flags_%s_%s' % (cycle, variable),
-            bpy.props.EnumProperty(
-                items=sorted(
-                    (flag, stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle]), flag)
-                        for flag in CST.COMBINER_FLAGS_SUPPORT[cycle][variable]
-                        # 421todo can't implement these without using cycle number:
-                        if flag not in ('G_CCMUX_COMBINED','G_CCMUX_COMBINED_ALPHA','G_ACMUX_COMBINED')
-                ) + [('_','...','')],
-                name='%s' % variable,
-                default='_',
-                update=input_flag_list_choose_get(cycle, variable)
+    for cycle_id in (0, 1):
+        for variable in ('A','B','C','D'):
+            setattr(
+                OBJEX_NodeSocket_CombinerInput,
+                'input_flags_%s_%s_%d' % (cycle, variable, cycle_id),
+                bpy.props.EnumProperty(
+                    items=sorted(
+                        (flag, stripPrefix(flag, CST.COMBINER_FLAGS_PREFIX[cycle]), flag)
+                            for flag in CST.COMBINER_FLAGS_SUPPORT[cycle][variable]
+                            if cycle_id != 0 or flag not in ('G_CCMUX_COMBINED','G_CCMUX_COMBINED_ALPHA','G_ACMUX_COMBINED')
+                    ) + [('_','...','')],
+                    name='%s' % variable,
+                    default='_',
+                    update=input_flag_list_choose_get(cycle, variable, cycle_id)
+                )
             )
-        )
 del input_flag_list_choose_get
 
 combinerInputClassName = 'OBJEX_NodeSocket_CombinerInput'
@@ -448,10 +453,11 @@ def reset_input_flag_lists():
                         for input in node.inputs:
                             if input.bl_idname == combinerInputClassName:
                                 for cycle in (CST.CYCLE_COLOR,CST.CYCLE_ALPHA):
-                                    for variable in ('A','B','C','D'):
-                                        if material.name == traceMaterialName:
-                                            log.trace('setting %s -> %s -> %s input_flags_%s_%s to _' % (material.name, node.label, input.name, cycle, variable))
-                                        setattr(input, 'input_flags_%s_%s' % (cycle, variable), '_')
+                                    for cycle_id in [0, 1]:
+                                        for variable in ('A','B','C','D'):
+                                            if material.name == traceMaterialName:
+                                                log.trace('setting %s -> %s -> %s input_flags_%s_%s_%d to _' % (material.name, node.label, input.name, cycle, variable, cycle_id))
+                                            setattr(input, 'input_flags_%s_%s_%d' % (cycle, variable, cycle_id), '_')
 
 if bpy.app.version < (2, 80, 0):
 
@@ -1153,38 +1159,33 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             # cycle 0: (TEXEL0 - 0) * PRIM  + 0
             cc0 = nodes['OBJEX_ColorCycle0']
             ac0 = nodes['OBJEX_AlphaCycle0']
-            if OBJEX_NodeSocket_CombinerInput: # < 2.80
-                # the 2.80+ code would work in both versions assuming the node names are correct,
-                # but setting input_flags_ is more lenient and more readable when possible
-                cc0.inputs['A'].input_flags_C_A = 'G_CCMUX_TEXEL0'
-                cc0.inputs['C'].input_flags_C_C = 'G_CCMUX_PRIMITIVE'
-                ac0.inputs['A'].input_flags_A_A = 'G_ACMUX_TEXEL0'
-                ac0.inputs['C'].input_flags_A_C = 'G_ACMUX_PRIMITIVE'
-            else: # 2.80+
-                node_tree.links.new(nodes['OBJEX_Texel0'].outputs[0], cc0.inputs['A'])
-                node_tree.links.new(nodes['OBJEX_PrimColor'].outputs[0], cc0.inputs['C'])
-                node_tree.links.new(nodes['OBJEX_Texel0'].outputs[1], ac0.inputs['A'])
-                node_tree.links.new(nodes['OBJEX_PrimColor'].outputs[1], ac0.inputs['C'])
+            node_tree.links.new(nodes['OBJEX_Texel0'].outputs[0], cc0.inputs['A'])
+            node_tree.links.new(nodes['OBJEX_PrimColor'].outputs[0], cc0.inputs['C'])
+            node_tree.links.new(nodes['OBJEX_Texel0'].outputs[1], ac0.inputs['A'])
+            node_tree.links.new(nodes['OBJEX_PrimColor'].outputs[1], ac0.inputs['C'])
+
+            node_tree.links.new(nodes['OBJEX_Color0'].outputs[0], cc0.inputs['B'])
+            node_tree.links.new(nodes['OBJEX_Color0'].outputs[0], cc0.inputs['D'])
+            node_tree.links.new(nodes['OBJEX_Color0'].outputs[0], ac0.inputs['B'])
+            node_tree.links.new(nodes['OBJEX_Color0'].outputs[0], ac0.inputs['D'])
+
             # cycle 1: (RESULT - 0) * SHADE + 0
             cc1 = nodes['OBJEX_ColorCycle1']
             ac1 = nodes['OBJEX_AlphaCycle1']
             node_tree.links.new(cc0.outputs[0], cc1.inputs['A'])
             node_tree.links.new(ac0.outputs[0], ac1.inputs['A'])
-            if OBJEX_NodeSocket_CombinerInput: # < 2.80
-                cc1.inputs['C'].input_flags_C_C = 'G_CCMUX_SHADE'
-                ac1.inputs['C'].input_flags_A_C = 'G_ACMUX_SHADE'
-            else: # 2.80+
-                node_tree.links.new(nodes['OBJEX_Shade'].outputs[0], cc1.inputs['C'])
-                node_tree.links.new(nodes['OBJEX_Shade'].outputs[1], ac1.inputs['C'])
+            node_tree.links.new(nodes['OBJEX_Shade'].outputs[0], cc1.inputs['C'])
+            node_tree.links.new(nodes['OBJEX_Shade'].outputs[1], ac1.inputs['C'])
+
+            node_tree.links.new(nodes['OBJEX_Color0'].outputs[0], cc1.inputs['B'])
+            node_tree.links.new(nodes['OBJEX_Color0'].outputs[0], cc1.inputs['D'])
+            node_tree.links.new(nodes['OBJEX_Color0'].outputs[0], ac1.inputs['B'])
+            node_tree.links.new(nodes['OBJEX_Color0'].outputs[0], ac1.inputs['D'])
+
             # combiners output
-            if hasattr(bpy.types, 'ShaderNodeOutput'): # < 2.80
-                output = nodes['Output']
-                node_tree.links.new(cc1.outputs[0], output.inputs[0])
-                node_tree.links.new(ac1.outputs[0], output.inputs[1])
-            else: # 2.80+
-                principledBSDF = nodes['Principled BSDF']
-                node_tree.links.new(cc1.outputs[0], principledBSDF.inputs['Base Color'])
-                node_tree.links.new(ac1.outputs[0], principledBSDF.inputs['Alpha'])
+            principledBSDF = nodes['Principled BSDF']
+            node_tree.links.new(cc1.outputs[0], principledBSDF.inputs['Base Color'])
+            node_tree.links.new(ac1.outputs[0], principledBSDF.inputs['Alpha'])
 
         if not scene.objex_bonus.is_objex_scene:
             scene.objex_bonus.is_objex_scene = True
@@ -1531,11 +1532,26 @@ class OBJEX_PT_material(bpy.types.Panel):
                     sub_box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
         
         elif mode_menu == 'menu_mode_texture':
-            var = (
-                ("Texel0", material.node_tree.nodes["OBJEX_Texel0Texture"]),
-                ("Texel1",  material.node_tree.nodes["OBJEX_Texel1Texture"]),
+            objex_uv0 = material.node_tree.nodes["OBJEX_TransformUV0"]
+            objex_uv1 = material.node_tree.nodes["OBJEX_TransformUV1"]
+            property_list = (
+                (
+                    "Texel0", 
+                    material.node_tree.nodes["OBJEX_Texel0Texture"], 
+                    objex_uv0.inputs[1], objex_uv0.inputs[2], 
+                    objex_uv0.inputs[3], objex_uv0.inputs[4], 
+                    objex_uv0.inputs[5], objex_uv0.inputs[6]
+                ),
+                (
+                    "Texel1",  
+                    material.node_tree.nodes["OBJEX_Texel1Texture"], 
+                    objex_uv1.inputs[1], objex_uv1.inputs[2], 
+                    objex_uv1.inputs[3], objex_uv1.inputs[4], 
+                    objex_uv1.inputs[5], objex_uv1.inputs[6]
+                ),
             )
-            for name, texel in var:
+
+            for name, texel, u_scale, v_scale, u_wrap, v_wrap, u_mirror, v_mirror in property_list:
                 sub_box = box.box()
 
                 sub_box.label(text=name)
@@ -1543,21 +1559,48 @@ class OBJEX_PT_material(bpy.types.Panel):
 
                 if texel.image:
                     imdata = texel.image.objex_bonus
-                    row = sub_box.row()
-                    if blender_version_compatibility.no_ID_PointerProperty:
-                        row.prop_search(imdata, 'texture_bank', bpy.data, 'images')
-                        row.operator('image.open')
-                    else:
-                        row.label(text='Texture bank:')
-                        row.template_ID(imdata, 'texture_bank', open='image.open')
+
 
                     sub_box.prop(imdata, 'format')
                     if imdata.format[:2] == 'CI':
                         sub_box.prop(imdata, 'palette')
                     sub_box.prop(imdata, 'alphamode')
                     sub_box.prop(imdata, 'force_write')
+
+                    sub_sub_box = sub_box.box()
+                    row = sub_sub_box.row()
+                    row.prop(u_scale, 'default_value', text='U Exp')
+                    row.prop(u_wrap, 'default_value', text='U Wrap')
+                    row.prop(u_mirror, 'default_value', text='U Mirror')
+
+                    row = sub_sub_box.row()
+                    row.prop(v_scale, 'default_value', text='V Exp')
+                    row.prop(v_wrap, 'default_value', text='V Wrap')
+                    row.prop(v_mirror, 'default_value', text='V Mirror')
+
+                    row = sub_box.row()
+                    row.label(text='Texture bank:')
+                    row.template_ID(imdata, 'texture_bank', open='image.open')
+
                     propOffset(sub_box, imdata, 'pointer', 'Pointer')
                     sub_box.prop(imdata, 'priority')
+
+            sub_box = box.box()
+            row = sub_box.row()
+
+            row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[2], 'default_value', text='Texgen ')
+            col = row.column()
+
+            if material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[2].default_value:
+                col.enabled = True
+            else:
+                col.enabled = False
+            
+            col.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[3], 'default_value', text='Texgen Linear')
+            
+            row = sub_box.row()
+            row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[4], 'default_value', text='U Scale')
+            row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[5], 'default_value', text='V Scale')
 
             box.operator('objex.set_pixels_along_uv_from_image_dimensions', text='Fix clamping')
         
@@ -1566,38 +1609,38 @@ class OBJEX_PT_material(bpy.types.Panel):
             sub_box.label(text='Color', icon='BRUSH_DATA')
             
             row = sub_box.row()
-            row.prop(material.node_tree.nodes["OBJEX_ColorCycle0"].inputs[0], 'input_flags_C_A', text='A')
-            row.prop(material.node_tree.nodes["OBJEX_ColorCycle1"].inputs[0], 'input_flags_C_A', text='A')
+            row.prop(material.node_tree.nodes["OBJEX_ColorCycle0"].inputs[0], 'input_flags_C_A_0', text='A')
+            row.prop(material.node_tree.nodes["OBJEX_ColorCycle1"].inputs[0], 'input_flags_C_A_1', text='A')
             
             row = sub_box.row()
-            row.prop(material.node_tree.nodes["OBJEX_ColorCycle0"].inputs[1], 'input_flags_C_B', text='B')
-            row.prop(material.node_tree.nodes["OBJEX_ColorCycle1"].inputs[1], 'input_flags_C_B', text='B')
+            row.prop(material.node_tree.nodes["OBJEX_ColorCycle0"].inputs[1], 'input_flags_C_B_0', text='B')
+            row.prop(material.node_tree.nodes["OBJEX_ColorCycle1"].inputs[1], 'input_flags_C_B_1', text='B')
             
             row = sub_box.row()
-            row.prop(material.node_tree.nodes["OBJEX_ColorCycle0"].inputs[2], 'input_flags_C_C', text='C')
-            row.prop(material.node_tree.nodes["OBJEX_ColorCycle1"].inputs[2], 'input_flags_C_C', text='C')
+            row.prop(material.node_tree.nodes["OBJEX_ColorCycle0"].inputs[2], 'input_flags_C_C_0', text='C')
+            row.prop(material.node_tree.nodes["OBJEX_ColorCycle1"].inputs[2], 'input_flags_C_C_1', text='C')
             
             row = sub_box.row()
-            row.prop(material.node_tree.nodes["OBJEX_ColorCycle0"].inputs[3], 'input_flags_C_D', text='D')
-            row.prop(material.node_tree.nodes["OBJEX_ColorCycle1"].inputs[3], 'input_flags_C_D', text='D')
+            row.prop(material.node_tree.nodes["OBJEX_ColorCycle0"].inputs[3], 'input_flags_C_D_0', text='D')
+            row.prop(material.node_tree.nodes["OBJEX_ColorCycle1"].inputs[3], 'input_flags_C_D_1', text='D')
 
             sub_box.label(text='Alpha')
 
             row = sub_box.row()
-            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle0"].inputs[0], 'input_flags_A_A', text='A')
-            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle1"].inputs[0], 'input_flags_A_A', text='A')
+            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle0"].inputs[0], 'input_flags_A_A_0', text='A')
+            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle1"].inputs[0], 'input_flags_A_A_1', text='A')
             
             row = sub_box.row()
-            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle0"].inputs[1], 'input_flags_A_B', text='B')
-            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle1"].inputs[1], 'input_flags_A_B', text='B')
+            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle0"].inputs[1], 'input_flags_A_B_0', text='B')
+            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle1"].inputs[1], 'input_flags_A_B_1', text='B')
             
             row = sub_box.row()
-            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle0"].inputs[2], 'input_flags_A_C', text='C')
-            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle1"].inputs[2], 'input_flags_A_C', text='C')
+            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle0"].inputs[2], 'input_flags_A_C_0', text='C')
+            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle1"].inputs[2], 'input_flags_A_C_1', text='C')
             
             row = sub_box.row()
-            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle0"].inputs[3], 'input_flags_A_D', text='D')
-            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle1"].inputs[3], 'input_flags_A_D', text='D')
+            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle0"].inputs[3], 'input_flags_A_D_0', text='D')
+            row.prop(material.node_tree.nodes["OBJEX_AlphaCycle1"].inputs[3], 'input_flags_A_D_1', text='D')
 
             box.label(text='(A-B)*C+D')
 
