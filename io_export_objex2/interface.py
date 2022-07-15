@@ -1294,6 +1294,36 @@ def objex_backface_culling_update(self, context):
         else:
             log.trace('But material is not a display objex material, ignoring it.')
 
+enum_mode_menu = [
+    ("menu_mode_combiner", "Combiner", "Hint would be nice"),
+    ("menu_mode_diffuse", "Diffuse", "Hint would be nice"),
+    ("menu_mode_geometry", "Geometry", "Hint would be nice"),
+    ("menu_mode_render_mode", "Render", "Hint would be nice"),
+]
+
+class OBJEX_PT_material_helpers(bpy.types.Panel):
+    bl_label = 'Objex Helpers'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'material'
+    
+    @classmethod
+    def poll(self, context):
+        material = context.material
+        return material is not None
+
+    def draw(self, context):
+        box = self.layout.row().box()
+        shared_row = box.row()
+        draw_build_nodes_operator(shared_row, 'Reset nodes', init=True, reset=True)
+        draw_build_nodes_operator(shared_row, 'Fix nodes')
+        box.operator('objex.material_set_shade_source', text='Set Shade Source')
+        box.label(text="Setups")
+        shared_row = box.row()
+        shared_row.operator('objex.material_single_texture', text='Single Texture')
+        shared_row.operator('objex.material_multitexture', text='Multitexture')
+        shared_row.operator('objex.material_flat_color', text='Flat Color')
+
 class OBJEX_PT_material(bpy.types.Panel):
     bl_label = 'Objex'
     bl_space_type = 'PROPERTIES'
@@ -1308,6 +1338,7 @@ class OBJEX_PT_material(bpy.types.Panel):
     def draw(self, context):
         material = context.material
         data = material.objex_bonus
+        mode_menu = material.mode_menu
         # setup operators
         if not data.is_objex_material:
             draw_build_nodes_operator(self.layout, 'Init Display Objex material', init=True)
@@ -1407,18 +1438,20 @@ class OBJEX_PT_material(bpy.types.Panel):
             self.layout.use_property_decorate = False
         # empty: only draw the exported properties empty, branch_to_object, branch_to_object_bone
         if data.empty or material.name.startswith('empty.'):
-            self.layout.label(text='Empty materials only', icon='INFO')
-            self.layout.label(text='have these few properties:')
+            # self.layout.label(text='Empty materials only', icon='INFO')
+            # self.layout.label(text='have these few properties:')
+            box = self.layout.box()
+            box.use_property_split = False
+
             if material.name.startswith('empty.'):
-                self.layout.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
+                box.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
             else:
-                self.layout.prop(data, 'empty')
+                box.prop(data, 'empty')
             if blender_version_compatibility.no_ID_PointerProperty:
-                box = self.layout.box()
                 box.prop_search(data, 'branch_to_object', bpy.data, 'objects')
                 box.label(text='(mesh objects only)')
             else:
-                self.layout.prop(data, 'branch_to_object')
+                box.prop(data, 'branch_to_object')
             if data.branch_to_object: # branch_to_object is a MESH object
                 if blender_version_compatibility.no_ID_PointerProperty:
                     branch_to_object = bpy.data.objects[data.branch_to_object]
@@ -1436,103 +1469,162 @@ class OBJEX_PT_material(bpy.types.Panel):
                             self.layout.label(text='NOSPLIT is off on %s' % branch_to_object.name, icon='INFO')
             return
         # node operators
-        row = self.layout.row()
-        draw_build_nodes_operator(row, 'Reset nodes', init=True, reset=True)
-        draw_build_nodes_operator(row, 'Fix nodes')
-        self.layout.operator('objex.material_single_texture', text='Single Texture Setup')
-        self.layout.operator('objex.material_multitexture', text='Multitexture Setup')
-        self.layout.operator('objex.material_flat_color', text='Flat Color Setup')
-        self.layout.operator('objex.material_set_shade_source', text='Set Shade Source')
-        # 421todo more quick-setup operators
-        # often-used options
-        if hasattr(material, 'use_transparency'): # < 2.80
-            self.layout.prop(material, 'use_transparency')
-        if hasattr(material, 'blend_method'): # 2.80+
-            self.layout.prop(material, 'blend_method')
-        self.layout.prop(data, 'backface_culling')
-        self.layout.prop(data, 'frontface_culling')
-        for prop in ('write_primitive_color','write_environment_color'):
-            if getattr(data, prop) == 'GLOBAL':
-                box = self.layout.box()
-                box.prop(data, prop)
-                box.prop(context.scene.objex_bonus, prop)
-            else:
-                self.layout.prop(data, prop)
-        # texel0/1 image properties
-        images_used = set() # avoid writing the same properties twice if texel0 and texel1 use the same image
-        for textureNode in (
-            n for n in material.node_tree.nodes
-                if (n.bl_idname == 'ShaderNodeTexture' and n.texture) # < 2.80
-                    or (n.bl_idname == 'ShaderNodeTexImage' and n.image) # 2.80+
-        ):
-            if textureNode.bl_idname == 'ShaderNodeTexture' and textureNode.texture.type != 'IMAGE': # < 2.80
-                box = self.layout.box()
-                box.label(text='Texture used by node', icon='ERROR')
-                box.label(text='"%s"' % textureNode.label, icon='ERROR')
-                box.label(text='is of type %s.' % textureNode.texture.type, icon='ERROR')
-                box.label(text='Only image textures', icon='ERROR')
-                box.label(text='should be used.', icon='ERROR')
-                continue
-            if textureNode.bl_idname == 'ShaderNodeTexture': # < 2.80
-                image = textureNode.texture.image
-            else: # 2.80+
-                image = textureNode.image
-            if not image:
-                continue
-            images_used.add(image)
-        for image in images_used:
-            box = self.layout.box()
-            box.label(text=image.filepath if image.filepath else 'Image without filepath?')
-            imdata = image.objex_bonus
-            box.prop(imdata, 'format')
-            if imdata.format[:2] == 'CI':
-                box.prop(imdata, 'palette')
-            box.prop(imdata, 'alphamode')
-            propOffset(box, imdata, 'pointer', 'Pointer')
-            box.prop(imdata, 'priority')
-            box.prop(imdata, 'force_write')
-            row = box.row()
-            if blender_version_compatibility.no_ID_PointerProperty:
-                row.prop_search(imdata, 'texture_bank', bpy.data, 'images')
-                row.operator('image.open')
-            else:
-                row.label(text='Texture bank:')
-                row.template_ID(imdata, 'texture_bank', open='image.open')
-        self.layout.operator('objex.set_pixels_along_uv_from_image_dimensions', text='Fix clamping')
-        # less used properties
-        self.layout.prop(data, 'empty') # (at this point, material isn't empty)
-        self.layout.prop(data, 'standalone')
-        self.layout.prop(data, 'force_write')
-        self.layout.prop(data, 'priority')
-        # other mode, lower half (blender settings)
+
         box = self.layout.box()
-        box.label(text='Render mode')
-        box.prop(data, 'rendermode_blender_flag_AA_EN')
-        box.prop(data, 'rendermode_blender_flag_Z_CMP')
-        box.prop(data, 'rendermode_blender_flag_Z_UPD')
-        box.prop(data, 'rendermode_blender_flag_IM_RD')
-        box.prop(data, 'rendermode_blender_flag_CLR_ON_CVG')
-        box.prop(data, 'rendermode_blender_flag_CVG_DST_')
-        box.prop(data, 'rendermode_zmode')
-        box.prop(data, 'rendermode_blender_flag_CVG_X_ALPHA')
-        box.prop(data, 'rendermode_blender_flag_ALPHA_CVG_SEL')
-        box.prop(data, 'rendermode_forceblending')
-        box.prop(data, 'rendermode_blending_cycle0')
-        if data.rendermode_blending_cycle0 == 'CUSTOM':
-            for v in ('P','A','M','B'):
-                box.prop(data, 'rendermode_blending_cycle0_custom_%s' % v)
-        box.prop(data, 'rendermode_blending_cycle1')
-        if data.rendermode_blending_cycle1 == 'CUSTOM':
-            for v in ('P','A','M','B'):
-                box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
-        # other rarely-used or auto settings
-        self.layout.prop(data, 'vertex_shading')
-        self.layout.prop(data, 'external_material_segment')
-        self.layout.prop(data, 'geometrymode_G_SHADING_SMOOTH')
-        self.layout.prop(data, 'geometrymode_G_FOG')
-        if data.geometrymode_G_FOG == 'NO':
-            self.layout.label(text='G_FOG off does not disable fog', icon='ERROR')
-        self.layout.prop(data, 'geometrymode_G_ZBUFFER')
+        row = box.row()
+        row.use_property_split = False
+        box.use_property_split = False
+        row.prop(data, 'empty') # (at this point, material isn't empty)
+        row.prop(data, 'standalone')
+        row.prop(data, 'force_write')
+        box.prop(data, 'priority')
+        box.prop(data, 'vertex_shading')
+        box.prop(data, 'external_material_segment')
+        self.layout.separator()
+
+        # Most used and important features at hand
+        box = self.layout.box()
+        row = box.row()
+        row.use_property_split = False
+        if hasattr(material, 'use_transparency'): # < 2.80
+            row.prop(material, property='use_transparency', expand=True)
+        if hasattr(material, 'blend_method'): # 2.80+
+            row.prop(material, property='blend_method', expand=True)
+        
+        row = box.row()
+        row.use_property_split = False
+        row.prop(data, 'backface_culling')
+        row.prop(data, 'frontface_culling')
+        
+        self.layout.separator()
+        row = self.layout.row()
+        box = row.box()
+        box.use_property_split = False
+        prop = box.row().prop(material, property = 'mode_menu', expand = True)
+
+        if mode_menu == 'menu_mode_render_mode':
+            sub_box = box.box()
+             # other mode, lower half (blender settings)
+            row = sub_box.row()
+            
+            row.prop(data, 'rendermode_blender_flag_AA_EN')
+            row.prop(data, 'rendermode_blender_flag_Z_CMP')
+            row = sub_box.row()
+            row.prop(data, 'rendermode_blender_flag_Z_UPD')
+            row.prop(data, 'rendermode_blender_flag_IM_RD')
+            row = sub_box.row()
+            row.prop(data, 'rendermode_blender_flag_CLR_ON_CVG')
+
+            sub_box.prop(data, 'rendermode_blender_flag_CVG_DST_')
+            sub_box.prop(data, 'rendermode_zmode')
+            sub_box.prop(data, 'rendermode_blender_flag_CVG_X_ALPHA')
+            sub_box.prop(data, 'rendermode_blender_flag_ALPHA_CVG_SEL')
+            sub_box.prop(data, 'rendermode_forceblending')
+            sub_box.prop(data, 'rendermode_blending_cycle0')
+            if data.rendermode_blending_cycle0 == 'CUSTOM':
+                for v in ('P','A','M','B'):
+                    sub_box.prop(data, 'rendermode_blending_cycle0_custom_%s' % v)
+            sub_box.prop(data, 'rendermode_blending_cycle1')
+            if data.rendermode_blending_cycle1 == 'CUSTOM':
+                for v in ('P','A','M','B'):
+                    sub_box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
+        
+        elif mode_menu == 'menu_mode_diffuse':
+            sub_box = box.box()
+
+            sub_box.use_property_split = True
+            sub_box.prop(data, 'write_primitive_color')
+            sub_box.prop(data, 'write_environment_color')
+            # for prop in ('write_primitive_color','write_environment_color'):
+            #     if getattr(data, prop) == 'GLOBAL':
+            #         sub_box = box.box()
+            #         sub_box.prop(data, prop)
+            #         sub_box.prop(context.scene.objex_bonus, prop)
+            #     else:
+            #         box.prop(data, prop)
+
+            # texel0/1 image properties
+            images_used = set() # avoid writing the same properties twice if texel0 and texel1 use the same image
+            for textureNode in (
+                n for n in material.node_tree.nodes
+                    if (n.bl_idname == 'ShaderNodeTexture' and n.texture) # < 2.80
+                        or (n.bl_idname == 'ShaderNodeTexImage' and n.image) # 2.80+
+            ):
+                if textureNode.bl_idname == 'ShaderNodeTexture' and textureNode.texture.type != 'IMAGE': # < 2.80
+                    sub_box = box.box()
+                    sub_box.label(text='Texture used by node', icon='ERROR')
+                    sub_box.label(text='"%s"' % textureNode.label, icon='ERROR')
+                    sub_box.label(text='is of type %s.' % textureNode.texture.type, icon='ERROR')
+                    sub_box.label(text='Only image textures', icon='ERROR')
+                    sub_box.label(text='should be used.', icon='ERROR')
+                    continue
+                if textureNode.bl_idname == 'ShaderNodeTexture': # < 2.80
+                    image = textureNode.texture.image
+                else: # 2.80+
+                    image = textureNode.image
+                if not image:
+                    continue
+                images_used.add(image)
+            for image in images_used:
+                imdata = image.objex_bonus
+                
+                sub_box = box.box()
+                sub_box.label(text=image.filepath if image.filepath else 'Image without filepath?')
+
+                sub_box.label(text='Image:')
+                row = sub_box.row()
+                if blender_version_compatibility.no_ID_PointerProperty:
+                    row.prop_search(imdata, 'texture_bank', bpy.data, 'images')
+                    row.operator('image.open')
+                else:
+                    row.label(text='Texture bank:')
+                    row.template_ID(imdata, 'texture_bank', open='image.open')
+
+                sub_box.prop(imdata, 'format')
+                if imdata.format[:2] == 'CI':
+                    sub_box.prop(imdata, 'palette')
+                sub_box.prop(imdata, 'alphamode')
+                sub_box.prop(imdata, 'force_write')
+                propOffset(sub_box, imdata, 'pointer', 'Pointer')
+                sub_box.prop(imdata, 'priority')
+
+            
+            sub_box.operator('objex.set_pixels_along_uv_from_image_dimensions', text='Fix clamping')
+        
+        elif mode_menu == 'menu_mode_combiner':
+            sub_box = box.box()
+
+            row = sub_box.row()
+            row.label(text='Color')
+            row.label(text='Alpha')
+
+            row = sub_box.row()
+            row.label(text='A')
+            row.label(text='A')
+            
+            row = sub_box.row()
+            row.label(text='B')
+            row.label(text='B')
+            
+            row = sub_box.row()
+            row.label(text='C')
+            row.label(text='C')
+            
+            row = sub_box.row()
+            row.label(text='D')
+            row.label(text='D')
+            box.label(text='(A-B)*C+D')
+
+        elif mode_menu == 'menu_mode_geometry':
+            sub_box = box.box()
+            sub_box.prop(data, 'geometrymode_G_SHADING_SMOOTH')
+            sub_box.prop(data, 'geometrymode_G_FOG')
+            if data.geometrymode_G_FOG == 'NO':
+                sub_box.label(text='G_FOG off does not disable fog', icon='ERROR')
+            sub_box.prop(data, 'geometrymode_G_ZBUFFER')
+
+
+
 
 class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
 
@@ -1587,6 +1679,8 @@ classes = (
     OBJEX_OT_material_init_collision,
     OBJEX_OT_set_pixels_along_uv_from_image_dimensions,
     OBJEX_PT_material,
+    OBJEX_PT_material_helpers,
+    
 )
 
 msgbus_owner = object()
@@ -1651,6 +1745,7 @@ def register_interface():
         update_handlers = bpy.app.handlers.depsgraph_update_post
     update_handlers.append(handler_scene_or_depsgraph_update_post_once)
     bpy.app.handlers.load_post.append(handler_load_post)
+    bpy.types.Material.mode_menu = bpy.props.EnumProperty(items = enum_mode_menu)
 
 def unregister_interface():
     log = getLogger('interface')
@@ -1678,3 +1773,4 @@ def unregister_interface():
             bpy.utils.unregister_class(clazz)
         except:
             log.exception('Failed to unregister {!r}', clazz)
+    del bpy.types.Material.mode_menu
