@@ -406,7 +406,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             items=[
                 ('YES','Yes','Set the color',1),
                 ('NO','No','Do not set the color',2),
-                ('GLOBAL','Follow global','Default to the global (per-scene) setting, shared by all materials',3),
+                ('GLOBAL','Global','Default to the global (per-scene) setting, shared by all materials',3),
             ],
             name='Set prim color',
             description='Set the primitive color in the generated display list (macro gsDPSetPrimColor).\n'
@@ -417,7 +417,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             items=[
                 ('YES','Yes','Set the color',1),
                 ('NO','No','Do not set the color',2),
-                ('GLOBAL','Follow global','Default to the global (per-scene) setting, shared by all materials',3),
+                ('GLOBAL','Global','Default to the global (per-scene) setting, shared by all materials',3),
             ],
             name='Set env color',
             description='Same as "Set prim color" for the environment color (macro gsDPSetEnvColor)',

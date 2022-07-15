@@ -1296,7 +1296,7 @@ def objex_backface_culling_update(self, context):
 
 enum_mode_menu = [
     ("menu_mode_combiner", "Combiner", "Hint would be nice"),
-    ("menu_mode_diffuse", "Diffuse", "Hint would be nice"),
+    ("menu_mode_texture", "Texture", "Hint would be nice"),
     ("menu_mode_geometry", "Geometry", "Hint would be nice"),
     ("menu_mode_render_mode", "Render", "Hint would be nice"),
 ]
@@ -1471,16 +1471,16 @@ class OBJEX_PT_material(bpy.types.Panel):
         # node operators
 
         box = self.layout.box()
+        box.use_property_split = False
         row = box.row()
         row.use_property_split = False
-        box.use_property_split = False
+
         row.prop(data, 'empty') # (at this point, material isn't empty)
         row.prop(data, 'standalone')
         row.prop(data, 'force_write')
         box.prop(data, 'priority')
         box.prop(data, 'vertex_shading')
         box.prop(data, 'external_material_segment')
-        self.layout.separator()
 
         # Most used and important features at hand
         box = self.layout.box()
@@ -1496,11 +1496,10 @@ class OBJEX_PT_material(bpy.types.Panel):
         row.prop(data, 'backface_culling')
         row.prop(data, 'frontface_culling')
         
-        self.layout.separator()
         row = self.layout.row()
         box = row.box()
         box.use_property_split = False
-        prop = box.row().prop(material, property = 'mode_menu', expand = True)
+        box.row().prop(material, property = 'mode_menu', expand = True)
 
         if mode_menu == 'menu_mode_render_mode':
             sub_box = box.box()
@@ -1529,12 +1528,11 @@ class OBJEX_PT_material(bpy.types.Panel):
                 for v in ('P','A','M','B'):
                     sub_box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
         
-        elif mode_menu == 'menu_mode_diffuse':
+        elif mode_menu == 'menu_mode_texture':
             sub_box = box.box()
-
             sub_box.use_property_split = True
-            sub_box.prop(data, 'write_primitive_color')
-            sub_box.prop(data, 'write_environment_color')
+            sub_box.row().prop(data, 'write_primitive_color', expand=True)
+            sub_box.row().prop(data, 'write_environment_color', expand=True)
             # for prop in ('write_primitive_color','write_environment_color'):
             #     if getattr(data, prop) == 'GLOBAL':
             #         sub_box = box.box()
