@@ -428,12 +428,12 @@ node_setup = {
 }
 
 mode_menu = (
-    ("menu_mode_combiner", "Combiner", "Hint would be nice"),
-    ("menu_mode_texture", "Texture", "Hint would be nice"),
-    ("menu_mode_geometry", "Geometry", "Hint would be nice"),
-    ("menu_mode_render_mode", "Render", "Hint would be nice"),
-    ("menu_mode_other", "Other", "Hint would be nice"),
+    ('menu_mode_combiner',    'Combiner', 'Hint would be nice', 'SHADING_RENDERED', 0),
+    ('menu_mode_texture',     'Texture',  'Hint would be nice', 'TEXTURE', 1),
+    ('menu_mode_render',      'F3D',   'Hint would be nice', 'RENDERLAYERS', 2),
+    ('menu_mode_settings',    'Settings', 'Hint would be nice', 'TOOL_SETTINGS', 3),
 )
+
 # not checking if bpy.types.ShaderNodeUVMap exists because that node also exists in (at least) 2.79b
 if bpy.app.version >= (2, 80, 0): # 2.80+
     node_setup['UV Map'] = {

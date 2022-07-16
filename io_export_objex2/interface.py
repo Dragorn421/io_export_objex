@@ -15,7 +15,9 @@
 
 from . import blender_version_compatibility
 
+import os
 import bpy
+import bpy.utils.previews
 import mathutils
 import re
 from math import pi
@@ -112,25 +114,45 @@ class OBJEX_PT_mesh(bpy.types.Panel):
         scene = context.scene
         object = context.object
         data = object.data.objex_bonus # ObjexMeshProperties
+
+        row = self.layout.row()
+        row.use_property_split = True
+        row.use_property_decorate = False # Do not display keyframe setting
+        row.prop(data, 'write_origin', expand=True)
+
+        row = self.layout.row()
+        row.use_property_split = True
+        row.use_property_decorate = False # Do not display keyframe setting
+        row.prop(data, 'attrib_billboard', expand=True)
         self.layout.prop(data, 'priority')
-        self.layout.prop(data, 'write_origin')
-        self.layout.prop(data, 'attrib_billboard')
-        self.layout.prop(data, 'attrib_POSMTX')
-        self.layout.prop(data, 'attrib_PROXY')
+
+        box = self.layout.box()
+        row = box.row()
+        row.prop(data, 'attrib_POSMTX')
+        row.prop(data, 'attrib_PROXY')
+        row.label(text='') # Only for aligning with the next row items
         armature = object.find_armature()
         if armature:
-            self.layout.prop(data, 'attrib_NOSPLIT')
+            row = box.row()
+            row.prop(data, 'attrib_NOSPLIT')
+
+            invert = False
+            col = row.column()
             if data.attrib_NOSPLIT:
-                self.layout.label(text='NOSKEL (implied by NOSPLIT)', icon='CHECKBOX_HLT')
-            else:
-                self.layout.prop(data, 'attrib_NOSKEL')
-            self.layout.prop(data, 'attrib_LIMBMTX')
-            self.layout.operator('objex.mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
-            self.layout.operator('objex.mesh_find_unassigned_vertices', text='Find unassigned vertices')
+                col.enabled = False
+                # Make it look like the disabled button is enabled
+                if data.attrib_NOSKEL == False:
+                    invert=True
+            
+            col.prop(data, 'attrib_NOSKEL', invert_checkbox=invert)
+            row.prop(data, 'attrib_LIMBMTX')
+
+            row = self.layout.row()
+            row.operator('objex.mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
+            row.operator('objex.mesh_find_unassigned_vertices', text='Find unassigned vertices')
             self.layout.operator('objex.mesh_list_vertex_groups', text='List groups of selected vertex')
+           
             # folding/unfolding
-            self.layout.separator()
-            self.layout.label(text='Folding')
             OBJEX_PT_folding.draw(self, context)
 
 class OBJEX_PT_folding(bpy.types.Panel):
@@ -144,22 +166,24 @@ class OBJEX_PT_folding(bpy.types.Panel):
         return rigging_helpers.AutofoldOperator.poll(context)
 
     def draw(self, context):
+        box = self.layout.box()
         scene = context.scene
         armature = rigging_helpers.AutofoldOperator.get_armature(self, context)
         # 421todo make it easier/more obvious to use...
         # 421todo export/import saved poses
-        row = self.layout.row()
+        box.label(text='Folding')
+        row = box.row()
         row.operator('objex.autofold_save_pose', text='Save pose')
         row.operator('objex.autofold_restore_pose', text='Restore pose')
-        row = self.layout.row()
+        row = box.row()
         row.operator('objex.autofold_fold_unfold', text='Fold').action = 'FOLD'
         row.operator('objex.autofold_fold_unfold', text='Unfold').action = 'UNFOLD'
         row.operator('objex.autofold_fold_unfold', text='Switch').action = 'SWITCH'
         # 421todo better saved poses management (delete)
-        self.layout.label(text='Default saved pose to use for folding:')
+        box.label(text='Default saved pose to use for folding:')
         # 'OBJEX_SavedPose' does not refer to any addon-defined class. see documentation of template_list
-        self.layout.template_list('UI_UL_list', 'OBJEX_SavedPose', scene.objex_bonus, 'saved_poses', armature.data.objex_bonus, 'fold_unfold_saved_pose_index', rows=2)
-        self.layout.operator('objex.autofold_delete_pose', text='Delete pose')
+        box.template_list('UI_UL_list', 'OBJEX_SavedPose', scene.objex_bonus, 'saved_poses', armature.data.objex_bonus, 'fold_unfold_saved_pose_index', rows=2)
+        box.operator('objex.autofold_delete_pose', text='Delete pose')
 
 # armature
 
@@ -239,9 +263,8 @@ class OBJEX_PT_armature(bpy.types.Panel):
         box = self.layout.box()
         propOffset(box, data, 'segment', 'Segment')
         box.prop(data, 'segment_local')
+
         # folding/unfolding
-        self.layout.separator()
-        self.layout.label(text='Folding')
         OBJEX_PT_folding.draw(self, context)
 
 # material
@@ -1297,38 +1320,11 @@ def objex_backface_culling_update(self, context):
         else:
             log.trace('But material is not a display objex material, ignoring it.')
 
-class OBJEX_PT_material_helpers(bpy.types.Panel):
-    bl_label = 'Objex Helpers'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'material'
-    
-    @classmethod
-    def poll(self, context):
-        material = context.material
-        return material is not None
-
-    def draw(self, context):
-        material = context.material if hasattr(context, 'material') else None
-        is_objex_material = material and material.objex_bonus.is_objex_material and material.objex_bonus.use_display
-
-        box = self.layout.row().box()
-        shared_row = box.row()
-
-        if is_objex_material == False:
-            shared_row.enabled = False
-
-        draw_build_nodes_operator(shared_row, 'Reset nodes', init=True, reset=True)
-        draw_build_nodes_operator(shared_row, 'Fix nodes')
-        box.operator('objex.material_set_shade_source', text='Set Shade Source')
-        box.label(text="Setups")
-        shared_row = box.row()
-        shared_row.operator('objex.material_single_texture', text='Single Texture')
-        shared_row.operator('objex.material_multitexture', text='Multitexture')
-        shared_row.operator('objex.material_flat_color', text='Flat Color')
-        row = box.row()
-        row.prop(context.scene.objex_bonus, 'write_primitive_color')
-        row.prop(context.scene.objex_bonus, 'write_environment_color')
+def menu_get_icon(attr):
+    if attr == True:
+        return 'DOWNARROW_HLT'
+    else:
+        return 'RIGHTARROW'
 
 class OBJEX_PT_material(bpy.types.Panel):
     bl_label = 'Objex'
@@ -1443,225 +1439,258 @@ class OBJEX_PT_material(bpy.types.Panel):
             self.layout.use_property_split = True
             self.layout.use_property_decorate = False
         # empty: only draw the exported properties empty, branch_to_object, branch_to_object_bone
+        data_is_empty = False
         if data.empty or material.name.startswith('empty.'):
-            # self.layout.label(text='Empty materials only', icon='INFO')
-            # self.layout.label(text='have these few properties:')
-            box = self.layout.box()
-            box.use_property_split = False
-
-            if material.name.startswith('empty.'):
-                box.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
-            else:
-                box.prop(data, 'empty')
-            if blender_version_compatibility.no_ID_PointerProperty:
-                box.prop_search(data, 'branch_to_object', bpy.data, 'objects')
-                box.label(text='(mesh objects only)')
-            else:
-                box.prop(data, 'branch_to_object')
-            if data.branch_to_object: # branch_to_object is a MESH object
-                if blender_version_compatibility.no_ID_PointerProperty:
-                    branch_to_object = bpy.data.objects[data.branch_to_object]
-                else:
-                    branch_to_object = data.branch_to_object
-                branch_to_object_armature = branch_to_object.find_armature()
-                if branch_to_object_armature:
-                    if branch_to_object.data.objex_bonus.attrib_NOSPLIT:
-                        self.layout.label(text='%s is marked NOSPLIT' % branch_to_object.name, icon='INFO')
-                    else:
-                        valid_bone = data.branch_to_object_bone in branch_to_object_armature.data.bones
-                        self.layout.prop_search(data, 'branch_to_object_bone', branch_to_object_armature.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
-                        if not valid_bone:
-                            self.layout.label(text='A bone must be picked', icon='ERROR')
-                            self.layout.label(text='NOSPLIT is off on %s' % branch_to_object.name, icon='INFO')
-            return
+            data_is_empty = True
+        
         # node operators
+
+        box = self.layout.box()
+        box.use_property_split = False
+        box.prop(data, 'menu_helpers', icon=menu_get_icon(getattr(data, 'menu_helpers')), emboss=False)
+        if data.menu_helpers == True:
+            shared_row = box.row()
+
+            draw_build_nodes_operator(shared_row, 'Reset nodes', init=True, reset=True)
+            draw_build_nodes_operator(shared_row, 'Fix nodes')
+            box.operator('objex.material_set_shade_source', text='Set Shade Source')
+            box.label(text="Setups")
+            shared_row = box.row()
+            shared_row.operator('objex.material_single_texture', text='Single Texture')
+            shared_row.operator('objex.material_multitexture', text='Multitexture')
+            shared_row.operator('objex.material_flat_color', text='Flat Color')
+            row = box.row()
+            row.prop(context.scene.objex_bonus, 'write_primitive_color')
+            row.prop(context.scene.objex_bonus, 'write_environment_color')
 
         # Most used and important features at hand
         box = self.layout.box()
-        box.label(text='Alpha Mode:')
-        row = box.row()
-        row.use_property_split = False
-        row.prop(material, property='blend_method', expand=True)
-        
-        row = box.row()
-        row.use_property_split = False
-        row.prop(data, 'backface_culling')
-        row.prop(data, 'frontface_culling')
         box.use_property_split = False
-        box.label(text='Prim Color')
-
-        row = box.row()
-        row.prop(data, 'write_primitive_color', expand=True)
-        row.prop(material.node_tree.nodes["OBJEX_PrimColorRGB"].outputs[0], 'default_value', text="")
-
-        box.label(text='Env Color')
-        row = box.row()
-        row.prop(data, 'write_environment_color', expand=True)
-        row.prop(material.node_tree.nodes["OBJEX_EnvColorRGB"].outputs[0], 'default_value', text="")
-        
-        row = self.layout.row()
-        box = row.box()
-        box.use_property_split = False
-        box.row().prop(material, property = 'mode_menu', expand = True)
-
-        if mode_menu == 'menu_mode_render_mode':
-            sub_box = box.box()
-             # other mode, lower half (blender settings)
-            row = sub_box.row()
+        box.prop(data, 'menu_common', icon=menu_get_icon(getattr(data, 'menu_common')), emboss=False)
+        if data.menu_common == True and data_is_empty == False:
+            box.label(text='Alpha Mode')
+            row = box.row()
+            row.use_property_split = False
+            row.prop(material, property='blend_method', expand=True)
             
-            row.prop(data, 'rendermode_blender_flag_AA_EN')
-            row.prop(data, 'rendermode_blender_flag_Z_CMP')
-            row = sub_box.row()
-            row.prop(data, 'rendermode_blender_flag_Z_UPD')
-            row.prop(data, 'rendermode_blender_flag_IM_RD')
-            row = sub_box.row()
-            row.prop(data, 'rendermode_blender_flag_CLR_ON_CVG')
+            row = box.row()
+            row.use_property_split = False
+            row.prop(data, 'backface_culling')
+            row.prop(data, 'frontface_culling')
+            box.use_property_split = False
+            box.label(text='Prim Color', icon='COLOR')
 
-            sub_box.prop(data, 'rendermode_blender_flag_CVG_DST_')
-            sub_box.prop(data, 'rendermode_zmode')
-            sub_box.prop(data, 'rendermode_blender_flag_CVG_X_ALPHA')
-            sub_box.prop(data, 'rendermode_blender_flag_ALPHA_CVG_SEL')
-            sub_box.prop(data, 'rendermode_forceblending')
-            sub_box.prop(data, 'rendermode_blending_cycle0')
-            if data.rendermode_blending_cycle0 == 'CUSTOM':
-                for v in ('P','A','M','B'):
-                    sub_box.prop(data, 'rendermode_blending_cycle0_custom_%s' % v)
-            sub_box.prop(data, 'rendermode_blending_cycle1')
-            if data.rendermode_blending_cycle1 == 'CUSTOM':
-                for v in ('P','A','M','B'):
-                    sub_box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v)
-        elif mode_menu == 'menu_mode_texture':
-            for name, texel, u_scale, v_scale, u_wrap, v_wrap, u_mirror, v_mirror in (
-                (
-                    "Texel0", 
-                    material.node_tree.nodes["OBJEX_Texel0Texture"], 
-                    material.node_tree.nodes["OBJEX_TransformUV0"].inputs[1], material.node_tree.nodes["OBJEX_TransformUV0"].inputs[2], 
-                    material.node_tree.nodes["OBJEX_TransformUV0"].inputs[3], material.node_tree.nodes["OBJEX_TransformUV0"].inputs[4], 
-                    material.node_tree.nodes["OBJEX_TransformUV0"].inputs[5], material.node_tree.nodes["OBJEX_TransformUV0"].inputs[6]
-                ),
-                (
-                    "Texel1",  
-                    material.node_tree.nodes["OBJEX_Texel1Texture"], 
-                    material.node_tree.nodes["OBJEX_TransformUV1"].inputs[1], material.node_tree.nodes["OBJEX_TransformUV1"].inputs[2], 
-                    material.node_tree.nodes["OBJEX_TransformUV1"].inputs[3], material.node_tree.nodes["OBJEX_TransformUV1"].inputs[4], 
-                    material.node_tree.nodes["OBJEX_TransformUV1"].inputs[5], material.node_tree.nodes["OBJEX_TransformUV1"].inputs[6]
-                ),
-            ):
+            row = box.row()
+            row.prop(data, 'write_primitive_color', expand=True)
+            row.prop(material.node_tree.nodes["OBJEX_PrimColorRGB"].outputs[0], 'default_value', text="")
+
+            box.label(text='Env Color', icon='COLOR')
+            row = box.row()
+            row.prop(data, 'write_environment_color', expand=True)
+            row.prop(material.node_tree.nodes["OBJEX_EnvColorRGB"].outputs[0], 'default_value', text="")
+        
+        box = self.layout.box()
+        box.use_property_split = False
+        box.prop(data, 'menu_properties', icon=menu_get_icon(getattr(data, 'menu_properties')), emboss=False)
+        if data.menu_properties == True:
+            row = box.row()
+            row.enabled = not(data_is_empty)
+            row.prop(material, 'mode_menu', expand = True)
+
+            if data_is_empty == True:
+                box = box.box()
+                if material.name.startswith('empty.'):
+                    box.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
+                else:
+                    box.prop(data, 'empty')
+                if blender_version_compatibility.no_ID_PointerProperty:
+                    box.prop_search(data, 'branch_to_object', bpy.data, 'objects')
+                    box.label(text='(mesh objects only)')
+                else:
+                    box.prop(data, 'branch_to_object')
+                if data.branch_to_object: # branch_to_object is a MESH object
+                    if blender_version_compatibility.no_ID_PointerProperty:
+                        branch_to_object = bpy.data.objects[data.branch_to_object]
+                    else:
+                        branch_to_object = data.branch_to_object
+                    branch_to_object_armature = branch_to_object.find_armature()
+                    if branch_to_object_armature:
+                        if branch_to_object.data.objex_bonus.attrib_NOSPLIT:
+                            box.label(text='%s is marked NOSPLIT' % branch_to_object.name, icon='INFO')
+                        else:
+                            valid_bone = data.branch_to_object_bone in branch_to_object_armature.data.bones
+                            box.prop_search(data, 'branch_to_object_bone', branch_to_object_armature.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
+                            if not valid_bone:
+                                box.label(text='A bone must be picked', icon='ERROR')
+                                box.label(text='NOSPLIT is off on %s' % branch_to_object.name, icon='INFO')
+                return
+
+            if mode_menu == 'menu_mode_render':
                 sub_box = box.box()
+                box.alignment = 'CENTER'
+                
+                sub_box.prop(data, 'geometrymode_G_FOG')
 
-                sub_box.label(text=name)
-                sub_box.template_ID(texel, 'image', open='image.open')
+                row = sub_box.row()
+                row.prop(data, 'geometrymode_G_SHADING_SMOOTH', text='G_SHADING_SMOOTH')
+                row.prop(data, 'geometrymode_G_ZBUFFER', text='G_ZBUFFER')
 
-                if texel.image:
-                    imdata = texel.image.objex_bonus
+                sub_box.separator()
+
+                row = sub_box.row()
+                row.prop(data, 'rendermode_blender_flag_AA_EN')
+                row.prop(data, 'rendermode_blender_flag_Z_CMP')
+                row = sub_box.row()
+                row.prop(data, 'rendermode_blender_flag_Z_UPD')
+                row.prop(data, 'rendermode_blender_flag_IM_RD')
+                row = sub_box.row()
+                row.prop(data, 'rendermode_blender_flag_CLR_ON_CVG')
+                row.prop(data, 'rendermode_blender_flag_ALPHA_CVG_SEL')
+
+                sub_box.prop(data, 'rendermode_blender_flag_CVG_DST_')
+                sub_box.prop(data, 'rendermode_zmode')
+                sub_box.prop(data, 'rendermode_blender_flag_CVG_X_ALPHA')
+                sub_box.prop(data, 'rendermode_forceblending')
+
+                sub_sub_box = sub_box.box()
+                sub_sub_box.prop(data, 'rendermode_blending_cycle0')
+                if data.rendermode_blending_cycle0 == 'CUSTOM':
+                    for v in ('P','A','M','B'):
+                        sub_sub_box.prop(data, 'rendermode_blending_cycle0_custom_%s' % v, text='')
+
+                sub_sub_box = sub_box.box()
+                sub_sub_box.prop(data, 'rendermode_blending_cycle1')
+                if data.rendermode_blending_cycle1 == 'CUSTOM':
+                    for v in ('P','A','M','B'):
+                        sub_sub_box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v, text='')
+            elif mode_menu == 'menu_mode_texture':
+                for name, texel, u_scale, v_scale, u_wrap, v_wrap, u_mirror, v_mirror, menu in (
+                    (
+                        "Texel0", 
+                        material.node_tree.nodes["OBJEX_Texel0Texture"], 
+                        material.node_tree.nodes["OBJEX_TransformUV0"].inputs[1], material.node_tree.nodes["OBJEX_TransformUV0"].inputs[2], 
+                        material.node_tree.nodes["OBJEX_TransformUV0"].inputs[3], material.node_tree.nodes["OBJEX_TransformUV0"].inputs[4], 
+                        material.node_tree.nodes["OBJEX_TransformUV0"].inputs[5], material.node_tree.nodes["OBJEX_TransformUV0"].inputs[6],
+                        'menu_texel0'
+                    ),
+                    (
+                        "Texel1",  
+                        material.node_tree.nodes["OBJEX_Texel1Texture"], 
+                        material.node_tree.nodes["OBJEX_TransformUV1"].inputs[1], material.node_tree.nodes["OBJEX_TransformUV1"].inputs[2], 
+                        material.node_tree.nodes["OBJEX_TransformUV1"].inputs[3], material.node_tree.nodes["OBJEX_TransformUV1"].inputs[4], 
+                        material.node_tree.nodes["OBJEX_TransformUV1"].inputs[5], material.node_tree.nodes["OBJEX_TransformUV1"].inputs[6],
+                        'menu_texel1'
+                    ),
+                ):
+                    sub_box = box.box()
+
+                    
+                    sub_box.prop(data, menu, icon=menu_get_icon(getattr(data, menu)), emboss=False)
+                    if getattr(data, menu) == True:
+                        sub_box.template_ID(texel, 'image', open='image.open')
+                        if texel.image:
+                            imdata = texel.image.objex_bonus
 
 
-                    sub_box.prop(imdata, 'format')
-                    if imdata.format[:2] == 'CI':
-                        sub_box.prop(imdata, 'palette')
-                    sub_box.prop(imdata, 'alphamode')
-                    sub_box.prop(imdata, 'force_write')
+                            sub_box.prop(imdata, 'format')
+                            if imdata.format[:2] == 'CI':
+                                sub_box.prop(imdata, 'palette')
+                            sub_box.prop(imdata, 'alphamode')
+                            sub_box.prop(imdata, 'force_write')
 
-                    sub_sub_box = sub_box.box()
-                    row = sub_sub_box.row()
-                    row.prop(u_scale, 'default_value', text='U Exp')
-                    row.prop(u_wrap, 'default_value', text='U Wrap')
-                    row.prop(u_mirror, 'default_value', text='U Mirror')
+                            sub_sub_box = sub_box.box()
+                            row = sub_sub_box.row()
+                            row.prop(u_scale, 'default_value', text='U Exp')
+                            row.prop(u_wrap, 'default_value', text='U Wrap')
+                            row.prop(u_mirror, 'default_value', text='U Mirror')
 
-                    row = sub_sub_box.row()
-                    row.prop(v_scale, 'default_value', text='V Exp')
-                    row.prop(v_wrap, 'default_value', text='V Wrap')
-                    row.prop(v_mirror, 'default_value', text='V Mirror')
+                            row = sub_sub_box.row()
+                            row.prop(v_scale, 'default_value', text='V Exp')
+                            row.prop(v_wrap, 'default_value', text='V Wrap')
+                            row.prop(v_mirror, 'default_value', text='V Mirror')
 
-                    row = sub_box.row()
-                    row.label(text='Texture bank:')
-                    row.template_ID(imdata, 'texture_bank', open='image.open')
+                            row = sub_box.row()
+                            row.label(text='Texture bank:')
+                            row.template_ID(imdata, 'texture_bank', open='image.open')
 
-                    propOffset(sub_box, imdata, 'pointer', 'Pointer')
-                    sub_box.prop(imdata, 'priority')
+                            propOffset(sub_box, imdata, 'pointer', 'Pointer')
+                            sub_box.prop(imdata, 'priority')
 
-            sub_box = box.box()
-            row = sub_box.row()
+                sub_box = box.box()
+                row = sub_box.row()
 
-            row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[2], 'default_value', text='Texgen ')
-            col = row.column()
+                row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[2], 'default_value', text='Texgen ')
+                col = row.column()
 
-            if material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[2].default_value:
-                col.enabled = True
-            else:
-                col.enabled = False
-            
-            col.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[3], 'default_value', text='Texgen Linear')
-            
-            row = sub_box.row()
-            row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[4], 'default_value', text='U Scale')
-            row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[5], 'default_value', text='V Scale')
+                if material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[2].default_value:
+                    col.enabled = True
+                else:
+                    col.enabled = False
+                
+                col.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[3], 'default_value', text='Texgen Linear')
+                
+                row = sub_box.row()
+                row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[4], 'default_value', text='U Scale')
+                row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[5], 'default_value', text='V Scale')
 
-            box.operator('objex.set_pixels_along_uv_from_image_dimensions', text='Fix clamping')
-        elif mode_menu == 'menu_mode_combiner':
-            sub_box = box.box()
-            sub_box.label(text='Color', icon='BRUSH_DATA')
-            cc0 = material.node_tree.nodes["OBJEX_ColorCycle0"]
-            cc1 = material.node_tree.nodes["OBJEX_ColorCycle1"]
-            ac0 = material.node_tree.nodes["OBJEX_AlphaCycle0"]
-            ac1 = material.node_tree.nodes["OBJEX_AlphaCycle1"]
+                box.operator('objex.set_pixels_along_uv_from_image_dimensions', text='Fix clamping')
+            elif mode_menu == 'menu_mode_combiner':
+                sub_box = box.box()
+                sub_box.label(text='Color')
+                cc0 = material.node_tree.nodes["OBJEX_ColorCycle0"]
+                cc1 = material.node_tree.nodes["OBJEX_ColorCycle1"]
+                ac0 = material.node_tree.nodes["OBJEX_AlphaCycle0"]
+                ac1 = material.node_tree.nodes["OBJEX_AlphaCycle1"]
 
-            row = sub_box.row()
-            row.prop(cc0.inputs[0], 'input_flags_C_A_0', text='A')
-            row.prop(cc1.inputs[0], 'input_flags_C_A_1', text='A')
-            
-            row = sub_box.row()
-            row.prop(cc0.inputs[1], 'input_flags_C_B_0', text='B')
-            row.prop(cc1.inputs[1], 'input_flags_C_B_1', text='B')
-            
-            row = sub_box.row()
-            row.prop(cc0.inputs[2], 'input_flags_C_C_0', text='C')
-            row.prop(cc1.inputs[2], 'input_flags_C_C_1', text='C')
-            
-            row = sub_box.row()
-            row.prop(cc0.inputs[3], 'input_flags_C_D_0', text='D')
-            row.prop(cc1.inputs[3], 'input_flags_C_D_1', text='D')
+                row = sub_box.row()
+                row.prop(cc0.inputs[0], 'input_flags_C_A_0', text='', icon='EVENT_A')
+                row.prop(cc1.inputs[0], 'input_flags_C_A_1', text='', icon='EVENT_A')
+                
+                row = sub_box.row()
+                row.prop(cc0.inputs[1], 'input_flags_C_B_0', text='', icon='EVENT_B')
+                row.prop(cc1.inputs[1], 'input_flags_C_B_1', text='', icon='EVENT_B')
+                
+                row = sub_box.row()
+                row.prop(cc0.inputs[2], 'input_flags_C_C_0', text='', icon='EVENT_C')
+                row.prop(cc1.inputs[2], 'input_flags_C_C_1', text='', icon='EVENT_C')
+                
+                row = sub_box.row()
+                row.prop(cc0.inputs[3], 'input_flags_C_D_0', text='', icon='EVENT_D')
+                row.prop(cc1.inputs[3], 'input_flags_C_D_1', text='', icon='EVENT_D')
 
-            sub_box.label(text='Alpha')
+                sub_box.label(text='Alpha')
 
-            row = sub_box.row()
-            row.prop(ac0.inputs[0], 'input_flags_A_A_0', text='A')
-            row.prop(ac1.inputs[0], 'input_flags_A_A_1', text='A')
-            
-            row = sub_box.row()
-            row.prop(ac0.inputs[1], 'input_flags_A_B_0', text='B')
-            row.prop(ac1.inputs[1], 'input_flags_A_B_1', text='B')
-            
-            row = sub_box.row()
-            row.prop(ac0.inputs[2], 'input_flags_A_C_0', text='C')
-            row.prop(ac1.inputs[2], 'input_flags_A_C_1', text='C')
-            
-            row = sub_box.row()
-            row.prop(ac0.inputs[3], 'input_flags_A_D_0', text='D')
-            row.prop(ac1.inputs[3], 'input_flags_A_D_1', text='D')
+                row = sub_box.row()
+                row.prop(ac0.inputs[0], 'input_flags_A_A_0', text='', icon='EVENT_A')
+                row.prop(ac1.inputs[0], 'input_flags_A_A_1', text='', icon='EVENT_A')
+                
+                row = sub_box.row()
+                row.prop(ac0.inputs[1], 'input_flags_A_B_0', text='', icon='EVENT_B')
+                row.prop(ac1.inputs[1], 'input_flags_A_B_1', text='', icon='EVENT_B')
+                
+                row = sub_box.row()
+                row.prop(ac0.inputs[2], 'input_flags_A_C_0', text='', icon='EVENT_C')
+                row.prop(ac1.inputs[2], 'input_flags_A_C_1', text='', icon='EVENT_C')
+                
+                row = sub_box.row()
+                row.prop(ac0.inputs[3], 'input_flags_A_D_0', text='', icon='EVENT_D')
+                row.prop(ac1.inputs[3], 'input_flags_A_D_1', text='', icon='EVENT_D')
 
-            box.label(text='(A-B)*C+D')
-        elif mode_menu == 'menu_mode_geometry':
-            sub_box = box.box()
-            sub_box.prop(data, 'geometrymode_G_SHADING_SMOOTH')
-            sub_box.prop(data, 'geometrymode_G_FOG')
-            if data.geometrymode_G_FOG == 'NO':
-                sub_box.label(text='G_FOG off does not disable fog', icon='ERROR')
-            sub_box.prop(data, 'geometrymode_G_ZBUFFER')
-        elif mode_menu == 'menu_mode_other':
-            sub_box = box.box()
-            sub_box.use_property_split = False
-            row = sub_box.row()
-            row.use_property_split = False
+                box.label(text='(A-B)*C+D')
+            elif mode_menu == 'menu_mode_settings':
+                sub_box = box.box()
+                sub_box.use_property_split = False
+                row = sub_box.row()
+                row.use_property_split = False
 
-            row.prop(data, 'empty') # (at this point, material isn't empty)
-            row.prop(data, 'standalone')
-            row.prop(data, 'force_write')
-            row = sub_box.row()
-            row.use_property_split = False
-            sub_box.prop(data, 'priority')
-            sub_box.prop(data, 'vertex_shading')
-            sub_box.prop(data, 'external_material_segment')
+                row.prop(data, 'empty') # (at this point, material isn't empty)
+                row.prop(data, 'standalone')
+                row.prop(data, 'force_write')
+                row = sub_box.row()
+                row.use_property_split = False
+                sub_box.prop(data, 'priority')
+                sub_box.prop(data, 'vertex_shading')
+                sub_box.prop(data, 'external_material_segment')
 
 class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
 
@@ -1716,7 +1745,6 @@ classes = (
     OBJEX_OT_material_init_collision,
     OBJEX_OT_set_pixels_along_uv_from_image_dimensions,
     OBJEX_PT_material,
-    OBJEX_PT_material_helpers,
     
 )
 
@@ -1734,6 +1762,8 @@ def handler_scene_or_depsgraph_update_post_once(*args):
 @bpy.app.handlers.persistent
 def handler_load_post(*args):
     init_watch_objex_materials()
+
+objex_icons = {}
 
 def register_interface():
     log = getLogger('interface')
@@ -1782,6 +1812,16 @@ def register_interface():
     bpy.app.handlers.load_post.append(handler_load_post)
     bpy.types.Material.mode_menu = bpy.props.EnumProperty(items = CST.mode_menu)
 
+    # Load Icons
+    # pcoll = bpy.utils.previews.new()
+
+    # my_icons_dir = os.path.join(os.path.dirname(__file__), "icons")
+    # pcoll.load("CYCLE_A", os.path.join(my_icons_dir, "A.png"), 'IMAGE')
+    # pcoll.load("CYCLE_B", os.path.join(my_icons_dir, "B.png"), 'IMAGE')
+    # pcoll.load("CYCLE_C", os.path.join(my_icons_dir, "C.png"), 'IMAGE')
+    # pcoll.load("CYCLE_D", os.path.join(my_icons_dir, "D.png"), 'IMAGE')
+    # objex_icons["main"] = pcoll
+
 def unregister_interface():
     log = getLogger('interface')
 
@@ -1809,3 +1849,8 @@ def unregister_interface():
         except:
             log.exception('Failed to unregister {!r}', clazz)
     del bpy.types.Material.mode_menu
+
+    # Clear Icons
+    # for pcoll in objex_icons.values():
+    #     bpy.utils.previews.remove(pcoll)
+    # objex_icons.clear()

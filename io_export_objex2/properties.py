@@ -404,8 +404,8 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     write_primitive_color = bpy.props.EnumProperty(
             items=[
-                ('YES','Yes','Set the color',1),
-                ('NO','No','Do not set the color',2),
+                ('YES','Set','Set the color',1),
+                ('NO','Clear','Do not set the color',2),
                 ('GLOBAL','Global','Default to the global (per-scene) setting, shared by all materials',3),
             ],
             name='Set prim color',
@@ -415,8 +415,8 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     write_environment_color = bpy.props.EnumProperty(
             items=[
-                ('YES','Yes','Set the color',1),
-                ('NO','No','Do not set the color',2),
+                ('YES','Set','Set the color',1),
+                ('NO','Clear','Do not set the color',2),
                 ('GLOBAL','Global','Default to the global (per-scene) setting, shared by all materials',3),
             ],
             name='Set env color',
@@ -463,11 +463,11 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     rendermode_zmode = bpy.props.EnumProperty(
             items=[
-                ('OPA','Opaque','Opaque surfaces (OPA)',1),
-                ('INTER','Interpenetrating','Interpenetrating surfaces',2),
-                ('XLU','Translucent','Translucent surfaces (XLU)',3),
-                ('DEC','Decal','Decal surfaces (eg paths)',4),
-                ('AUTO','Auto','Default to Translucent (XLU) if material uses transparency, or Opaque (OPA) otherwise',5),
+                ('OPA',  'OPA',  'Opaque surfaces (OPA)',1),
+                ('INTER','INTER','Interpenetrating surfaces',2),
+                ('XLU',  'XLU',  'Translucent surfaces (XLU)',3),
+                ('DEC',  'DEC',  'Decal surfaces (eg paths)',4),
+                ('AUTO', 'Auto', 'Default to Translucent (XLU) if material uses transparency, or Opaque (OPA) otherwise',5),
             ],
             name='zmode',
             description='Not well understood, has to do with rendering order',
@@ -587,6 +587,32 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     geometrymode_G_SHADING_SMOOTH = bpy.props.BoolProperty(
             name='Smooth Shading',
             description='G_SHADING_SMOOTH\n' 'Enable smooth shading (vertex colors, lighting)',
+            default=True
+        )
+
+    menu_common = bpy.props.BoolProperty(
+            name='Common',
+            description='hint',
+            default=True
+        )
+    menu_properties = bpy.props.BoolProperty(
+            name='Properties',
+            description='hint',
+            default=True
+        )
+    menu_helpers = bpy.props.BoolProperty(
+            name='Helpers',
+            description='hint',
+            default=True
+        )
+    menu_texel0 = bpy.props.BoolProperty(
+            name='Texel0',
+            description='hint',
+            default=True
+        )
+    menu_texel1 = bpy.props.BoolProperty(
+            name='Texel1',
+            description='hint',
             default=True
         )
 
