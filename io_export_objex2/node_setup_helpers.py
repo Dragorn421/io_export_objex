@@ -15,6 +15,8 @@
 
 import bpy
 
+from . import interface as INTERFC
+
 from . import blender_version_compatibility
 
 def clearLinks(tree, socket):
@@ -149,6 +151,7 @@ class OBJEX_OT_material_single_texture(bpy.types.Operator):
         setLinks_multiply_by(tree, cc0.inputs['C'], ac0.inputs['C'], self.multiply_by0)
         # set C of second color/alpha cycle according to self.multiply_by
         setLinks_multiply_by(tree, cc1.inputs['C'], ac1.inputs['C'], self.multiply_by1)
+        INTERFC.exec_build_nodes_operator(material)
         return {'FINISHED'}
 
 class OBJEX_OT_material_multitexture(bpy.types.Operator):
@@ -280,6 +283,7 @@ class OBJEX_OT_material_multitexture(bpy.types.Operator):
                 tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Alpha'], ac0.inputs['C'])
         # set C of second color/alpha cycle according to self.multiply_by
         setLinks_multiply_by(tree, cc1.inputs['C'], ac1.inputs['C'], self.multiply_by)
+        INTERFC.exec_build_nodes_operator(material)
         return {'FINISHED'}
 
 class OBJEX_OT_material_flat_color(bpy.types.Operator):
@@ -384,6 +388,7 @@ class OBJEX_OT_material_flat_color(bpy.types.Operator):
             setLinks_multiply_by(tree, cc0.inputs['C'], ac0.inputs['C'], self.multiply_by0)
         if self.multiply_by1 != 'NONE':
             setLinks_multiply_by(tree, cc1.inputs['C'], ac1.inputs['C'], self.multiply_by1)
+        INTERFC.exec_build_nodes_operator(material)
         return {'FINISHED'}
 
 class OBJEX_OT_material_set_shade_source(bpy.types.Operator):
