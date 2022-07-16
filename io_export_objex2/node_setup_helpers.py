@@ -402,6 +402,11 @@ class OBJEX_OT_material_set_shade_source(bpy.types.Operator):
         layout.operator('objex.material_set_shade_source_vertex_colors')
         layout.operator('objex.material_set_shade_source_lighting')
 
+    @classmethod
+    def poll(self, context):
+        material = context.material if hasattr(context, 'material') else None
+        return material and material.objex_bonus.is_objex_material and material.objex_bonus.use_display
+
     def invoke(self, context, event):
         return context.window_manager.invoke_props_dialog(self)
 
