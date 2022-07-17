@@ -1320,12 +1320,6 @@ def objex_backface_culling_update(self, context):
         else:
             log.trace('But material is not a display objex material, ignoring it.')
 
-def menu_get_icon(attr):
-    if attr == True:
-        return 'DOWNARROW_HLT'
-    else:
-        return 'RIGHTARROW'
-
 class OBJEX_PT_material(bpy.types.Panel):
     bl_label = 'Objex'
     bl_space_type = 'PROPERTIES'
@@ -1340,7 +1334,6 @@ class OBJEX_PT_material(bpy.types.Panel):
     def draw(self, context):
         material = context.material
         data = material.objex_bonus
-        mode_menu = material.mode_menu
         # setup operators
         if not data.is_objex_material:
             draw_build_nodes_operator(self.layout, 'Init Display Objex material', init=True)
@@ -1353,61 +1346,32 @@ class OBJEX_PT_material(bpy.types.Panel):
             return
         if data.use_collision:
             if not context.object.name.startswith('collision.'):
-                self.layout.label(text='This material is for', icon='ERROR')
-                self.layout.label(text='collision but the')
-                self.layout.label(text='object is not prefixed')
-                self.layout.label(text='with "collision."')
-                self.layout.label(text='Remove this material', icon='INFO')
-                self.layout.label(text='or rename the object.')
-                self.layout.label(text='For example:')
-                self.layout.label(text='"collision.{}"'.format(context.object.name))
-                return
-            col = data.collision
-            self.layout.prop(col, 'ignore_camera')
-            self.layout.prop(col, 'ignore_entity')
-            self.layout.prop(col, 'ignore_ammo')
-            self.layout.prop(col, 'sound')
-            self.layout.prop(col, 'floor')
-            self.layout.prop(col, 'wall')
-            self.layout.prop(col, 'special')
-            self.layout.prop(col, 'horse')
-            self.layout.prop(col, 'one_lower')
-            self.layout.prop(col, 'wall_damage')
-            self.layout.prop(col, 'hookshot')
-            self.layout.prop(col, 'steep')
-
-            def draw_optional(prop_enable, prop_data):
-                if getattr(col, prop_enable):
-                    row = self.layout.row()
-                    row.prop(col, prop_enable, text='')
-                    row.prop(col, prop_data)
-                else:
-                    self.layout.prop(col, prop_enable)
-
-            draw_optional('warp_enabled', 'warp_exit_index')
-            draw_optional('camera_enabled', 'camera_index')
-            draw_optional('echo_enabled', 'echo_index')
-            draw_optional('lighting_enabled', 'lighting_index')
-
-            if col.conveyor_enabled:
                 box = self.layout.box()
-                box.prop(col, 'conveyor_enabled')
-                box.prop(col, 'conveyor_direction')
-                box.prop(col, 'conveyor_speed')
-                box.prop(col, 'conveyor_inherit')
-            else:
-                self.layout.prop(col, 'conveyor_enabled')
+                box.label(text='', icon='ERROR')
+                box.label(text='This material is not for mesh.')
+                box.label(text='The object should be prefixed')
+                box.label(text='with "collision."')
+                box.separator()
+                box.label(text='For example:')
+                box.box().label(text='collision.{}'.format(context.object.name), icon='OUTLINER_OB_MESH')
+                return
+            self.menu_collision(context)
 
             return
         if context.object and context.object.name.startswith('collision.'):
-            self.layout.label(text='This material is not', icon='ERROR')
-            self.layout.label(text='for collision, but')
-            self.layout.label(text='the object is prefixed')
-            self.layout.label(text='with "collision."')
-            self.layout.label(text='Remove this material', icon='INFO')
-            self.layout.label(text='or rename the object.')
-            self.layout.label(text='For example:')
-            self.layout.label(text=context.object.name[len('collision.'):])
+            box = self.layout.box()
+            box.label(text='', icon='ERROR')
+            box.label(text='This material is not')
+            box.label(text='for collision, but')
+            box.label(text='the object is prefixed')
+            box.label(text='with "collision."')
+            box = self.layout.box()
+            box.label(text='', icon='INFO')
+            box.label(text='Remove this material')
+            box.label(text='or rename the object.')
+            box.separator()
+            box.label(text='For example:')
+            box.box().label(text=context.object.name[len('collision.'):], icon='OUTLINER_OB_MESH')
             return
         # handle is_objex_material, use_nodes mismatch
         if not material.use_nodes:
@@ -1432,23 +1396,83 @@ class OBJEX_PT_material(bpy.types.Panel):
             return
         # update material
         if data_updater.handle_material(material, self.layout):
-            self.layout.separator()
             draw_build_nodes_operator(self.layout, 'Reset nodes', init=True, reset=True)
             return
-        if hasattr(self.layout, 'use_property_split') and hasattr(self.layout, 'use_property_decorate'): # 2.80+
-            self.layout.use_property_split = True
-            self.layout.use_property_decorate = False
-        # empty: only draw the exported properties empty, branch_to_object, branch_to_object_bone
-        data_is_empty = False
-        if data.empty or material.name.startswith('empty.'):
-            data_is_empty = True
         
-        # node operators
+        self.menu_material(context)
+    
+    def get_icon(self, attr):
+        if attr == True:
+            return 'DOWNARROW_HLT'
+        else:
+            return 'RIGHTARROW'
+
+    def menu_collision(self, context):
+        material = context.material
+        data = material.objex_bonus
 
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(data, 'menu_helpers', icon=menu_get_icon(getattr(data, 'menu_helpers')), emboss=False)
-        if data.menu_helpers == True:
+        box.prop(data, 'menu_collision', emboss=False)
+
+        col = data.collision
+
+        box.prop(col, 'sound')
+        box.prop(col, 'floor')
+        box.prop(col, 'wall')
+        box.prop(col, 'special')
+
+        row = box.row()
+        row.prop(col, 'ignore_camera')
+        row.prop(col, 'ignore_entity')
+
+        row = box.row()
+        row.prop(col, 'ignore_ammo')
+        row.prop(col, 'horse')
+
+        row = box.row()
+        row.prop(col, 'one_lower')
+        row.prop(col, 'wall_damage')
+
+        row = box.row()
+        row.prop(col, 'hookshot')
+        row.prop(col, 'steep')
+
+        def draw_optional(prop_enable, prop_data):
+            if getattr(col, prop_enable):
+                row = box.row()
+                row.prop(col, prop_enable, text='')
+                row.prop(col, prop_data)
+            else:
+                box.prop(col, prop_enable)
+
+        draw_optional('warp_enabled', 'warp_exit_index')
+        draw_optional('camera_enabled', 'camera_index')
+        draw_optional('echo_enabled', 'echo_index')
+        draw_optional('lighting_enabled', 'lighting_index')
+
+        if col.conveyor_enabled:
+            box.prop(col, 'conveyor_enabled')
+            sub_box = box.box()
+            sub_box.prop(col, 'conveyor_direction')
+            sub_box.row().prop(col, 'conveyor_speed', expand=True)
+            sub_box.prop(col, 'conveyor_inherit')
+        else:
+            box.prop(col, 'conveyor_enabled')
+
+    def menu_material(self, context):
+        material = context.material
+        data = material.objex_bonus
+        mode_menu = material.mode_menu
+
+        data_is_empty = False
+        if data.empty or material.name.startswith('empty.'):
+            data_is_empty = True
+
+        box = self.layout.box()
+        box.use_property_split = False
+        box.prop(data, 'menu_tools', icon=self.get_icon(getattr(data, 'menu_tools')), emboss=False)
+        if data.menu_tools == True:
             shared_row = box.row()
 
             draw_build_nodes_operator(shared_row, 'Reset nodes', init=True, reset=True)
@@ -1459,14 +1483,11 @@ class OBJEX_PT_material(bpy.types.Panel):
             shared_row.operator('objex.material_single_texture', text='Single Texture')
             shared_row.operator('objex.material_multitexture', text='Multitexture')
             shared_row.operator('objex.material_flat_color', text='Flat Color')
-            row = box.row()
-            row.prop(context.scene.objex_bonus, 'write_primitive_color')
-            row.prop(context.scene.objex_bonus, 'write_environment_color')
 
         # Most used and important features at hand
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(data, 'menu_common', icon=menu_get_icon(getattr(data, 'menu_common')), emboss=False)
+        box.prop(data, 'menu_common', icon=self.get_icon(getattr(data, 'menu_common')), emboss=False)
         if data.menu_common == True and data_is_empty == False:
             box.label(text='Alpha Mode')
             row = box.row()
@@ -1477,25 +1498,29 @@ class OBJEX_PT_material(bpy.types.Panel):
             row.use_property_split = False
             row.prop(data, 'backface_culling')
             row.prop(data, 'frontface_culling')
+            row = box.row()
+            row.prop(context.scene.objex_bonus, 'write_primitive_color')
+            row.prop(context.scene.objex_bonus, 'write_environment_color')
             box.use_property_split = False
-            box.label(text='Prim Color', icon='COLOR')
 
             row = box.row()
+            row.label(text='Prim', icon='COLOR')
             row.prop(data, 'write_primitive_color', expand=True)
             row.prop(material.node_tree.nodes["OBJEX_PrimColorRGB"].outputs[0], 'default_value', text="")
 
-            box.label(text='Env Color', icon='COLOR')
             row = box.row()
+            row.label(text='Env', icon='COLOR')
             row.prop(data, 'write_environment_color', expand=True)
             row.prop(material.node_tree.nodes["OBJEX_EnvColorRGB"].outputs[0], 'default_value', text="")
+            
         
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(data, 'menu_properties', icon=menu_get_icon(getattr(data, 'menu_properties')), emboss=False)
-        if data.menu_properties == True:
+        box.prop(data, 'menu_material', icon=self.get_icon(getattr(data, 'menu_material')), emboss=False)
+        if data.menu_material == True:
             row = box.row()
             row.enabled = not(data_is_empty)
-            row.prop(material, 'mode_menu', expand = True)
+            row.prop_tabs_enum(material, 'mode_menu')
 
             if data_is_empty == True:
                 box = box.box()
@@ -1585,7 +1610,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                     sub_box = box.box()
 
                     
-                    sub_box.prop(data, menu, icon=menu_get_icon(getattr(data, menu)), emboss=False)
+                    sub_box.prop(data, menu, icon=self.get_icon(getattr(data, menu)), emboss=False)
                     if getattr(data, menu) == True:
                         sub_box.template_ID(texel, 'image', open='image.open')
                         if texel.image:
@@ -1675,8 +1700,6 @@ class OBJEX_PT_material(bpy.types.Panel):
                 row = sub_box.row()
                 row.prop(ac0.inputs[3], 'input_flags_A_D_0', text='', icon='EVENT_D')
                 row.prop(ac1.inputs[3], 'input_flags_A_D_1', text='', icon='EVENT_D')
-
-                box.label(text='(A-B)*C+D')
             elif mode_menu == 'menu_mode_settings':
                 sub_box = box.box()
                 sub_box.use_property_split = False

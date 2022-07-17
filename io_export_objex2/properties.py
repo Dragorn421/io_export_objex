@@ -69,12 +69,12 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
     )
 
     write_primitive_color = bpy.props.BoolProperty(
-            name='Set prim color (global)',
+            name='Set prim (global)',
             description='Scene property, shared by materials',
             default=True
         )
     write_environment_color = bpy.props.BoolProperty(
-            name='Set env color (global)',
+            name='Set env (global)',
             description='Scene property, shared by materials',
             default=True
         )
@@ -590,31 +590,36 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             default=True
         )
 
+    menu_tools = bpy.props.BoolProperty(
+        name='Tools',
+        description='hint',
+        default=True
+    )
     menu_common = bpy.props.BoolProperty(
-            name='Common',
-            description='hint',
-            default=True
-        )
-    menu_properties = bpy.props.BoolProperty(
-            name='Properties',
-            description='hint',
-            default=True
-        )
-    menu_helpers = bpy.props.BoolProperty(
-            name='Helpers',
-            description='hint',
-            default=True
-        )
+        name='Common',
+        description='hint',
+        default=True
+    )
+    menu_material = bpy.props.BoolProperty(
+        name='Material',
+        description='hint',
+        default=True
+    )
     menu_texel0 = bpy.props.BoolProperty(
-            name='Texel0',
-            description='hint',
-            default=True
-        )
+        name='Texel0',
+        description='hint',
+        default=True
+    )
     menu_texel1 = bpy.props.BoolProperty(
-            name='Texel1',
-            description='hint',
-            default=True
-        )
+        name='Texel1',
+        description='hint',
+        default=True
+    )
+    menu_collision = bpy.props.BoolProperty(
+        name='Collision',
+        description='hint',
+        default=True
+    )
 
 # add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B
 for c in (0,1):
