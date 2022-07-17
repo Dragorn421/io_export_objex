@@ -418,6 +418,31 @@ class OBJEX_OT_material_set_shade_source(bpy.types.Operator):
     def execute(self, context):
         return {'FINISHED'}
 
+def set_shade_source_vertex_colors(material):
+    tree = material.node_tree
+    shadeNode = tree.nodes['OBJEX_Shade']
+    if hasattr(bpy.types, 'ShaderNodeVertexColor'): # 2.80+
+        vertexColorNode = tree.nodes['Vertex Color']
+        vertexColorSocketColor = vertexColorNode.outputs['Color']
+        vertexColorSocketAlpha = vertexColorNode.outputs['Alpha']
+    else: # < 2.80
+        geometryNode = tree.nodes['Geometry']
+        vertexColorSocketColor = geometryNode.outputs['Vertex Color']
+        vertexColorSocketAlpha = geometryNode.outputs['Vertex Alpha']
+    clearLinks(tree, shadeNode.inputs['Color'])
+    clearLinks(tree, shadeNode.inputs['Alpha'])
+    tree.links.new(vertexColorSocketColor, shadeNode.inputs['Color'])
+    tree.links.new(vertexColorSocketAlpha, shadeNode.inputs['Alpha'])
+
+def set_shade_source_lighting(material):
+    tree = material.node_tree
+    shadeNode = tree.nodes['OBJEX_Shade']
+    clearLinks(tree, shadeNode.inputs['Color'])
+    clearLinks(tree, shadeNode.inputs['Alpha'])
+    color1socket = tree.nodes['OBJEX_Color1'].outputs[0]
+    tree.links.new(color1socket, shadeNode.inputs['Color'])
+    tree.links.new(color1socket, shadeNode.inputs['Alpha'])
+
 class OBJEX_OT_material_set_shade_source_vertex_colors(bpy.types.Operator):
 
     bl_idname = 'objex.material_set_shade_source_vertex_colors'
@@ -436,20 +461,7 @@ class OBJEX_OT_material_set_shade_source_vertex_colors(bpy.types.Operator):
                         if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
                             materials.add(material)
         for material in materials:
-            tree = material.node_tree
-            shadeNode = tree.nodes['OBJEX_Shade']
-            if hasattr(bpy.types, 'ShaderNodeVertexColor'): # 2.80+
-                vertexColorNode = tree.nodes['Vertex Color']
-                vertexColorSocketColor = vertexColorNode.outputs['Color']
-                vertexColorSocketAlpha = vertexColorNode.outputs['Alpha']
-            else: # < 2.80
-                geometryNode = tree.nodes['Geometry']
-                vertexColorSocketColor = geometryNode.outputs['Vertex Color']
-                vertexColorSocketAlpha = geometryNode.outputs['Vertex Alpha']
-            clearLinks(tree, shadeNode.inputs['Color'])
-            clearLinks(tree, shadeNode.inputs['Alpha'])
-            tree.links.new(vertexColorSocketColor, shadeNode.inputs['Color'])
-            tree.links.new(vertexColorSocketAlpha, shadeNode.inputs['Alpha'])
+            set_shade_source_vertex_colors(material)
         return {'FINISHED'}
 
 class OBJEX_OT_material_set_shade_source_lighting(bpy.types.Operator):
@@ -470,13 +482,7 @@ class OBJEX_OT_material_set_shade_source_lighting(bpy.types.Operator):
                         if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
                             materials.add(material)
         for material in materials:
-            tree = material.node_tree
-            shadeNode = tree.nodes['OBJEX_Shade']
-            clearLinks(tree, shadeNode.inputs['Color'])
-            clearLinks(tree, shadeNode.inputs['Alpha'])
-            color1socket = tree.nodes['OBJEX_Color1'].outputs[0]
-            tree.links.new(color1socket, shadeNode.inputs['Color'])
-            tree.links.new(color1socket, shadeNode.inputs['Alpha'])
+            set_shade_source_lighting(material)
         return {'FINISHED'}
 
 classes = (

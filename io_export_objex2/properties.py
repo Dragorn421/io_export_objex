@@ -18,6 +18,7 @@ from . import blender_version_compatibility
 import bpy
 
 from . import interface
+from . import node_setup_helpers
 from .logging_util import getLogger
 
 # scene
@@ -237,14 +238,6 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
 
 # material
 
-def material_set_shade(self, context):
-    eval('bpy.ops.%s()' % self.shading)
-
-def material_set_alpha(self, context):
-    material = context.material
-    setattr(material, 'blend_method', self.alpha_mode)
-    return
-
 class ObjexMaterialCollisionProperties(bpy.types.PropertyGroup):
     WATERBOX = bpy.props.BoolProperty()
     # 421todo WATERBOX properties
@@ -422,6 +415,19 @@ class ObjexMaterialCollisionProperties(bpy.types.PropertyGroup):
             description='Inherit speed from previously stepped-on conveyor surface',
             default=False
         )
+
+def omp_change_alpha(self, context):
+    material = self.id_data
+    material.blend_method = material.objex_bonus.alpha_mode
+
+def omp_change_shade(self, context):
+    material = self.id_data
+
+    if material.objex_bonus.shading == 'VERTEX_COLOR':
+        node_setup_helpers.set_shade_source_vertex_colors(material)
+    else:
+        node_setup_helpers.set_shade_source_lighting(material)
+
 
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
@@ -638,14 +644,16 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         description='G_SHADING_SMOOTH\n' 'Enable smooth shading (vertex colors, lighting)',
         default=True
     )
+    
+
     shading = bpy.props.EnumProperty(
         items=[
-            ('objex.material_set_shade_source_vertex_colors', 'Vertex Color' ,''),
-            ('objex.material_set_shade_source_lighting',      'Lighting'     ,''),
+            ('LIGHTING',     'Lighting'     ,''),
+            ('VERTEX_COLOR', 'Vertex Color' ,''),
         ],
         name='Shading',
-        default='objex.material_set_shade_source_lighting',
-        update=material_set_shade
+        default='LIGHTING',
+        update=omp_change_shade
     )
     alpha_mode = bpy.props.EnumProperty(
         items=[
@@ -655,7 +663,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         ],
         name='Alpha Mode',
         default='OPAQUE',
-        update=material_set_alpha
+        update=omp_change_alpha
     )
 
 # add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B

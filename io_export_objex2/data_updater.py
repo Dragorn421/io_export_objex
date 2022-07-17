@@ -182,7 +182,7 @@ update_material_functions = {
     4: node_setup_simple_change_update_material_function(5), # fix version 4's update_material_function using create=False
     5: nodes_from_5, # custom cycle input sockets in 2.8x
     6: node_setup_simple_change_update_material_function(7), # add OBJEX_PrimLodFrac
-    7: node_groups_internal_change_update_material_function(8)
+    7: node_setup_simple_change_update_material_function(8)
 }
 addon_material_objex_version = 8
 

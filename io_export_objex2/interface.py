@@ -24,6 +24,7 @@ from math import pi
 
 from . import const_data as CST
 from . import data_updater
+from . import node_setup_helpers
 from .logging_util import getLogger
 from . import util
 from . import rigging_helpers
@@ -1246,13 +1247,15 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                 else:
                     setattr(input, input_flags_prop_name, def_value)
 
-        # bpy.data.materials['Body'].node_tree.nodes['OBJEX_Shade'].inputs['Color'].links[0].from_socket.name
-        socket_name = nodes['OBJEX_Shade'].inputs['Color'].links[0].from_socket.node.name
-        if socket_name == 'Vertex Color':
-            print(material.name + '\t' + socket_name)
-            setattr(material.objex_bonus, 'shading', 'objex.material_set_shade_source_vertex_colors')
+        if material.node_tree.nodes['OBJEX_Shade'].inputs['Color'].links[0].from_socket.node.name == 'Vertex Color':
+            setattr(material.objex_bonus, 'shading', 'VERTEX_COLOR')
         else:
-            print(material.name)
+            setattr(material.objex_bonus, 'shading', 'LIGHTING')
+
+        if material.blend_method != 'HASHED':
+            setattr(material.objex_bonus, 'alpha_mode', material.blend_method)
+        else:
+            setattr(material.objex_bonus, 'alpha_mode', 'BLEND')
 
         return {'FINISHED'}
 
@@ -1523,7 +1526,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         if objex_scene.menu_common == True:
             row = box.row()
             row.use_property_split = False
-            row.prop(data, property='alpha_mode', expand=True)
+            row.prop(data, 'alpha_mode', expand=True)
 
             row = box.row()
             row.use_property_split = False
