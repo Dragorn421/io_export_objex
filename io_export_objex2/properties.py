@@ -68,6 +68,17 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
         default={'BLENDER_TO_OBJEX','OBJEX_TO_BLENDER'},
     )
 
+    mode_menu = bpy.props.EnumProperty(
+        items=[
+            ('menu_mode_combiner',    'Combiner', '(A-B)*C+D',                'SHADING_RENDERED', 0),
+            ('menu_mode_texture',     'Texture',  'Texture',                  'TEXTURE',          1),
+            ('menu_mode_render',      'F3D',      'F3DZEX2 Flags',            'RENDERLAYERS',     2),
+            ('menu_mode_settings',    'Settings', 'Objex2 Material Settings', 'TOOL_SETTINGS',    3),
+        ],
+        name='Menu Mode',
+        default='menu_mode_texture',
+    )
+
     write_primitive_color = bpy.props.BoolProperty(
             name='Set prim (global)',
             description='Scene property, shared by materials',
@@ -80,6 +91,36 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
         )
 
     saved_poses = bpy.props.CollectionProperty(type=SavedPose)
+
+    menu_tools = bpy.props.BoolProperty(
+        name='Tools',
+        description='hint',
+        default=False
+    )
+
+    menu_common = bpy.props.BoolProperty(
+        name='Common',
+        description='hint',
+        default=False
+    )
+
+    menu_material = bpy.props.BoolProperty(
+        name='Material',
+        description='hint',
+        default=True
+    )
+
+    menu_texel0 = bpy.props.BoolProperty(
+        name='Texel0',
+        description='hint',
+        default=True
+    )
+
+    menu_texel1 = bpy.props.BoolProperty(
+        name='Texel1',
+        description='hint',
+        default=True
+    )
 
 
 # mesh
@@ -195,6 +236,14 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
     fold_unfold_saved_pose_index = bpy.props.IntProperty()
 
 # material
+
+def material_set_shade(self, context):
+    eval('bpy.ops.%s()' % self.shading)
+
+def material_set_alpha(self, context):
+    material = context.material
+    setattr(material, 'blend_method', self.alpha_mode)
+    return
 
 class ObjexMaterialCollisionProperties(bpy.types.PropertyGroup):
     WATERBOX = bpy.props.BoolProperty()
@@ -585,40 +634,28 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             default=True
         )
     geometrymode_G_SHADING_SMOOTH = bpy.props.BoolProperty(
-            name='Smooth Shading',
-            description='G_SHADING_SMOOTH\n' 'Enable smooth shading (vertex colors, lighting)',
-            default=True
-        )
-
-    menu_tools = bpy.props.BoolProperty(
-        name='Tools',
-        description='hint',
+        name='Smooth Shading',
+        description='G_SHADING_SMOOTH\n' 'Enable smooth shading (vertex colors, lighting)',
         default=True
     )
-    menu_common = bpy.props.BoolProperty(
-        name='Common',
-        description='hint',
-        default=True
+    shading = bpy.props.EnumProperty(
+        items=[
+            ('objex.material_set_shade_source_vertex_colors', 'Vertex Color' ,''),
+            ('objex.material_set_shade_source_lighting',      'Lighting'     ,''),
+        ],
+        name='Shading',
+        default='objex.material_set_shade_source_lighting',
+        update=material_set_shade
     )
-    menu_material = bpy.props.BoolProperty(
-        name='Material',
-        description='hint',
-        default=True
-    )
-    menu_texel0 = bpy.props.BoolProperty(
-        name='Texel0',
-        description='hint',
-        default=True
-    )
-    menu_texel1 = bpy.props.BoolProperty(
-        name='Texel1',
-        description='hint',
-        default=True
-    )
-    menu_collision = bpy.props.BoolProperty(
-        name='Collision',
-        description='hint',
-        default=True
+    alpha_mode = bpy.props.EnumProperty(
+        items=[
+            ('OPAQUE', 'Opaque', ''),
+            ('CLIP',   'Clip',   ''),
+            ('BLEND',  'Blend',  ''),
+        ],
+        name='Alpha Mode',
+        default='OPAQUE',
+        update=material_set_alpha
     )
 
 # add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B

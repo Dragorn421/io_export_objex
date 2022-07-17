@@ -111,29 +111,35 @@ class OBJEX_PT_mesh(bpy.types.Panel):
         return object.type == 'MESH'
 
     def draw(self, context):
-        scene = context.scene
+        objex_scene = context.scene.objex_bonus
         object = context.object
         data = object.data.objex_bonus # ObjexMeshProperties
 
-        row = self.layout.row()
-        row.use_property_split = True
-        row.use_property_decorate = False # Do not display keyframe setting
-        row.prop(data, 'write_origin', expand=True)
-
-        row = self.layout.row()
-        row.use_property_split = True
-        row.use_property_decorate = False # Do not display keyframe setting
-        row.prop(data, 'attrib_billboard', expand=True)
-        self.layout.prop(data, 'priority')
-
         box = self.layout.box()
         row = box.row()
+        row.alignment = 'CENTER'
+        row.label(text='Mesh')
+        row = box.row()
+        # row.use_property_split = True
+        row.use_property_decorate = False # Do not display keyframe setting
+        row.label(text='Origin')
+        row.prop(data, 'write_origin', expand=True)
+
+        row = box.row()
+        # row.use_property_split = True
+        row.use_property_decorate = False # Do not display keyframe setting
+        row.label(text='Billboard')
+        row.prop(data, 'attrib_billboard', expand=True)
+        box.prop(data, 'priority')
+
+        sub_box = box.box()
+        row = sub_box.row()
         row.prop(data, 'attrib_POSMTX')
         row.prop(data, 'attrib_PROXY')
         row.label(text='') # Only for aligning with the next row items
         armature = object.find_armature()
         if armature:
-            row = box.row()
+            row = sub_box.row()
             row.prop(data, 'attrib_NOSPLIT')
 
             invert = False
@@ -147,10 +153,10 @@ class OBJEX_PT_mesh(bpy.types.Panel):
             col.prop(data, 'attrib_NOSKEL', invert_checkbox=invert)
             row.prop(data, 'attrib_LIMBMTX')
 
-            row = self.layout.row()
+            row = box.row()
             row.operator('objex.mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
             row.operator('objex.mesh_find_unassigned_vertices', text='Find unassigned vertices')
-            self.layout.operator('objex.mesh_list_vertex_groups', text='List groups of selected vertex')
+            box.operator('objex.mesh_list_vertex_groups', text='List groups of selected vertex')
            
             # folding/unfolding
             OBJEX_PT_folding.draw(self, context)
@@ -166,12 +172,17 @@ class OBJEX_PT_folding(bpy.types.Panel):
         return rigging_helpers.AutofoldOperator.poll(context)
 
     def draw(self, context):
-        box = self.layout.box()
         scene = context.scene
+        objex_scene = context.scene.objex_bonus
+
+        box = self.layout.box()
+        box.use_property_split = False
+        row = box.row()
+        row.alignment = 'CENTER'
+        row.label(text='Folding')
         armature = rigging_helpers.AutofoldOperator.get_armature(self, context)
         # 421todo make it easier/more obvious to use...
         # 421todo export/import saved poses
-        box.label(text='Folding')
         row = box.row()
         row.operator('objex.autofold_save_pose', text='Save pose')
         row.operator('objex.autofold_restore_pose', text='Restore pose')
@@ -226,16 +237,23 @@ class OBJEX_PT_armature(bpy.types.Panel):
         armature = context.armature
         data = armature.objex_bonus
         # actions
-        self.layout.prop(data, 'export_all_actions')
+
+        box = self.layout.box()
+        box.use_property_split = False
+        row = box.row()
+        row.alignment = 'CENTER'
+        row.label(text='SkelAnime')
+
+        box.row().prop(data, 'type', expand=True)
+        box.prop(data, 'export_all_actions')
         if not data.export_all_actions:
-            self.layout.label(text='Actions to export:')
-            self.layout.template_list('OBJEX_UL_actions', '', data, 'export_actions', data, 'export_actions_active')
+            box.label(text='Actions to export:')
+            box.template_list('OBJEX_UL_actions', '', data, 'export_actions', data, 'export_actions_active')
         # type
-        self.layout.prop(data, 'type')
         # pbody
         if data.pbody:
-            box = self.layout.box()
-            box.prop(data, 'pbody')
+            sub_box = box.box()
+            sub_box.prop(data, 'pbody')
             def prop_pbody_parent_object(layout, icon='NONE'):
                 if blender_version_compatibility.no_ID_PointerProperty:
                     layout.prop_search(data, 'pbody_parent_object', bpy.data, 'objects', icon=icon)
@@ -247,22 +265,22 @@ class OBJEX_PT_armature(bpy.types.Panel):
                 else:
                     pbody_parent_object = data.pbody_parent_object
                 if hasattr(pbody_parent_object, 'type') and pbody_parent_object.type == 'ARMATURE':
-                    prop_pbody_parent_object(box)
+                    prop_pbody_parent_object(sub_box)
                     valid_bone = data.pbody_parent_bone in pbody_parent_object.data.bones
-                    box.prop_search(data, 'pbody_parent_bone', pbody_parent_object.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
+                    sub_box.prop_search(data, 'pbody_parent_bone', pbody_parent_object.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
                     if not valid_bone:
-                        box.label(text='A bone must be picked')
+                        sub_box.label(text='A bone must be picked')
                 else:
-                    prop_pbody_parent_object(box, icon='ERROR')
-                    box.label(text='If set, parent must be an armature')
+                    prop_pbody_parent_object(sub_box, icon='ERROR')
+                    sub_box.label(text='If set, parent must be an armature')
             else:
-                prop_pbody_parent_object(box)
+                prop_pbody_parent_object(sub_box)
         else:
-            self.layout.prop(data, 'pbody')
+            box.box().prop(data, 'pbody')
         # segment
-        box = self.layout.box()
-        propOffset(box, data, 'segment', 'Segment')
-        box.prop(data, 'segment_local')
+        sub_box = box.box()
+        propOffset(sub_box, data, 'segment', 'Segment')
+        sub_box.prop(data, 'segment_local')
 
         # folding/unfolding
         OBJEX_PT_folding.draw(self, context)
@@ -1224,12 +1242,18 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
                 if input.links:
                     otherSocket = input.links[0].from_socket
                     key = '%s %s' % ('flagColorCycle' if cycle == CST.CYCLE_COLOR else 'flagAlphaCycle', otherSocket.identifier)
-                    value = otherSocket.node[key]
                     setattr(input, input_flags_prop_name, otherSocket.node[key])
                 else:
                     setattr(input, input_flags_prop_name, def_value)
 
-                
+        # bpy.data.materials['Body'].node_tree.nodes['OBJEX_Shade'].inputs['Color'].links[0].from_socket.name
+        socket_name = nodes['OBJEX_Shade'].inputs['Color'].links[0].from_socket.node.name
+        if socket_name == 'Vertex Color':
+            print(material.name + '\t' + socket_name)
+            setattr(material.objex_bonus, 'shading', 'objex.material_set_shade_source_vertex_colors')
+        else:
+            print(material.name)
+
         return {'FINISHED'}
 
 class OBJEX_OT_material_init_collision(bpy.types.Operator):
@@ -1310,9 +1334,9 @@ def objex_backface_culling_update(self, context):
         return
     log = getLogger('interface')
     material = self.id_data
-    log.trace('sync_backface_culling = {!r}', bpy.context.scene.objex_bonus.sync_backface_culling)
+    log.trace('sync_backface_culling = {!r}', context.scene.objex_bonus.sync_backface_culling)
     if (material.objex_bonus.backface_culling != material.use_backface_culling
-        and 'OBJEX_TO_BLENDER' in bpy.context.scene.objex_bonus.sync_backface_culling
+        and 'OBJEX_TO_BLENDER' in context.scene.objex_bonus.sync_backface_culling
     ):
         log.trace('{} objex backface_culling = {}', material.name, material.objex_bonus.backface_culling)
         if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
@@ -1408,12 +1432,15 @@ class OBJEX_PT_material(bpy.types.Panel):
             return 'RIGHTARROW'
 
     def menu_collision(self, context):
+        objex_scene = context.scene.objex_bonus
         material = context.material
         data = material.objex_bonus
 
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(data, 'menu_collision', emboss=False)
+        row = box.row()
+        row.alignment = 'CENTER'
+        row.label(text='Collision')
 
         col = data.collision
 
@@ -1444,7 +1471,11 @@ class OBJEX_PT_material(bpy.types.Panel):
                 row.prop(col, prop_enable, text='')
                 row.prop(col, prop_data)
             else:
-                box.prop(col, prop_enable)
+                row = box.row()
+                row.prop(col, prop_enable, text='')
+                column = row.column()
+                column.enabled = False
+                column.prop(col, prop_data)
 
         draw_optional('warp_enabled', 'warp_exit_index')
         draw_optional('camera_enabled', 'camera_index')
@@ -1463,7 +1494,8 @@ class OBJEX_PT_material(bpy.types.Panel):
     def menu_material(self, context):
         material = context.material
         data = material.objex_bonus
-        mode_menu = material.mode_menu
+        objex_scene = context.scene.objex_bonus
+        mode_menu = objex_scene.mode_menu
 
         data_is_empty = False
         if data.empty or material.name.startswith('empty.'):
@@ -1471,14 +1503,14 @@ class OBJEX_PT_material(bpy.types.Panel):
 
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(data, 'menu_tools', icon=self.get_icon(getattr(data, 'menu_tools')), emboss=False)
-        if data.menu_tools == True:
+        box.prop(objex_scene, 'menu_tools', icon=self.get_icon(getattr(objex_scene, 'menu_tools')), emboss=False)
+        if objex_scene.menu_tools == True:
             shared_row = box.row()
 
             draw_build_nodes_operator(shared_row, 'Reset nodes', init=True, reset=True)
             draw_build_nodes_operator(shared_row, 'Fix nodes')
-            box.operator('objex.material_set_shade_source', text='Set Shade Source')
-            box.label(text="Setups")
+            # box.operator('objex.material_set_shade_source', text='Set Shade Source')
+            # box.label(text="Setups")
             shared_row = box.row()
             shared_row.operator('objex.material_single_texture', text='Single Texture')
             shared_row.operator('objex.material_multitexture', text='Multitexture')
@@ -1487,40 +1519,54 @@ class OBJEX_PT_material(bpy.types.Panel):
         # Most used and important features at hand
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(data, 'menu_common', icon=self.get_icon(getattr(data, 'menu_common')), emboss=False)
-        if data.menu_common == True and data_is_empty == False:
-            box.label(text='Alpha Mode')
+        box.prop(objex_scene, 'menu_common', icon=self.get_icon(getattr(objex_scene, 'menu_common')), emboss=False)
+        if objex_scene.menu_common == True:
             row = box.row()
             row.use_property_split = False
-            row.prop(material, property='blend_method', expand=True)
+            row.prop(data, property='alpha_mode', expand=True)
+
+            row = box.row()
+            row.use_property_split = False
+            row.prop(data, 'shading', expand=True)
             
             row = box.row()
             row.use_property_split = False
             row.prop(data, 'backface_culling')
             row.prop(data, 'frontface_culling')
             row = box.row()
-            row.prop(context.scene.objex_bonus, 'write_primitive_color')
-            row.prop(context.scene.objex_bonus, 'write_environment_color')
+            row.prop(objex_scene, 'write_primitive_color')
+            row.prop(objex_scene, 'write_environment_color')
             box.use_property_split = False
 
-            row = box.row()
-            row.label(text='Prim', icon='COLOR')
-            row.prop(data, 'write_primitive_color', expand=True)
-            row.prop(material.node_tree.nodes["OBJEX_PrimColorRGB"].outputs[0], 'default_value', text="")
+            for color_node, alpha_node, property, title in (
+                (
+                    material.node_tree.nodes["OBJEX_PrimColorRGB"].outputs[0],
+                    material.node_tree.nodes["OBJEX_PrimColor"].inputs[1],
+                    'write_primitive_color', 'Prim'
+                ),
+                (
+                    material.node_tree.nodes["OBJEX_EnvColorRGB"].outputs[0],
+                    material.node_tree.nodes["OBJEX_EnvColor"].inputs[1],
+                    'write_environment_color', 'Env'
+                ),
+            ):
+                sub_box = box.box()
+                row = sub_box.row()
+                row.alignment = 'CENTER'
+                row.label(text=title, icon='COLOR')
+                row = sub_box.row()
+                row.prop(data, property, text='')
+                row.prop(color_node, 'default_value', text="")
+                row.prop(alpha_node, 'default_value', text='')
 
-            row = box.row()
-            row.label(text='Env', icon='COLOR')
-            row.prop(data, 'write_environment_color', expand=True)
-            row.prop(material.node_tree.nodes["OBJEX_EnvColorRGB"].outputs[0], 'default_value', text="")
             
-        
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(data, 'menu_material', icon=self.get_icon(getattr(data, 'menu_material')), emboss=False)
-        if data.menu_material == True:
+        box.prop(objex_scene, 'menu_material', icon=self.get_icon(getattr(objex_scene, 'menu_material')), emboss=False)
+        if objex_scene.menu_material == True:
             row = box.row()
             row.enabled = not(data_is_empty)
-            row.prop_tabs_enum(material, 'mode_menu')
+            row.prop_tabs_enum(objex_scene, 'mode_menu')
 
             if data_is_empty == True:
                 box = box.box()
@@ -1610,36 +1656,35 @@ class OBJEX_PT_material(bpy.types.Panel):
                     sub_box = box.box()
 
                     
-                    sub_box.prop(data, menu, icon=self.get_icon(getattr(data, menu)), emboss=False)
-                    if getattr(data, menu) == True:
-                        sub_box.template_ID(texel, 'image', open='image.open')
-                        if texel.image:
-                            imdata = texel.image.objex_bonus
+                    sub_box.prop(objex_scene, menu, icon=self.get_icon(getattr(objex_scene, menu)), emboss=False)
+                    sub_box.template_ID(texel, 'image', open='image.open')
+                    if getattr(objex_scene, menu) == True and texel.image:
+                        imdata = texel.image.objex_bonus
 
 
-                            sub_box.prop(imdata, 'format')
-                            if imdata.format[:2] == 'CI':
-                                sub_box.prop(imdata, 'palette')
-                            sub_box.prop(imdata, 'alphamode')
-                            sub_box.prop(imdata, 'force_write')
+                        sub_box.prop(imdata, 'format')
+                        if imdata.format[:2] == 'CI':
+                            sub_box.prop(imdata, 'palette')
+                        sub_box.prop(imdata, 'alphamode')
+                        sub_box.prop(imdata, 'force_write')
 
-                            sub_sub_box = sub_box.box()
-                            row = sub_sub_box.row()
-                            row.prop(u_scale, 'default_value', text='U Exp')
-                            row.prop(u_wrap, 'default_value', text='U Wrap')
-                            row.prop(u_mirror, 'default_value', text='U Mirror')
+                        sub_sub_box = sub_box.box()
+                        row = sub_sub_box.row()
+                        row.prop(u_scale, 'default_value', text='U Exp')
+                        row.prop(u_wrap, 'default_value', text='U Wrap')
+                        row.prop(u_mirror, 'default_value', text='U Mirror')
 
-                            row = sub_sub_box.row()
-                            row.prop(v_scale, 'default_value', text='V Exp')
-                            row.prop(v_wrap, 'default_value', text='V Wrap')
-                            row.prop(v_mirror, 'default_value', text='V Mirror')
+                        row = sub_sub_box.row()
+                        row.prop(v_scale, 'default_value', text='V Exp')
+                        row.prop(v_wrap, 'default_value', text='V Wrap')
+                        row.prop(v_mirror, 'default_value', text='V Mirror')
 
-                            row = sub_box.row()
-                            row.label(text='Texture bank:')
-                            row.template_ID(imdata, 'texture_bank', open='image.open')
+                        row = sub_box.row()
+                        row.label(text='Texture bank:')
+                        row.template_ID(imdata, 'texture_bank', open='image.open')
 
-                            propOffset(sub_box, imdata, 'pointer', 'Pointer')
-                            sub_box.prop(imdata, 'priority')
+                        propOffset(sub_box, imdata, 'pointer', 'Pointer')
+                        sub_box.prop(imdata, 'priority')
 
                 sub_box = box.box()
                 row = sub_box.row()
@@ -1833,7 +1878,6 @@ def register_interface():
         update_handlers = bpy.app.handlers.depsgraph_update_post
     update_handlers.append(handler_scene_or_depsgraph_update_post_once)
     bpy.app.handlers.load_post.append(handler_load_post)
-    bpy.types.Material.mode_menu = bpy.props.EnumProperty(items = CST.mode_menu)
 
     # Load Icons
     # pcoll = bpy.utils.previews.new()
@@ -1871,7 +1915,6 @@ def unregister_interface():
             bpy.utils.unregister_class(clazz)
         except:
             log.exception('Failed to unregister {!r}', clazz)
-    del bpy.types.Material.mode_menu
 
     # Clear Icons
     # for pcoll in objex_icons.values():

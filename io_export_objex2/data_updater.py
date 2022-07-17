@@ -13,6 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this objex2 addon.  If not, see <https://www.gnu.org/licenses/>.
 
+from cgitb import text
 from . import blender_version_compatibility
 
 import bpy
@@ -192,16 +193,20 @@ def handle_material(material, layout):
     if v == addon_material_objex_version:
         return False
     if v > addon_material_objex_version:
-        layout.label(text='This material was created', icon='ERROR')
-        layout.label(text='with a newer addon version,')
-        layout.label(text='you should update the addon')
-        layout.label(text='used in your installation.')
+        box = layout.box()
+        box.label(text='', icon='ERROR')
+        box.label(text='This material was created')
+        box.label(text='with a newer addon version,')
+        box.label(text='you should update the addon')
+        box.label(text='used in your installation.')
     if v < addon_material_objex_version:
-        layout.label(text='This material was created', icon='INFO')
-        layout.label(text='with an older addon version,')
-        layout.label(text='and needs to be updated.')
-        layout.operator('objex.material_update', text='Update this material').update_all = False
-        layout.operator('objex.material_update', text='Update ALL objex materials').update_all = True
+        box = layout.box()
+        box.label(text='', icon='INFO')
+        box.label(text='This material was created')
+        box.label(text='with an older addon version,')
+        box.label(text='and needs to be updated.')
+        box.operator('objex.material_update', text='Update this material').update_all = False
+        box.operator('objex.material_update', text='Update ALL objex materials').update_all = True
     return True
 
 def assert_material_at_current_version(material, errorClass):

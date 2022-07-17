@@ -427,13 +427,6 @@ node_setup = {
     },
 }
 
-mode_menu = (
-    ('menu_mode_combiner',    'Combiner', '(A-B)*C+D', 'SHADING_RENDERED', 0),
-    ('menu_mode_texture',     'Texture',  'Texture', 'TEXTURE', 1),
-    ('menu_mode_render',      'F3D',   'F3DZEX2 Flags', 'RENDERLAYERS', 2),
-    ('menu_mode_settings',    'Settings', 'Objex2 Material Settings', 'TOOL_SETTINGS', 3),
-)
-
 # not checking if bpy.types.ShaderNodeUVMap exists because that node also exists in (at least) 2.79b
 if bpy.app.version >= (2, 80, 0): # 2.80+
     node_setup['UV Map'] = {
