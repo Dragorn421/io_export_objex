@@ -1708,11 +1708,11 @@ class OBJEX_PT_material(bpy.types.Panel):
                         row = sub_box.row()
                         row.prop(material.objex_bonus, texture_u, text='', icon='EVENT_U')
                         row.prop(material.objex_bonus, texture_v, text='', icon='EVENT_V')
-                        row = sub_box.row()
-                        row.prop(u_scale, 'default_value', text='U Exp')
-                        row.prop(v_scale, 'default_value', text='V Exp')
 
                         if getattr(objex_scene, menu):
+                            row = sub_box.row()
+                            row.prop(u_scale, 'default_value', text='U Exp')
+                            row.prop(v_scale, 'default_value', text='V Exp')
 
                             sub_box.prop(imdata, 'priority')
                             row = sub_box.row()
