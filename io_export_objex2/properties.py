@@ -13,6 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this objex2 addon.  If not, see <https://www.gnu.org/licenses/>.
 
+from textwrap import wrap
 from . import blender_version_compatibility
 
 import bpy
@@ -421,7 +422,6 @@ def omp_change_alpha(self, context):
     material = self.id_data
     material.blend_method = material.objex_bonus.alpha_mode
 
-# ObjexMaterialProperties (omp)
 def omp_change_shade(self, context):
     material = self.id_data
 
@@ -429,6 +429,66 @@ def omp_change_shade(self, context):
         node_setup_helpers.set_shade_source_vertex_colors(material)
     else:
         node_setup_helpers.set_shade_source_lighting(material)
+
+def omp_change_texture_u_0(self, context):
+    material:bpy.types.Material = self.id_data
+    wrap   = material.node_tree.nodes["OBJEX_TransformUV0"].inputs[3]
+    mirror = material.node_tree.nodes["OBJEX_TransformUV0"].inputs[5]
+
+    setattr(wrap, 'default_value', False)
+    setattr(mirror, 'default_value', False)
+
+    if material.objex_bonus.texture_u_0 == 'WRAP' or material.objex_bonus.texture_u_0 == 'MIRROR':
+        setattr(wrap, 'default_value', True)
+    if material.objex_bonus.texture_u_0 == 'MIRROR':
+        setattr(mirror, 'default_value', True)
+
+    return
+
+def omp_change_texture_u_1(self, context):
+    material:bpy.types.Material = self.id_data
+    wrap   = material.node_tree.nodes["OBJEX_TransformUV1"].inputs[3]
+    mirror = material.node_tree.nodes["OBJEX_TransformUV1"].inputs[5]
+
+    setattr(wrap, 'default_value', False)
+    setattr(mirror, 'default_value', False)
+
+    if material.objex_bonus.texture_u_1 == 'WRAP' or material.objex_bonus.texture_u_1 == 'MIRROR':
+        setattr(wrap, 'default_value', True)
+    if material.objex_bonus.texture_u_1 == 'MIRROR':
+        setattr(mirror, 'default_value', True)
+
+    return
+
+def omp_change_texture_v_0(self, context):
+    material:bpy.types.Material = self.id_data
+    wrap   = material.node_tree.nodes["OBJEX_TransformUV0"].inputs[4]
+    mirror = material.node_tree.nodes["OBJEX_TransformUV0"].inputs[6]
+
+    setattr(wrap, 'default_value', False)
+    setattr(mirror, 'default_value', False)
+
+    if material.objex_bonus.texture_v_0 == 'WRAP' or material.objex_bonus.texture_v_0 == 'MIRROR':
+        setattr(wrap, 'default_value', True)
+    if material.objex_bonus.texture_v_0 == 'MIRROR':
+        setattr(mirror, 'default_value', True)
+
+    return
+
+def omp_change_texture_v_1(self, context):
+    material:bpy.types.Material = self.id_data
+    wrap   = material.node_tree.nodes["OBJEX_TransformUV1"].inputs[4]
+    mirror = material.node_tree.nodes["OBJEX_TransformUV1"].inputs[6]
+
+    setattr(wrap, 'default_value', False)
+    setattr(mirror, 'default_value', False)
+
+    if material.objex_bonus.texture_v_1 == 'WRAP' or material.objex_bonus.texture_v_1 == 'MIRROR':
+        setattr(wrap, 'default_value', True)
+    if material.objex_bonus.texture_v_1 == 'MIRROR':
+        setattr(mirror, 'default_value', True)
+
+    return
 
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
@@ -646,6 +706,47 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         default=True
     )
     
+    texture_u_0 = bpy.props.EnumProperty(
+        items=[
+            ('WRAP',   'Wrap'   ,''),
+            ('CLAMP',  'Clamp'  ,''),
+            ('MIRROR', 'Mirror' ,''),
+        ],
+        name='U',
+        default='WRAP',
+        update=omp_change_texture_u_0
+    )
+    texture_u_1 = bpy.props.EnumProperty(
+        items=[
+            ('WRAP',   'Wrap'   ,''),
+            ('CLAMP',  'Clamp'  ,''),
+            ('MIRROR', 'Mirror' ,''),
+        ],
+        name='U',
+        default='WRAP',
+        update=omp_change_texture_u_1
+    )
+    
+    texture_v_0 = bpy.props.EnumProperty(
+        items=[
+            ('WRAP',   'Wrap'   ,''),
+            ('CLAMP',  'Clamp'  ,''),
+            ('MIRROR', 'Mirror' ,''),
+        ],
+        name='V',
+        default='WRAP',
+        update=omp_change_texture_v_0
+    )    
+    texture_v_1 = bpy.props.EnumProperty(
+        items=[
+            ('WRAP',   'Wrap'   ,''),
+            ('CLAMP',  'Clamp'  ,''),
+            ('MIRROR', 'Mirror' ,''),
+        ],
+        name='V',
+        default='WRAP',
+        update=omp_change_texture_v_1
+    )
 
     shading = bpy.props.EnumProperty(
         items=[

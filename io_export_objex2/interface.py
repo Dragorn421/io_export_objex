@@ -1256,6 +1256,35 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
             setattr(material.objex_bonus, 'alpha_mode', material.blend_method)
         else:
             setattr(material.objex_bonus, 'alpha_mode', 'BLEND')
+        
+        for wrap, mirror, property in (
+                (
+                    material.node_tree.nodes["OBJEX_TransformUV0"].inputs[3].default_value,
+                    material.node_tree.nodes["OBJEX_TransformUV0"].inputs[5].default_value,
+                    'texture_u_0'
+                ),
+                (
+                    material.node_tree.nodes["OBJEX_TransformUV1"].inputs[3].default_value,
+                    material.node_tree.nodes["OBJEX_TransformUV1"].inputs[5].default_value,
+                    'texture_u_1'
+                ),
+                (
+                    material.node_tree.nodes["OBJEX_TransformUV0"].inputs[4].default_value,
+                    material.node_tree.nodes["OBJEX_TransformUV0"].inputs[6].default_value,
+                    'texture_v_0'
+                ),
+                (
+                    material.node_tree.nodes["OBJEX_TransformUV1"].inputs[4].default_value,
+                    material.node_tree.nodes["OBJEX_TransformUV1"].inputs[6].default_value,
+                    'texture_v_1'
+                ),
+            ):
+            if mirror:
+                setattr(material.objex_bonus, property, 'MIRROR')
+            elif wrap:
+                setattr(material.objex_bonus, property, 'WRAP')
+            else:
+                setattr(material.objex_bonus, property, 'CLAMP')
 
         return {'FINISHED'}
 
@@ -1650,22 +1679,22 @@ class OBJEX_PT_material(bpy.types.Panel):
                     for v in ('P','A','M','B'):
                         sub_sub_box.prop(data, 'rendermode_blending_cycle1_custom_%s' % v, text='')
             elif mode_menu == 'menu_mode_texture':
-                for name, texel, u_scale, v_scale, u_wrap, v_wrap, u_mirror, v_mirror, menu in (
+                for texel, u_scale, v_scale, texture_u, texture_v, menu in (
                     (
-                        "Texel0", 
                         material.node_tree.nodes["OBJEX_Texel0Texture"], 
-                        material.node_tree.nodes["OBJEX_TransformUV0"].inputs[1], material.node_tree.nodes["OBJEX_TransformUV0"].inputs[2], 
-                        material.node_tree.nodes["OBJEX_TransformUV0"].inputs[3], material.node_tree.nodes["OBJEX_TransformUV0"].inputs[4], 
-                        material.node_tree.nodes["OBJEX_TransformUV0"].inputs[5], material.node_tree.nodes["OBJEX_TransformUV0"].inputs[6],
-                        'menu_texel0'
+                        material.node_tree.nodes["OBJEX_TransformUV0"].inputs[1], 
+                        material.node_tree.nodes["OBJEX_TransformUV0"].inputs[2], 
+                        'texture_u_0', 
+                        'texture_v_0',
+                        'menu_texel0',
                     ),
                     (
-                        "Texel1",  
                         material.node_tree.nodes["OBJEX_Texel1Texture"], 
-                        material.node_tree.nodes["OBJEX_TransformUV1"].inputs[1], material.node_tree.nodes["OBJEX_TransformUV1"].inputs[2], 
-                        material.node_tree.nodes["OBJEX_TransformUV1"].inputs[3], material.node_tree.nodes["OBJEX_TransformUV1"].inputs[4], 
-                        material.node_tree.nodes["OBJEX_TransformUV1"].inputs[5], material.node_tree.nodes["OBJEX_TransformUV1"].inputs[6],
-                        'menu_texel1'
+                        material.node_tree.nodes["OBJEX_TransformUV1"].inputs[1], 
+                        material.node_tree.nodes["OBJEX_TransformUV1"].inputs[2], 
+                        'texture_u_1', 
+                        'texture_v_1',
+                        'menu_texel1',
                     ),
                 ):
                     sub_box = box.box()
@@ -1676,28 +1705,24 @@ class OBJEX_PT_material(bpy.types.Panel):
                     if texel.image:
                         imdata = texel.image.objex_bonus
                         propOffset(sub_box, imdata, 'pointer', 'Pointer')   
+                        row = sub_box.row()
+                        row.prop(material.objex_bonus, texture_u, text='', icon='EVENT_U')
+                        row.prop(material.objex_bonus, texture_v, text='', icon='EVENT_V')
+                        row = sub_box.row()
+                        row.prop(u_scale, 'default_value', text='U Exp')
+                        row.prop(v_scale, 'default_value', text='V Exp')
 
                         if getattr(objex_scene, menu):
+
+                            sub_box.prop(imdata, 'priority')
+                            row = sub_box.row()
+                            row.label(text='Texture bank:')
+                            row.template_ID(imdata, 'texture_bank', open='image.open')
                             sub_box.prop(imdata, 'format')
                             if imdata.format[:2] == 'CI':
                                 sub_box.prop(imdata, 'palette')
                             sub_box.prop(imdata, 'alphamode')
                             sub_box.prop(imdata, 'force_write')
-                            row = sub_box.row()
-                            row.label(text='Texture bank:')
-                            row.template_ID(imdata, 'texture_bank', open='image.open')
-                            sub_box.prop(imdata, 'priority')
-
-                            sub_sub_box = sub_box.box()
-                            row = sub_sub_box.row()
-                            row.prop(u_scale, 'default_value', text='U Exp')
-                            row.prop(u_wrap, 'default_value', text='U Wrap')
-                            row.prop(u_mirror, 'default_value', text='U Mirror')
-
-                            row = sub_sub_box.row()
-                            row.prop(v_scale, 'default_value', text='V Exp')
-                            row.prop(v_wrap, 'default_value', text='V Wrap')
-                            row.prop(v_mirror, 'default_value', text='V Mirror')
 
 
 
