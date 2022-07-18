@@ -1569,7 +1569,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         if objex_scene.menu_material == True:
             row = box.row()
             row.enabled = not(data_is_empty)
-            row.prop_tabs_enum(objex_scene, 'mode_menu')
+            row.prop(objex_scene, 'mode_menu', expand=True)
 
             if data_is_empty == True:
                 box = box.box()
@@ -1657,37 +1657,37 @@ class OBJEX_PT_material(bpy.types.Panel):
                     ),
                 ):
                     sub_box = box.box()
-
                     
                     sub_box.prop(objex_scene, menu, icon=self.get_icon(getattr(objex_scene, menu)), emboss=False)
                     sub_box.template_ID(texel, 'image', open='image.open')
-                    if getattr(objex_scene, menu) == True and texel.image:
+
+                    if texel.image:
                         imdata = texel.image.objex_bonus
+                        propOffset(sub_box, imdata, 'pointer', 'Pointer')   
+
+                        if getattr(objex_scene, menu) == True:
+                            sub_box.prop(imdata, 'format')
+                            if imdata.format[:2] == 'CI':
+                                sub_box.prop(imdata, 'palette')
+                            sub_box.prop(imdata, 'alphamode')
+                            sub_box.prop(imdata, 'force_write')
+                            row = sub_box.row()
+                            row.label(text='Texture bank:')
+                            row.template_ID(imdata, 'texture_bank', open='image.open')
+                            sub_box.prop(imdata, 'priority')
+
+                            sub_sub_box = sub_box.box()
+                            row = sub_sub_box.row()
+                            row.prop(u_scale, 'default_value', text='U Exp')
+                            row.prop(u_wrap, 'default_value', text='U Wrap')
+                            row.prop(u_mirror, 'default_value', text='U Mirror')
+
+                            row = sub_sub_box.row()
+                            row.prop(v_scale, 'default_value', text='V Exp')
+                            row.prop(v_wrap, 'default_value', text='V Wrap')
+                            row.prop(v_mirror, 'default_value', text='V Mirror')
 
 
-                        sub_box.prop(imdata, 'format')
-                        if imdata.format[:2] == 'CI':
-                            sub_box.prop(imdata, 'palette')
-                        sub_box.prop(imdata, 'alphamode')
-                        sub_box.prop(imdata, 'force_write')
-
-                        sub_sub_box = sub_box.box()
-                        row = sub_sub_box.row()
-                        row.prop(u_scale, 'default_value', text='U Exp')
-                        row.prop(u_wrap, 'default_value', text='U Wrap')
-                        row.prop(u_mirror, 'default_value', text='U Mirror')
-
-                        row = sub_sub_box.row()
-                        row.prop(v_scale, 'default_value', text='V Exp')
-                        row.prop(v_wrap, 'default_value', text='V Wrap')
-                        row.prop(v_mirror, 'default_value', text='V Mirror')
-
-                        row = sub_box.row()
-                        row.label(text='Texture bank:')
-                        row.template_ID(imdata, 'texture_bank', open='image.open')
-
-                        propOffset(sub_box, imdata, 'pointer', 'Pointer')
-                        sub_box.prop(imdata, 'priority')
 
                 sub_box = box.box()
                 row = sub_box.row()
@@ -1751,16 +1751,16 @@ class OBJEX_PT_material(bpy.types.Panel):
             elif mode_menu == 'menu_mode_settings':
                 sub_box = box.box()
                 sub_box.use_property_split = False
+
                 row = sub_box.row()
                 row.use_property_split = False
-
                 row.prop(data, 'empty') # (at this point, material isn't empty)
                 row.prop(data, 'standalone')
                 row.prop(data, 'force_write')
-                row = sub_box.row()
-                row.use_property_split = False
+                
                 sub_box.prop(data, 'priority')
-                sub_box.prop(data, 'vertex_shading')
+
+                sub_box.row().prop(data, 'vertex_shading', expand=True)
                 sub_box.prop(data, 'external_material_segment')
 
 class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):

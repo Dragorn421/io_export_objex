@@ -603,15 +603,15 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     vertex_shading = bpy.props.EnumProperty(
             items=[
-                ('AUTO','Auto','Colors only or normals only, depending on the node setup',1),
-                ('DYNAMIC','Dynamic','Use normals where vertex colors are opaque white (1,1,1,1), and vertex colors otherwise',2),
+                ('AUTO','Basic Shading','Colors only or normals only, depending on the selection for between "Lighting" / "Vertex Color" in Common tab',1),
+                ('DYNAMIC','Dynamic Shading','Use normals where vertex colors are opaque white (1,1,1,1), and vertex colors otherwise',2),
             ],
-            name='Shading',
+            name='Dynamic Shading',
             description='What shade data should be written for each vertex',
             default='AUTO'
         )
     external_material_segment = bpy.props.StringProperty(
-    		name='Pointer',
+    		name='Segment',
     		description='Branch material to segment'
     	)
     force_write = bpy.props.BoolProperty(
@@ -725,7 +725,7 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
             default='AUTO'
         )
     pointer = bpy.props.StringProperty(
-            name='Pointer',
+            name='Segment',
             description='The address that should be used when referencing this texture',
             default=''
         )
