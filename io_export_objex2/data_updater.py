@@ -13,7 +13,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this objex2 addon.  If not, see <https://www.gnu.org/licenses/>.
 
-from cgitb import text
 from . import blender_version_compatibility
 
 import bpy
@@ -182,7 +181,7 @@ update_material_functions = {
     4: node_setup_simple_change_update_material_function(5), # fix version 4's update_material_function using create=False
     5: nodes_from_5, # custom cycle input sockets in 2.8x
     6: node_setup_simple_change_update_material_function(7), # add OBJEX_PrimLodFrac
-    7: node_setup_simple_change_update_material_function(8)
+    7: node_setup_simple_change_update_material_function(8), # Interface Overhaul
 }
 addon_material_objex_version = 8
 
@@ -194,6 +193,7 @@ def handle_material(material, layout):
         return False
     if v > addon_material_objex_version:
         box = layout.box()
+        box.alert = True
         box.label(text='', icon='ERROR')
         box.label(text='This material was created')
         box.label(text='with a newer addon version,')
@@ -201,6 +201,7 @@ def handle_material(material, layout):
         box.label(text='used in your installation.')
     if v < addon_material_objex_version:
         box = layout.box()
+        box.alert = True
         box.label(text='', icon='INFO')
         box.label(text='This material was created')
         box.label(text='with an older addon version,')

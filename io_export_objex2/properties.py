@@ -416,10 +416,12 @@ class ObjexMaterialCollisionProperties(bpy.types.PropertyGroup):
             default=False
         )
 
+# ObjexMaterialProperties (omp)
 def omp_change_alpha(self, context):
     material = self.id_data
     material.blend_method = material.objex_bonus.alpha_mode
 
+# ObjexMaterialProperties (omp)
 def omp_change_shade(self, context):
     material = self.id_data
 
@@ -427,7 +429,6 @@ def omp_change_shade(self, context):
         node_setup_helpers.set_shade_source_vertex_colors(material)
     else:
         node_setup_helpers.set_shade_source_lighting(material)
-
 
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
@@ -459,8 +460,8 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     write_primitive_color = bpy.props.EnumProperty(
             items=[
-                ('YES','Set','Set the color',1),
-                ('NO','Clear','Do not set the color',2),
+                ('YES','Yes','Set the color',1),
+                ('NO','No','Do not set the color',2),
                 ('GLOBAL','Global','Default to the global (per-scene) setting, shared by all materials',3),
             ],
             name='Set prim color',
@@ -470,8 +471,8 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     write_environment_color = bpy.props.EnumProperty(
             items=[
-                ('YES','Set','Set the color',1),
-                ('NO','Clear','Do not set the color',2),
+                ('YES','Yes','Set the color',1),
+                ('NO','No','Do not set the color',2),
                 ('GLOBAL','Global','Default to the global (per-scene) setting, shared by all materials',3),
             ],
             name='Set env color',
@@ -518,10 +519,10 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     rendermode_zmode = bpy.props.EnumProperty(
             items=[
-                ('OPA',  'OPA',  'Opaque surfaces (OPA)',1),
-                ('INTER','INTER','Interpenetrating surfaces',2),
-                ('XLU',  'XLU',  'Translucent surfaces (XLU)',3),
-                ('DEC',  'DEC',  'Decal surfaces (eg paths)',4),
+                ('OPA',  'Opaque',            'Opaque surfaces (OPA)',1),
+                ('INTER','Interpenetrating',  'Interpenetrating surfaces',2),
+                ('XLU',  'Translucent',       'Translucent surfaces (XLU)',3),
+                ('DEC',  'Decal',             'Decal surfaces (eg paths)',4),
                 ('AUTO', 'Auto', 'Default to Translucent (XLU) if material uses transparency, or Opaque (OPA) otherwise',5),
             ],
             name='zmode',

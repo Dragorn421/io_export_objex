@@ -1374,6 +1374,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         if data.use_collision:
             if not context.object.name.startswith('collision.'):
                 box = self.layout.box()
+                box.alert = True
                 box.label(text='', icon='ERROR')
                 box.label(text='This material is not for mesh.')
                 box.label(text='The object should be prefixed')
@@ -1387,6 +1388,7 @@ class OBJEX_PT_material(bpy.types.Panel):
             return
         if context.object and context.object.name.startswith('collision.'):
             box = self.layout.box()
+            box.alert = True
             box.label(text='', icon='ERROR')
             box.label(text='This material is not')
             box.label(text='for collision, but')
@@ -1402,24 +1404,34 @@ class OBJEX_PT_material(bpy.types.Panel):
             return
         # handle is_objex_material, use_nodes mismatch
         if not material.use_nodes:
-            self.layout.label(text='Material was initialized', icon='ERROR')
-            self.layout.label(text='as an objex material')
-            self.layout.label(text='but does not use nodes')
-            self.layout.label(text='Did you uncheck')
-            self.layout.label(text='"Use Nodes" for it?')
-            self.layout.label(text='Solutions:', icon='INFO')
+            messages = (
+                ('',                         'ERROR'),
+                ('Material was initialized', 'NONE'),
+                ('as an objex material',     'NONE'),
+                ('but does not use nodes',   'NONE'),
+                ('Did you uncheck',          'NONE'),
+                ('"Use Nodes" for it?',      'NONE'),
+            )
             box = self.layout.box()
-            box.label(text='1) Check "Use Nodes"')
-            box.prop(material, 'use_nodes')
+
+            for msg, icon in messages:
+                row = box.row()
+                row.alert = True
+                row.label(text=msg, icon=icon)
+
+            box.label(text='Solutions:', icon='INFO')
+            sub_box = box.box()
+            sub_box.label(text='1) Check "Use Nodes"')
+            sub_box.prop(material, 'use_nodes')
             # 421todo "clear objex material" operator "Click here to make this a standard, non-objex, material"
             # would allow ctrl+z
-            box = self.layout.box()
-            box.label(text='2) Disable objex features')
-            box.label(text='for this material')
-            box.prop(data, 'is_objex_material')
-            box = self.layout.box()
-            box.label(text='3) Reset nodes')
-            draw_build_nodes_operator(box, 'Reset nodes', init=True, reset=True)
+            sub_box = box.box()
+            sub_box.label(text='2) Disable objex features')
+            sub_box.label(text='for this material')
+            sub_box.prop(data, 'is_objex_material')
+            sub_box = box.box()
+            sub_box.label(text='3) Reset nodes')
+            draw_build_nodes_operator(sub_box, 'Reset nodes', init=True, reset=True)
             return
         # update material
         if data_updater.handle_material(material, self.layout):
@@ -1429,7 +1441,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         self.menu_material(context)
     
     def get_icon(self, attr):
-        if attr == True:
+        if attr:
             return 'DOWNARROW_HLT'
         else:
             return 'RIGHTARROW'
@@ -1507,7 +1519,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         box = self.layout.box()
         box.use_property_split = False
         box.prop(objex_scene, 'menu_tools', icon=self.get_icon(getattr(objex_scene, 'menu_tools')), emboss=False)
-        if objex_scene.menu_tools == True:
+        if objex_scene.menu_tools:
             shared_row = box.row()
 
             draw_build_nodes_operator(shared_row, 'Reset nodes', init=True, reset=True)
@@ -1523,7 +1535,7 @@ class OBJEX_PT_material(bpy.types.Panel):
         box = self.layout.box()
         box.use_property_split = False
         box.prop(objex_scene, 'menu_common', icon=self.get_icon(getattr(objex_scene, 'menu_common')), emboss=False)
-        if objex_scene.menu_common == True:
+        if objex_scene.menu_common:
             row = box.row()
             row.use_property_split = False
             row.prop(data, 'alpha_mode', expand=True)
@@ -1553,25 +1565,38 @@ class OBJEX_PT_material(bpy.types.Panel):
                     'write_environment_color', 'Env'
                 ),
             ):
+                enabled = True
                 sub_box = box.box()
+
                 row = sub_box.row()
                 row.alignment = 'CENTER'
                 row.label(text=title, icon='COLOR')
                 row = sub_box.row()
                 row.prop(data, property, text='')
-                row.prop(color_node, 'default_value', text="")
-                row.prop(alpha_node, 'default_value', text='')
+
+                if getattr(data, property) == 'GLOBAL':
+                    if getattr(objex_scene, property) == False:
+                        enabled = False
+                elif getattr(data, property) == 'NO':
+                    enabled = False
+
+                col = row.column()
+                col.enabled = enabled
+                col.prop(color_node, 'default_value', text="")
+                col = row.column()
+                col.enabled = enabled
+                col.prop(alpha_node, 'default_value', text='')
 
             
         box = self.layout.box()
         box.use_property_split = False
         box.prop(objex_scene, 'menu_material', icon=self.get_icon(getattr(objex_scene, 'menu_material')), emboss=False)
-        if objex_scene.menu_material == True:
+        if objex_scene.menu_material:
             row = box.row()
             row.enabled = not(data_is_empty)
             row.prop(objex_scene, 'mode_menu', expand=True)
 
-            if data_is_empty == True:
+            if data_is_empty:
                 box = box.box()
                 if material.name.startswith('empty.'):
                     box.label(text='empty (material name starts with "empty.")', icon='CHECKBOX_HLT')
@@ -1665,7 +1690,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                         imdata = texel.image.objex_bonus
                         propOffset(sub_box, imdata, 'pointer', 'Pointer')   
 
-                        if getattr(objex_scene, menu) == True:
+                        if getattr(objex_scene, menu):
                             sub_box.prop(imdata, 'format')
                             if imdata.format[:2] == 'CI':
                                 sub_box.prop(imdata, 'palette')
@@ -1816,7 +1841,6 @@ classes = (
     OBJEX_OT_material_init_collision,
     OBJEX_OT_set_pixels_along_uv_from_image_dimensions,
     OBJEX_PT_material,
-    
 )
 
 msgbus_owner = object()
