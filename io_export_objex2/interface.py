@@ -1549,8 +1549,6 @@ class OBJEX_PT_material(bpy.types.Panel):
             row.prop(data, 'backface_culling')
             row.prop(data, 'frontface_culling')
             row = box.row()
-            row.prop(objex_scene, 'write_primitive_color')
-            row.prop(objex_scene, 'write_environment_color')
             box.use_property_split = False
 
             for color_node, alpha_node, property, title in (
@@ -1565,27 +1563,16 @@ class OBJEX_PT_material(bpy.types.Panel):
                     'write_environment_color', 'Env'
                 ),
             ):
-                enabled = True
                 sub_box = box.box()
 
                 row = sub_box.row()
-                row.alignment = 'CENTER'
                 row.label(text=title, icon='COLOR')
+                row.prop(objex_scene, property, text='Set %s Global' % title)
+
                 row = sub_box.row()
                 row.prop(data, property, text='')
-
-                if getattr(data, property) == 'GLOBAL':
-                    if getattr(objex_scene, property) == False:
-                        enabled = False
-                elif getattr(data, property) == 'NO':
-                    enabled = False
-
-                col = row.column()
-                col.enabled = enabled
-                col.prop(color_node, 'default_value', text="")
-                col = row.column()
-                col.enabled = enabled
-                col.prop(alpha_node, 'default_value', text='')
+                row.prop(color_node, 'default_value', text="")
+                row.prop(alpha_node, 'default_value', text='')
 
             
         box = self.layout.box()

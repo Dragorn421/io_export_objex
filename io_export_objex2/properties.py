@@ -81,12 +81,12 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
     )
 
     write_primitive_color = bpy.props.BoolProperty(
-            name='Set prim (global)',
+            name='Set prim color (global)',
             description='Scene property, shared by materials',
             default=True
         )
     write_environment_color = bpy.props.BoolProperty(
-            name='Set env (global)',
+            name='Set env color (global)',
             description='Scene property, shared by materials',
             default=True
         )
