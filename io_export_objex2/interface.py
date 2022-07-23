@@ -1644,13 +1644,13 @@ class OBJEX_PT_material(bpy.types.Panel):
                 sub_box = box.box()
                 box.alignment = 'CENTER'
                 
+                sub_box.prop(data, 'texture_filter')
                 sub_box.prop(data, 'geometrymode_G_FOG')
 
                 row = sub_box.row()
                 row.prop(data, 'geometrymode_G_SHADING_SMOOTH', text='G_SHADING_SMOOTH')
                 row.prop(data, 'geometrymode_G_ZBUFFER', text='G_ZBUFFER')
 
-                sub_box.separator()
 
                 row = sub_box.row()
                 row.prop(data, 'rendermode_blender_flag_AA_EN')

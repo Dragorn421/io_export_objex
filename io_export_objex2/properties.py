@@ -490,6 +490,16 @@ def omp_change_texture_v_1(self, context):
 
     return
 
+def omp_change_texture_filter(self, context):
+    material:bpy.types.Material = self.id_data
+
+    if material.objex_bonus.texture_filter == 'G_TF_POINT':
+        material.node_tree.nodes["OBJEX_Texel0Texture"].interpolation = 'Closest'
+        material.node_tree.nodes["OBJEX_Texel1Texture"].interpolation = 'Closest'
+    else:
+        material.node_tree.nodes["OBJEX_Texel0Texture"].interpolation = 'Linear'
+        material.node_tree.nodes["OBJEX_Texel1Texture"].interpolation = 'Linear'
+
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
     objex_version = bpy.props.IntProperty(default=0) # see data_updater.py
@@ -766,6 +776,17 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         name='Alpha Mode',
         default='OPAQUE',
         update=omp_change_alpha
+    )
+
+    texture_filter = bpy.props.EnumProperty(
+        items=[
+            ('G_TF_POINT',   'Closest',      'Nearest Neighbor'),
+            ('G_TF_BILERP',  'N64-Bilinear', '3-point filtering'),
+            ('G_TF_AVERAGE', 'Bilinear',     '4-point filtering, maybe?'),
+        ],
+        name='Texture Filter',
+        default='G_TF_BILERP',
+        update=omp_change_texture_filter
     )
 
 # add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B

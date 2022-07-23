@@ -671,6 +671,7 @@ count  P              A              M              B            comment
                     ', '.join(blendCycle0flags),
                     ', '.join(blendCycle1flags),
                 ))
+                fw('gbi gsSPSetOtherModeHi(G_MDSFT_TEXTFILT, G_MDSIZ_TEXTFILT, %s)\n' % (objex_data.texture_filter))
                 """
                 (P * A + M - B) / (A + B)
                 
