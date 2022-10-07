@@ -1363,12 +1363,12 @@ def register(bl_info):
 	updater.clear_state() # clear internal vars, avoids reloading oddities
 
 	updater.engine = "Github"
-	updater.user = "CrookedPoe"
+	updater.user = "rankaisija64"
 	updater.repo = "io_export_objex"
 	updater.subfolder_path = "io_export_objex2"
 
 	# Website for manual addon download, optional but recommended to set
-	updater.website = "https://github.com/CrookedPoe/io_export_objex/"
+	updater.website = "https://github.com/rankaisija64/io_export_objex"
 
 	# used to check/compare versions
 	updater.current_version = bl_info["version"]
