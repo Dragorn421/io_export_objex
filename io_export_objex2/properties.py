@@ -234,6 +234,16 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
             description='',
             default=False
         )
+    start_frame_clamp = bpy.props.BoolProperty(
+            name='Clamp Start Frame',
+            description='',
+            default=False
+        )
+    start_frame_clamp_value = bpy.props.IntProperty(
+        name='Start Frame Clamp',
+        description='',
+        default=0
+    )
 
     fold_unfold_saved_pose_index = bpy.props.IntProperty()
 

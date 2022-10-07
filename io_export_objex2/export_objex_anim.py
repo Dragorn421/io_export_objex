@@ -162,7 +162,12 @@ def write_animations(file_write_anim, scene, global_matrix, object_transform, ar
         link_anim_basepath = None
 
     for action in actions:
+        data = armature.data.objex_bonus
         frame_start, frame_end = action.frame_range
+        
+        if data.start_frame_clamp == True:
+            if frame_start < data.start_frame_clamp_value:
+                frame_start = data.start_frame_clamp_value
         frame_count = int(frame_end - frame_start + 1)
         fw('newanim %s %s %d\n' % (armature_name_q, util.quote(action.name), frame_count))
 

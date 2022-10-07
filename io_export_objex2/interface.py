@@ -246,7 +246,12 @@ class OBJEX_PT_armature(bpy.types.Panel):
         row.label(text='SkelAnime')
 
         box.row().prop(data, 'type', expand=True)
-        box.prop(data, 'export_all_actions')
+        row2 = box.row()
+        row2.prop(data, 'export_all_actions')
+        row2.prop(data, 'start_frame_clamp')
+        if data.start_frame_clamp == True:
+            box.prop(data, 'start_frame_clamp_value')
+
         if not data.export_all_actions:
             box.label(text='Actions to export:')
             box.template_list('OBJEX_UL_actions', '', data, 'export_actions', data, 'export_actions_active')
