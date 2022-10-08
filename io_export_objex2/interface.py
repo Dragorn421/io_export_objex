@@ -90,13 +90,20 @@ class OBJEX_PT_scene(bpy.types.Panel):
     def draw(self, context):
         scene = context.scene
         data = scene.objex_bonus
-        self.layout.prop(data, 'colorspace_strategy')
+        box = self.layout.box()
+        sub_box = box.box()
+        sub_box.label(text='Color Space Strategy:')
+        sub_box.prop(data, 'colorspace_strategy', text='')
         if blender_version_compatibility.has_per_material_backface_culling:
-            box = self.layout.box()
-            box.label(text='Sync Backface Culling')
-            box.prop(data, 'sync_backface_culling')
-        self.layout.prop(data, 'write_primitive_color')
-        self.layout.prop(data, 'write_environment_color')
+            sub_box = box.box()
+            sub_box.label(text='Sync Backface Culling')
+            sub_box.prop(data, 'sync_backface_culling')
+        
+        sub_box = box.box()
+        sub_box.label(text='Global Color Settings')
+        row = sub_box.row()
+        row.prop(data, 'write_primitive_color', text='Set Prim Color')
+        row.prop(data, 'write_environment_color', text='Set Env Color')
 
 # mesh
 
