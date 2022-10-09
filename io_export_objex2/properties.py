@@ -20,6 +20,7 @@ import bpy
 
 from . import interface
 from . import node_setup_helpers
+from . import template
 from .logging_util import getLogger
 
 # scene
@@ -625,11 +626,10 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
                 ('CVG_DST_WRAP','WRAP','CVG_DST_WRAP',2),
                 ('CVG_DST_FULL','FULL','CVG_DST_FULL',3),
                 ('CVG_DST_SAVE','SAVE','CVG_DST_SAVE',4),
-                ('AUTO','Auto','Defaults to CVG_DST_CLAMP (for now)',5),
             ],
             name='CVG_DST_',
             description='? see CloudModding wiki',
-            default='AUTO'
+            default='CVG_DST_CLAMP'
         )
     rendermode_zmode = bpy.props.EnumProperty(
             items=[
@@ -637,36 +637,25 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
                 ('INTER','Interpenetrating',  'Interpenetrating surfaces',2),
                 ('XLU',  'Translucent',       'Translucent surfaces (XLU)',3),
                 ('DEC',  'Decal',             'Decal surfaces (eg paths)',4),
-                ('AUTO', 'Auto', 'Default to Translucent (XLU) if material uses transparency, or Opaque (OPA) otherwise',5),
             ],
             name='zmode',
             description='Not well understood, has to do with rendering order',
-            default='AUTO'
+            default='OPA'
         )
-    rendermode_blender_flag_CVG_X_ALPHA = bpy.props.EnumProperty(
-            items=[
-                ('YES','Set','Set CVG_X_ALPHA',1),
-                ('NO','Clear','Clear CVG_X_ALPHA',2),
-                ('AUTO','Auto','Set if the material uses transparency, clear otherwise',3), # 421fixme research this
-            ],
+    rendermode_blender_flag_CVG_X_ALPHA = bpy.props.BoolProperty(
             name='CVG_X_ALPHA',
             description='CVG_X_ALPHA\n' '? see CloudModding wiki',
-            default='AUTO'
+            default=False
         )
     rendermode_blender_flag_ALPHA_CVG_SEL = bpy.props.BoolProperty(
             name='ALPHA_CVG_SEL',
             description='ALPHA_CVG_SEL\n' '? see CloudModding wiki',
             default=True # 421fixme does enabling this kill alpha?
         )
-    rendermode_forceblending = bpy.props.EnumProperty(
-            items=[
-                ('YES','Always','Force blending',1),
-                ('NO','Never','Do not force blending',2),
-                ('AUTO','Auto','Force blending if the material uses Alpha Blend transparency',3),
-            ],
+    rendermode_forceblending = bpy.props.BoolProperty(
             name='Force blending',
             description='Not well understood, related to transparency and rendering order',
-            default='AUTO'
+            default=False
         )
     rendermode_blending_cycle0 = bpy.props.EnumProperty(
             items=[
@@ -675,25 +664,21 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
                 ('PASS','Pass','Let the input pixel color through unaltered (G_RM_PASS...)',3), # G_BL_CLR_IN    G_BL_0         G_BL_CLR_IN    G_BL_1
                 ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',4), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
                 ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',5), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
-                ('AUTO','Auto', 'Use "Pass" if material uses Alpha Clip transparency,\n'
-                                '"XLU-like" if material uses Alpha Blend transparency,\n'
-                                'and "Fog RGB, shade A" otherwise.',6),
                 ('CUSTOM','Custom','Define a custom blending cycle',7),
             ],
-            name='First blending cycle',
+            name='Blend1',
             description='First cycle\nHow to blend the pixels being rendered with the frame buffer\nResponsible for at least transparency effects and fog',
-            default='AUTO'
+            default='FOG_SHADE'
         )
     rendermode_blending_cycle1 = bpy.props.EnumProperty(
             items=[
                 ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',1), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
                 ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',2), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
-                ('AUTO','Auto','XLU-like if material uses transparency, OPA-like otherwise',3),
                 ('CUSTOM','Custom','Define a custom blending cycle',4),
             ],
-            name='Second blending cycle',
+            name='Blend2',
             description='Second cycle\nHow to blend the pixels being rendered with the frame buffer\nResponsible for at least transparency effects and fog',
-            default='AUTO'
+            default='OPA'
         )
 
     standalone = bpy.props.BoolProperty(
@@ -740,15 +725,10 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Geometry using materials with higher priority is written first',
             default=0
         )
-    geometrymode_G_FOG = bpy.props.EnumProperty(
-            items=[
-                ('YES','Set','Set G_FOG',1),
-                ('NO','Clear','Clear G_FOG',2),
-                ('AUTO','Auto','Set if blending uses G_BL_CLR_FOG or G_BL_A_FOG, clear otherwise',3), # I am only assuming this is good practice
-            ],
+    geometrymode_G_FOG = bpy.props.BoolProperty(
             name='G_FOG',
             description='G_FOG\n' '? see CloudModding wiki, has to do with computing fog values\n' 'THIS DOES NOT DISABLE FOG, use the blending cycle settings for that purpose',
-            default='AUTO'
+            default=True
         )
     geometrymode_G_ZBUFFER = bpy.props.BoolProperty(
             name='Z buffer',
@@ -820,7 +800,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         ],
         name='Alpha Mode',
         default='OPAQUE',
-        update=omp_change_alpha
+        update=template.material_apply_template
     )
 
     texture_filter = bpy.props.EnumProperty(

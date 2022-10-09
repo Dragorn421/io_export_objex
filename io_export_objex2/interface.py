@@ -1344,19 +1344,9 @@ def blender_use_backface_culling_update(material):
             log.trace('But material is not a display objex material, ignoring it.')
 
 def objex_backface_culling_update(self, context):
-    if not blender_version_compatibility.has_per_material_backface_culling:
-        return
-    log = getLogger('interface')
     material = self.id_data
-    log.trace('sync_backface_culling = {!r}', context.scene.objex_bonus.sync_backface_culling)
-    if (material.objex_bonus.backface_culling != material.use_backface_culling
-        and 'OBJEX_TO_BLENDER' in context.scene.objex_bonus.sync_backface_culling
-    ):
-        log.trace('{} objex backface_culling = {}', material.name, material.objex_bonus.backface_culling)
-        if material.objex_bonus.is_objex_material and material.objex_bonus.use_display:
-            material.use_backface_culling = material.objex_bonus.backface_culling
-        else:
-            log.trace('But material is not a display objex material, ignoring it.')
+    if material.objex_bonus.is_objex_material:
+        material.use_backface_culling = material.objex_bonus.backface_culling
 
 class OBJEX_PT_material(bpy.types.Panel):
     bl_label = 'Objex'
@@ -1593,7 +1583,6 @@ class OBJEX_PT_material(bpy.types.Panel):
                 row.prop(alpha_node, 'default_value', text='')
 
         box = self.layout.box()
-        box.use_property_split = False
         if self.foldable_menu(box, objex_scene, "menu_material"):
             row = box.row()
             row.enabled = not(data_is_empty)
@@ -1629,30 +1618,28 @@ class OBJEX_PT_material(bpy.types.Panel):
 
             if mode_menu == 'menu_mode_render':
                 sub_box = box.box()
-                box.alignment = 'CENTER'
                 
                 sub_box.prop(data, 'texture_filter')
-                sub_box.prop(data, 'geometrymode_G_FOG')
 
                 row = sub_box.row()
-                row.prop(data, 'geometrymode_G_SHADING_SMOOTH', text='G_SHADING_SMOOTH')
-                row.prop(data, 'geometrymode_G_ZBUFFER', text='G_ZBUFFER')
-
-
-                row = sub_box.row()
-                row.prop(data, 'rendermode_blender_flag_AA_EN')
+                row.prop(data, 'geometrymode_G_FOG')
                 row.prop(data, 'rendermode_blender_flag_Z_CMP')
-                row = sub_box.row()
                 row.prop(data, 'rendermode_blender_flag_Z_UPD')
+                row = sub_box.row()
                 row.prop(data, 'rendermode_blender_flag_IM_RD')
+                row.prop(data, 'rendermode_blender_flag_AA_EN')
+                row.prop(data, 'geometrymode_G_ZBUFFER', text='G_ZBUFFER')
                 row = sub_box.row()
                 row.prop(data, 'rendermode_blender_flag_CLR_ON_CVG')
                 row.prop(data, 'rendermode_blender_flag_ALPHA_CVG_SEL')
+                row.prop(data, 'rendermode_blender_flag_CVG_X_ALPHA')
+                row = sub_box.row()
+                row.prop(data, 'geometrymode_G_SHADING_SMOOTH')
+                row.prop(data, 'rendermode_forceblending')
+                row.label(text="")
 
-                sub_box.prop(data, 'rendermode_blender_flag_CVG_DST_')
-                sub_box.prop(data, 'rendermode_zmode')
-                sub_box.prop(data, 'rendermode_blender_flag_CVG_X_ALPHA')
-                sub_box.prop(data, 'rendermode_forceblending')
+                sub_box.row().prop(data, 'rendermode_blender_flag_CVG_DST_', expand=True)
+                sub_box.row().prop(data, 'rendermode_zmode', expand=True)
 
                 sub_sub_box = sub_box.box()
                 sub_sub_box.prop(data, 'rendermode_blending_cycle0')
@@ -1855,8 +1842,6 @@ def handler_scene_or_depsgraph_update_post_once(*args):
 def handler_load_post(*args):
     init_watch_objex_materials()
 
-objex_icons = {}
-
 def register_interface():
     log = getLogger('interface')
     for clazz in classes:
@@ -1903,16 +1888,6 @@ def register_interface():
     update_handlers.append(handler_scene_or_depsgraph_update_post_once)
     bpy.app.handlers.load_post.append(handler_load_post)
 
-    # Load Icons
-    # pcoll = bpy.utils.previews.new()
-
-    # my_icons_dir = os.path.join(os.path.dirname(__file__), "icons")
-    # pcoll.load("CYCLE_A", os.path.join(my_icons_dir, "A.png"), 'IMAGE')
-    # pcoll.load("CYCLE_B", os.path.join(my_icons_dir, "B.png"), 'IMAGE')
-    # pcoll.load("CYCLE_C", os.path.join(my_icons_dir, "C.png"), 'IMAGE')
-    # pcoll.load("CYCLE_D", os.path.join(my_icons_dir, "D.png"), 'IMAGE')
-    # objex_icons["main"] = pcoll
-
 def unregister_interface():
     log = getLogger('interface')
 
@@ -1939,8 +1914,3 @@ def unregister_interface():
             bpy.utils.unregister_class(clazz)
         except:
             log.exception('Failed to unregister {!r}', clazz)
-
-    # Clear Icons
-    # for pcoll in objex_icons.values():
-    #     bpy.utils.previews.remove(pcoll)
-    # objex_icons.clear()

@@ -553,9 +553,7 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                 if objex_data.vertex_shading == 'DYNAMIC':
                     fw('vertexshading dynamic\n')
                 else: # vertex_shading == 'AUTO'
-                    if shadingType is None:
-                        fw('vertexshading none\n')
-                    elif shadingType == 'normals':
+                    if objex_data.shading == "LIGHTING":
                         fw('vertexshading normal\n')
                     else:
                         fw('vertexshading color\n')
@@ -594,37 +592,24 @@ def write_mtl(scene, filepath, append_header, options, copy_set, mtl_dict):
                     otherModeLowerHalfFlags.append('IM_RD')
                 if objex_data.rendermode_blender_flag_CLR_ON_CVG:
                     otherModeLowerHalfFlags.append('CLR_ON_CVG')
-                if objex_data.rendermode_blender_flag_CVG_DST_ == 'AUTO':
-                    otherModeLowerHalfFlags.append('CVG_DST_CLAMP')
+                otherModeLowerHalfFlags.append(objex_data.rendermode_blender_flag_CVG_DST_)
+                
+                if material.blend_method == 'OPAQUE':
+                    use_alpha_transparency = 'NONE'
+                elif material.blend_method in ('BLEND', 'HASHED'):
+                    use_alpha_transparency = 'BLEND'
+                elif material.blend_method == 'CLIP':
+                    use_alpha_transparency = 'CLIP'
                 else:
-                    otherModeLowerHalfFlags.append(objex_data.rendermode_blender_flag_CVG_DST_)
-                if hasattr(material, 'use_transparency'): # < 2.80
-                    use_alpha_transparency = 'BLEND' if material.use_transparency else 'NONE'
-                else: # 2.80+
-                    if material.blend_method == 'OPAQUE':
-                        use_alpha_transparency = 'NONE'
-                    elif material.blend_method in ('BLEND', 'HASHED'):
-                        use_alpha_transparency = 'BLEND'
-                    elif material.blend_method == 'CLIP':
-                        use_alpha_transparency = 'CLIP'
-                    else:
-                        log.warning('Material {} uses unknown Blend Mode blend_method={!r}, assuming no transparency', name, material.blend_method)
-                        use_alpha_transparency = 'NONE'
-                if objex_data.rendermode_zmode == 'AUTO':
-                    otherModeLowerHalfFlags.append('ZMODE_XLU' if use_alpha_transparency != 'NONE' else 'ZMODE_OPA')
-                else:
-                    otherModeLowerHalfFlags.append('ZMODE_%s' % objex_data.rendermode_zmode)
-                if (objex_data.rendermode_blender_flag_CVG_X_ALPHA == 'YES'
-                    or (objex_data.rendermode_blender_flag_CVG_X_ALPHA == 'AUTO'
-                        and use_alpha_transparency != 'NONE')
-                ):
+                    log.warning('Material {} uses unknown Blend Mode blend_method={!r}, assuming no transparency', name, material.blend_method)
+                    use_alpha_transparency = 'NONE'
+                
+                otherModeLowerHalfFlags.append('ZMODE_%s' % objex_data.rendermode_zmode)
+                if objex_data.rendermode_blender_flag_CVG_X_ALPHA:
                     otherModeLowerHalfFlags.append('CVG_X_ALPHA')
                 if objex_data.rendermode_blender_flag_ALPHA_CVG_SEL:
                     otherModeLowerHalfFlags.append('ALPHA_CVG_SEL')
-                if (objex_data.rendermode_forceblending == 'YES'
-                    or (objex_data.rendermode_forceblending == 'AUTO'
-                        and use_alpha_transparency == 'BLEND')
-                ):
+                if objex_data.rendermode_forceblending:
                     otherModeLowerHalfFlags.append('FORCE_BL')
                 # blender cycles
                 """
@@ -641,15 +626,7 @@ count  P              A              M              B            comment
                 """
                 rm_bl_c0 = objex_data.rendermode_blending_cycle0
                 rm_bl_c1 = objex_data.rendermode_blending_cycle1
-                if rm_bl_c0 == 'AUTO':
-                    if use_alpha_transparency == 'NONE':
-                        rm_bl_c0 = 'FOG_SHADE'
-                    elif use_alpha_transparency == 'CLIP':
-                        rm_bl_c0 = 'PASS'
-                    elif use_alpha_transparency == 'BLEND':
-                        rm_bl_c0 = 'XLU'
-                if rm_bl_c1 == 'AUTO':
-                    rm_bl_c1 = 'XLU' if use_alpha_transparency != 'NONE' else 'OPA'
+                
                 presets = {
                     'FOG_PRIM': ('G_BL_CLR_FOG','G_BL_A_FOG',  'G_BL_CLR_IN', 'G_BL_1MA'),
                     'FOG_SHADE':('G_BL_CLR_FOG','G_BL_A_SHADE','G_BL_CLR_IN', 'G_BL_1MA'),
@@ -757,24 +734,14 @@ count  P              A              M              B            comment
                     ('G_ZBUFFER', objex_data.geometrymode_G_ZBUFFER),
                     ('G_TEXTURE_GEN', 'uv_main' in data and data['uv_main']['texgen']),
                     ('G_TEXTURE_GEN_LINEAR', 'uv_main' in data and data['uv_main']['texgen_linear']),
-                    ('G_FOG', objex_data.geometrymode_G_FOG == 'YES' or (
-                        objex_data.geometrymode_G_FOG == 'AUTO' and (
-                            ('G_BL_CLR_FOG' in blendCycle0flags)
-                            or ('G_BL_CLR_FOG' in blendCycle1flags)
-                            or ('G_BL_A_FOG' in blendCycle0flags)
-                            or ('G_BL_A_FOG' in blendCycle1flags)
-                        )
-                    )),
+                    ('G_FOG', objex_data.geometrymode_G_FOG),
+                    ('G_LIGHTING', objex_data.shading == 'LIGHTING'),
                 ):
                     if set_flag:
                         geometryModeFlagsSet.append(flag)
                     else:
                         geometryModeFlagsClear.append(flag)
-                if shadingType is not None:
-                    (geometryModeFlagsSet
-                        if shadingType == 'normals'
-                        else geometryModeFlagsClear
-                    ).append('G_LIGHTING')
+                
                 if len(geometryModeFlagsClear) == 0:
                     geometryModeFlagsClear = ('0',)
                 if len(geometryModeFlagsSet) == 0:
