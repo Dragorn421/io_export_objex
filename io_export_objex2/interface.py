@@ -75,36 +75,6 @@ def propOffset(layout, data, key, propName):
         layout.label(text='It will be read in base 16')
         layout.label(text='Use 0x prefix to be explicit')
 
-# scene
-
-class OBJEX_PT_scene(bpy.types.Panel):
-    bl_label = 'Objex'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'scene'
-
-    @classmethod
-    def poll(self, context):
-        return context.scene.objex_bonus.is_objex_scene
-
-    def draw(self, context):
-        scene = context.scene
-        data = scene.objex_bonus
-        box = self.layout.box()
-        sub_box = box.box()
-        sub_box.label(text='Color Space Strategy:')
-        sub_box.prop(data, 'colorspace_strategy', text='')
-        if blender_version_compatibility.has_per_material_backface_culling:
-            sub_box = box.box()
-            sub_box.label(text='Sync Backface Culling')
-            sub_box.prop(data, 'sync_backface_culling')
-        
-        sub_box = box.box()
-        sub_box.label(text='Global Color Settings')
-        row = sub_box.row()
-        row.prop(data, 'write_primitive_color', text='Set Prim Color')
-        row.prop(data, 'write_environment_color', text='Set Env Color')
-
 # mesh
 
 class OBJEX_PT_mesh(bpy.types.Panel):
@@ -1486,6 +1456,12 @@ class OBJEX_PT_material(bpy.types.Panel):
             return 'DOWNARROW_HLT'
         else:
             return 'RIGHTARROW'
+    
+    def foldable_menu(self, element, data, attr):
+        element.prop(data, attr, icon=self.get_icon(getattr(data, attr)), emboss=False)
+        if getattr(data, attr) == True:
+            return True
+        return False
 
     def menu_collision(self, context):
         objex_scene = context.scene.objex_bonus
@@ -1553,30 +1529,34 @@ class OBJEX_PT_material(bpy.types.Panel):
         objex_scene = context.scene.objex_bonus
         mode_menu = objex_scene.mode_menu
 
-        data_is_empty = False
-        if data.empty or material.name.startswith('empty.'):
-            data_is_empty = True
+        data_is_empty = data.empty or material.name.startswith('empty.')
 
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(objex_scene, 'menu_tools', icon=self.get_icon(getattr(objex_scene, 'menu_tools')), emboss=False)
-        if objex_scene.menu_tools:
+        if self.foldable_menu(box, objex_scene, "menu_tools"):
             shared_row = box.row()
 
             draw_build_nodes_operator(shared_row, 'Reset nodes', init=True, reset=True)
             draw_build_nodes_operator(shared_row, 'Fix nodes')
-            # box.operator('objex.material_set_shade_source', text='Set Shade Source')
-            # box.label(text="Setups")
             shared_row = box.row()
             shared_row.operator('objex.material_single_texture', text='Single Texture')
             shared_row.operator('objex.material_multitexture', text='Multitexture')
             shared_row.operator('objex.material_flat_color', text='Flat Color')
 
-        # Most used and important features at hand
+            scene = context.scene
+            data = scene.objex_bonus
+            sub_box = box.box()
+            sub_box.label(text='Color Space Strategy:')
+            sub_box.prop(data, 'colorspace_strategy', text='')
+            
+            sub_box.label(text='Global Color Settings')
+            row = sub_box.row()
+            row.prop(data, 'write_primitive_color', text='Set Prim Color')
+            row.prop(data, 'write_environment_color', text='Set Env Color')
+
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(objex_scene, 'menu_common', icon=self.get_icon(getattr(objex_scene, 'menu_common')), emboss=False)
-        if objex_scene.menu_common:
+        if self.foldable_menu(box, objex_scene, "menu_common"):
             row = box.row()
             row.use_property_split = False
             row.prop(data, 'alpha_mode', expand=True)
@@ -1585,10 +1565,7 @@ class OBJEX_PT_material(bpy.types.Panel):
             row.use_property_split = False
             row.prop(data, 'shading', expand=True)
             
-            row = box.row()
-            row.use_property_split = False
-            row.prop(data, 'backface_culling')
-            row.prop(data, 'frontface_culling')
+            box.prop(data, 'backface_culling')
             row = box.row()
             box.use_property_split = False
 
@@ -1615,11 +1592,9 @@ class OBJEX_PT_material(bpy.types.Panel):
                 row.prop(color_node, 'default_value', text="")
                 row.prop(alpha_node, 'default_value', text='')
 
-            
         box = self.layout.box()
         box.use_property_split = False
-        box.prop(objex_scene, 'menu_material', icon=self.get_icon(getattr(objex_scene, 'menu_material')), emboss=False)
-        if objex_scene.menu_material:
+        if self.foldable_menu(box, objex_scene, "menu_material"):
             row = box.row()
             row.enabled = not(data_is_empty)
             row.prop(objex_scene, 'mode_menu', expand=True)
@@ -1718,13 +1693,13 @@ class OBJEX_PT_material(bpy.types.Panel):
                         imdata = texel.image.objex_bonus
                         propOffset(sub_box, imdata, 'pointer', 'Pointer')   
                         row = sub_box.row()
-                        row.prop(material.objex_bonus, texture_u, text='', icon='EVENT_U')
-                        row.prop(material.objex_bonus, texture_v, text='', icon='EVENT_V')
+                        row.prop(material.objex_bonus, texture_u, text='', icon='EVENT_X')
+                        row.prop(material.objex_bonus, texture_v, text='', icon='EVENT_Y')
 
                         if getattr(objex_scene, menu):
                             row = sub_box.row()
-                            row.prop(u_scale, 'default_value', text='U Exp')
-                            row.prop(v_scale, 'default_value', text='V Exp')
+                            row.prop(u_scale, 'default_value', text='X Exp')
+                            row.prop(v_scale, 'default_value', text='Y Exp')
 
                             sub_box.prop(imdata, 'priority')
                             row = sub_box.row()
@@ -1845,8 +1820,6 @@ class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
         return {'FINISHED'}
 
 classes = (
-    OBJEX_PT_scene,
-
     OBJEX_PT_mesh,
     OBJEX_PT_folding,
 

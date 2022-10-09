@@ -510,6 +510,40 @@ def omp_change_texture_filter(self, context):
         material.node_tree.nodes["OBJEX_Texel0Texture"].interpolation = 'Linear'
         material.node_tree.nodes["OBJEX_Texel1Texture"].interpolation = 'Linear'
 
+def hexify(segment: str):
+    if len(segment) == 0:
+        return ""
+
+    if segment.startswith("0x"):
+        if segment.startswith("0x0"):
+            if segment.endswith("000000"):
+                return segment
+            segment = segment + "000000"
+        else:
+            if not segment.endswith("000000"):
+                segment = segment + "000000"
+            segment = segment[:2] + "0" + segment[2:]
+    else:
+        if len(segment) > 1:
+            return ""
+        segment = "0x0" + segment + "000000"
+    
+    slist = list(segment.upper())
+    slist[1] = 'x'
+    return ''.join(slist)
+
+def omp_change_external_segment(self, context):
+    material:bpy.types.Material = self.id_data
+    segment:str = material.objex_bonus.external_material_segment
+    
+    material.objex_bonus.external_material_segment = hexify(segment)
+
+def omp_change_texel_segment(self, context):
+    image:bpy.types.Image = self.id_data
+    segment:str = image.objex_bonus.pointer
+    
+    image.objex_bonus.pointer = hexify(segment)
+
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
     objex_version = bpy.props.IntProperty(default=0) # see data_updater.py
@@ -528,7 +562,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
 
     backface_culling = bpy.props.BoolProperty(
-            name='Cull backfaces',
+            name='Backface Culling',
             description='Culls the back face of geometry',
             update=interface.objex_backface_culling_update,
             default=True
@@ -693,7 +727,8 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     external_material_segment = bpy.props.StringProperty(
     		name='Segment',
-    		description='Branch material to segment'
+    		description='Branch material to segment',
+            update=omp_change_external_segment
     	)
     force_write = bpy.props.BoolProperty(
             name='Force write',
@@ -860,7 +895,8 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
     pointer = bpy.props.StringProperty(
             name='Segment',
             description='The address that should be used when referencing this texture',
-            default=''
+            default='',
+            update=omp_change_texel_segment
         )
     priority = bpy.props.IntProperty(
             name='Priority',
