@@ -75,7 +75,7 @@ for n in (
     'properties', 'interface', 'const_data', 'util', 'logging_util',
     'rigging_helpers', 'data_updater', 'view3d_copybuffer_patch',
     'addon_updater', 'addon_updater_ops', 'blender_version_compatibility',
-    'node_setup_helpers',
+    'node_setup_helpers', 'template'
 ):
     if n in loc:
         importlib.reload(loc[n])
