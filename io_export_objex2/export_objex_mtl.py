@@ -700,9 +700,7 @@ count  P              A              M              B            comment
                     else:
                         log.warning('Unimplemented display_device = {}, colors in-game may differ from the Blender preview', display_device)
                     return tuple(int(c*255) for c in rgba)
-                if ('primitive' in data or 'primitiveLodFrac' in data) and (objex_data.write_primitive_color == 'YES'
-                    or (objex_data.write_primitive_color == 'GLOBAL' and scene.objex_bonus.write_primitive_color)
-                ):
+                if ('primitive' in data or 'primitiveLodFrac' in data) and (objex_data.write_primitive_color == 'YES'):
                     rgbaPrimColor = rgba32(data['primitive']) if 'primitive' in data else (255,255,255,255)
                     primLodFrac = data['primitiveLodFrac'] if 'primitiveLodFrac' in data else 0
                     primLodFracClamped = min(1, max(0, primLodFrac))
@@ -715,9 +713,7 @@ count  P              A              M              B            comment
                         rgbaPrimColor[0], rgbaPrimColor[1], rgbaPrimColor[2], rgbaPrimColor[3],
                         primLodFrac)
                     ) # 421fixme minlevel
-                if 'environment' in data and (objex_data.write_environment_color == 'YES'
-                    or (objex_data.write_environment_color == 'GLOBAL' and scene.objex_bonus.write_environment_color)
-                ):
+                if 'environment' in data and (objex_data.write_environment_color == 'YES'):
                     fw('gbi gsDPSetEnvColor(%d, %d, %d, %d)\n' % rgba32(data['environment']))
                 if hasattr(material, 'use_backface_culling') and material.use_backface_culling != objex_data.backface_culling: # 2.80+
                     log.warning('Material {} has backface culling {} in objex properties (used for exporting) '

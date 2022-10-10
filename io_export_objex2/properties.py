@@ -71,6 +71,13 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
         default={'BLENDER_TO_OBJEX','OBJEX_TO_BLENDER'},
     )
 
+    saved_poses = bpy.props.CollectionProperty(type=SavedPose)
+
+    menu_tools = bpy.props.BoolProperty(name='Tools',default=False)
+    menu_common = bpy.props.BoolProperty(name='Common',default=False)
+    menu_material = bpy.props.BoolProperty( name='Material', default=True)
+    menu_texel0 = bpy.props.BoolProperty(name='Texel0')
+    menu_texel1 = bpy.props.BoolProperty(name='Texel1')
     mode_menu = bpy.props.EnumProperty(
         items=[
             ('menu_mode_combiner',    'Combiner', '(A-B)*C+D',                'SHADING_RENDERED', 0),
@@ -80,49 +87,6 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
         ],
         name='Menu Mode',
         default='menu_mode_texture',
-    )
-
-    write_primitive_color = bpy.props.BoolProperty(
-            name='Set prim color (global)',
-            description='Scene property, shared by materials',
-            default=True
-        )
-    write_environment_color = bpy.props.BoolProperty(
-            name='Set env color (global)',
-            description='Scene property, shared by materials',
-            default=True
-        )
-
-    saved_poses = bpy.props.CollectionProperty(type=SavedPose)
-
-    menu_tools = bpy.props.BoolProperty(
-        name='Tools',
-        description='hint',
-        default=False
-    )
-
-    menu_common = bpy.props.BoolProperty(
-        name='Common',
-        description='hint',
-        default=False
-    )
-
-    menu_material = bpy.props.BoolProperty(
-        name='Material',
-        description='hint',
-        default=True
-    )
-
-    menu_texel0 = bpy.props.BoolProperty(
-        name='Texel0',
-        description='hint',
-        default=True
-    )
-
-    menu_texel1 = bpy.props.BoolProperty(
-        name='Texel1',
-        description='hint',
-        default=True
     )
 
 
@@ -573,26 +537,16 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
             description='Culls the front face of geometry',
             default=False
         )
-    write_primitive_color = bpy.props.EnumProperty(
-            items=[
-                ('YES','Yes','Set the color',1),
-                ('NO','No','Do not set the color',2),
-                ('GLOBAL','Global','Default to the global (per-scene) setting, shared by all materials',3),
-            ],
+    write_primitive_color = bpy.props.BoolProperty(
             name='Set prim color',
             description='Set the primitive color in the generated display list (macro gsDPSetPrimColor).\n'
                         'Disabling this can for example allow to set a dynamic primitive color from code or from another display list',
-            default='GLOBAL'
+            default=True
         )
-    write_environment_color = bpy.props.EnumProperty(
-            items=[
-                ('YES','Yes','Set the color',1),
-                ('NO','No','Do not set the color',2),
-                ('GLOBAL','Global','Default to the global (per-scene) setting, shared by all materials',3),
-            ],
+    write_environment_color = bpy.props.BoolProperty(
             name='Set env color',
             description='Same as "Set prim color" for the environment color (macro gsDPSetEnvColor)',
-            default='GLOBAL'
+            default=False
         )
 
     rendermode_blender_flag_AA_EN = bpy.props.BoolProperty(
@@ -743,9 +697,9 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     
     texture_u_0 = bpy.props.EnumProperty(
         items=[
-            ('WRAP',   'Wrap'   ,''),
-            ('CLAMP',  'Clamp'  ,''),
-            ('MIRROR', 'Mirror' ,''),
+            ('WRAP',   'Wrap'   ,'', 'TEXTURE', 0),
+            ('CLAMP',  'Clamp'  ,'', 'MOD_EDGESPLIT', 1),
+            ('MIRROR', 'Mirror' ,'', 'MOD_MIRROR', 2),
         ],
         name='U',
         default='WRAP',
@@ -753,9 +707,9 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     )
     texture_u_1 = bpy.props.EnumProperty(
         items=[
-            ('WRAP',   'Wrap'   ,''),
-            ('CLAMP',  'Clamp'  ,''),
-            ('MIRROR', 'Mirror' ,''),
+            ('WRAP',   'Wrap'   ,'', 'TEXTURE', 0),
+            ('CLAMP',  'Clamp'  ,'', 'MOD_EDGESPLIT', 1),
+            ('MIRROR', 'Mirror' ,'', 'MOD_MIRROR', 2),
         ],
         name='U',
         default='WRAP',
@@ -764,9 +718,9 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     
     texture_v_0 = bpy.props.EnumProperty(
         items=[
-            ('WRAP',   'Wrap'   ,''),
-            ('CLAMP',  'Clamp'  ,''),
-            ('MIRROR', 'Mirror' ,''),
+            ('WRAP',   'Wrap'   ,'', 'TEXTURE', 0),
+            ('CLAMP',  'Clamp'  ,'', 'MOD_EDGESPLIT', 1),
+            ('MIRROR', 'Mirror' ,'', 'MOD_MIRROR', 2),
         ],
         name='V',
         default='WRAP',
@@ -774,9 +728,9 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     )    
     texture_v_1 = bpy.props.EnumProperty(
         items=[
-            ('WRAP',   'Wrap'   ,''),
-            ('CLAMP',  'Clamp'  ,''),
-            ('MIRROR', 'Mirror' ,''),
+            ('WRAP',   'Wrap'   ,'', 'TEXTURE', 0),
+            ('CLAMP',  'Clamp'  ,'', 'MOD_EDGESPLIT', 1),
+            ('MIRROR', 'Mirror' ,'', 'MOD_MIRROR', 2),
         ],
         name='V',
         default='WRAP',

@@ -1534,15 +1534,9 @@ class OBJEX_PT_material(bpy.types.Panel):
             shared_row.operator('objex.material_flat_color', text='Flat Color')
 
             scene = context.scene
-            data = scene.objex_bonus
             sub_box = box.box()
             sub_box.label(text='Color Space Strategy:')
-            sub_box.prop(data, 'colorspace_strategy', text='')
-            
-            sub_box.label(text='Global Color Settings')
-            row = sub_box.row()
-            row.prop(data, 'write_primitive_color', text='Set Prim Color')
-            row.prop(data, 'write_environment_color', text='Set Env Color')
+            sub_box.prop(objex_scene, 'colorspace_strategy', text='')
 
         box = self.layout.box()
         box.use_property_split = False
@@ -1556,7 +1550,6 @@ class OBJEX_PT_material(bpy.types.Panel):
             row.prop(data, 'shading', expand=True)
             
             box.prop(data, 'backface_culling')
-            row = box.row()
             box.use_property_split = False
 
             for color_node, alpha_node, property, title in (
@@ -1575,11 +1568,14 @@ class OBJEX_PT_material(bpy.types.Panel):
 
                 row = sub_box.row()
                 row.label(text=title, icon='COLOR')
-                row.prop(objex_scene, property, text='Set %s Global' % title)
 
                 row = sub_box.row()
                 row.prop(data, property, text='')
-                row.prop(color_node, 'default_value', text="")
+                col = row.column()
+                if not getattr(data, property):
+                    col.enabled = False
+                row = col.row()
+                row.prop(color_node, 'default_value', text='')
                 row.prop(alpha_node, 'default_value', text='')
 
         box = self.layout.box()
