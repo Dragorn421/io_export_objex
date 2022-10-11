@@ -75,7 +75,7 @@ for n in (
     'properties', 'interface', 'const_data', 'util', 'logging_util',
     'rigging_helpers', 'data_updater', 'view3d_copybuffer_patch',
     'addon_updater', 'addon_updater_ops', 'blender_version_compatibility',
-    'node_setup_helpers', 'template'
+    'node_setup_helpers', 'template', 'export_so'
 ):
     if n in loc:
         importlib.reload(loc[n])
@@ -94,7 +94,6 @@ from . import data_updater
 from . import interface
 from . import node_setup_helpers
 from . import view3d_copybuffer_patch
-
 
 class OBJEX_OT_export_base():
     """Save an OBJEX File"""
@@ -475,22 +474,13 @@ class OBJEX_OT_export_base():
 axis_forward = '-Z'
 axis_up='Y'
 
-try:
-    # < 2.80
-    from bpy_extras.io_utils import orientation_helper_factory
-    IOOBJOrientationHelper = orientation_helper_factory('IOOBJOrientationHelper', axis_forward=axis_forward, axis_up=axis_up)
-    class OBJEX_OT_export(bpy.types.Operator, OBJEX_OT_export_base, ExportHelper, IOOBJOrientationHelper):
-        pass
-except ImportError:
-    # 2.80+
-    from bpy_extras.io_utils import orientation_helper
-    @orientation_helper(axis_forward=axis_forward, axis_up=axis_up)
-    class OBJEX_OT_export(bpy.types.Operator, OBJEX_OT_export_base, ExportHelper):
-        pass
+from bpy_extras.io_utils import orientation_helper
+@orientation_helper(axis_forward=axis_forward, axis_up=axis_up)
+class OBJEX_OT_export(bpy.types.Operator, OBJEX_OT_export_base, ExportHelper):
+    pass
 
 def menu_func_export(self, context):
     self.layout.operator(OBJEX_OT_export.bl_idname, text='Objex2 (.objex)')
-
 
 class OBJEX_AddonPreferences(bpy.types.AddonPreferences, logging_util.AddonLoggingPreferences, addon_updater_ops.AddonUpdaterPreferences):
     bl_idname = __package__

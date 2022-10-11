@@ -77,102 +77,108 @@ def propOffset(layout, data, key, propName):
 
 # mesh
 
-class OBJEX_PT_mesh(bpy.types.Panel):
-    bl_label = 'Objex'
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'data'
+def menu_draw_mesh(self:bpy.types.Panel, context:bpy.types.Context):
+    objex_scene = context.scene.objex_bonus
+    object = context.object
+    data = object.data.objex_bonus # ObjexMeshProperties
+
+    box = self.layout.box()
+    box.row().prop(data, 'type', expand=True)
+
+    box = self.layout.box()
+    row = box.row()
+    row.alignment = 'CENTER'
+    row.label(text='Mesh')
+    row = box.row()
+    # row.use_property_split = True
+    row.use_property_decorate = False # Do not display keyframe setting
+    row.label(text='Origin')
+    row.prop(data, 'write_origin', expand=True)
+
+    row = box.row()
+    # row.use_property_split = True
+    row.use_property_decorate = False # Do not display keyframe setting
+    row.label(text='Billboard')
+    row.prop(data, 'attrib_billboard', expand=True)
+    box.prop(data, 'priority')
+
+    sub_box = box.box()
+    row = sub_box.row()
+    row.prop(data, 'attrib_POSMTX')
+    row.prop(data, 'attrib_PROXY')
+    row.label(text='') # Only for aligning with the next row items
+    armature = object.find_armature()
+    if armature:
+        row = sub_box.row()
+        row.prop(data, 'attrib_NOSPLIT')
+
+        invert = False
+        col = row.column()
+        if data.attrib_NOSPLIT:
+            col.enabled = False
+            # Make it look like the disabled button is enabled
+            if data.attrib_NOSKEL == False:
+                invert=True
+        
+        col.prop(data, 'attrib_NOSKEL', invert_checkbox=invert)
+        row.prop(data, 'attrib_LIMBMTX')
+
+        row = box.row()
+        row.operator('objex.mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
+        row.operator('objex.mesh_find_unassigned_vertices', text='Find unassigned vertices')
+        box.operator('objex.mesh_list_vertex_groups', text='List groups of selected vertex')
+    
+        return
+        # folding/unfolding
+        if rigging_helpers.AutofoldOperator.poll(context):
+            scene = context.scene
+            objex_scene = context.scene.objex_bonus
+
+            box = self.layout.box()
+            box.use_property_split = False
+            row = box.row()
+            row.alignment = 'CENTER'
+            row.label(text='Folding')
+            armature = rigging_helpers.AutofoldOperator.get_armature(self, context)
+            # 421todo make it easier/more obvious to use...
+            # 421todo export/import saved poses
+            row = box.row()
+            row.operator('objex.autofold_save_pose', text='Save pose')
+            row.operator('objex.autofold_restore_pose', text='Restore pose')
+            row = box.row()
+            row.operator('objex.autofold_fold_unfold', text='Fold').action = 'FOLD'
+            row.operator('objex.autofold_fold_unfold', text='Unfold').action = 'UNFOLD'
+            row.operator('objex.autofold_fold_unfold', text='Switch').action = 'SWITCH'
+            # 421todo better saved poses management (delete)
+            box.label(text='Default saved pose to use for folding:')
+            # 'OBJEX_SavedPose' does not refer to any addon-defined class. see documentation of template_list
+            box.template_list('UI_UL_list', 'OBJEX_SavedPose', scene.objex_bonus, 'saved_poses', armature.data.objex_bonus, 'fold_unfold_saved_pose_index', rows=2)
+            box.operator('objex.autofold_delete_pose', text='Delete pose')
+
+class OBJEX_PT_mesh_object_view3d(bpy.types.Panel):
+    bl_category = "Objex"
+    bl_label = 'Mesh'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_context = '.objectmode'
+    draw = menu_draw_mesh
 
     @classmethod
     def poll(self, context):
         object = context.object
         return object.type == 'MESH'
 
-    def draw(self, context):
-        objex_scene = context.scene.objex_bonus
-        object = context.object
-        data = object.data.objex_bonus # ObjexMeshProperties
-
-        box = self.layout.box()
-        row = box.row()
-        row.alignment = 'CENTER'
-        row.label(text='Mesh')
-        row = box.row()
-        # row.use_property_split = True
-        row.use_property_decorate = False # Do not display keyframe setting
-        row.label(text='Origin')
-        row.prop(data, 'write_origin', expand=True)
-
-        row = box.row()
-        # row.use_property_split = True
-        row.use_property_decorate = False # Do not display keyframe setting
-        row.label(text='Billboard')
-        row.prop(data, 'attrib_billboard', expand=True)
-        box.prop(data, 'priority')
-
-        sub_box = box.box()
-        row = sub_box.row()
-        row.prop(data, 'attrib_POSMTX')
-        row.prop(data, 'attrib_PROXY')
-        row.label(text='') # Only for aligning with the next row items
-        armature = object.find_armature()
-        if armature:
-            row = sub_box.row()
-            row.prop(data, 'attrib_NOSPLIT')
-
-            invert = False
-            col = row.column()
-            if data.attrib_NOSPLIT:
-                col.enabled = False
-                # Make it look like the disabled button is enabled
-                if data.attrib_NOSKEL == False:
-                    invert=True
-            
-            col.prop(data, 'attrib_NOSKEL', invert_checkbox=invert)
-            row.prop(data, 'attrib_LIMBMTX')
-
-            row = box.row()
-            row.operator('objex.mesh_find_multiassigned_vertices', text='Find multiassigned vertices')
-            row.operator('objex.mesh_find_unassigned_vertices', text='Find unassigned vertices')
-            box.operator('objex.mesh_list_vertex_groups', text='List groups of selected vertex')
-           
-            # folding/unfolding
-            OBJEX_PT_folding.draw(self, context)
-
-class OBJEX_PT_folding(bpy.types.Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = 'Objex'
-    bl_label = 'Folding'
+class OBJEX_PT_mesh_object_prop(bpy.types.Panel):
+    bl_label = 'Objex'
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = 'data'
+    draw = menu_draw_mesh
 
     @classmethod
     def poll(self, context):
-        return rigging_helpers.AutofoldOperator.poll(context)
-
-    def draw(self, context):
-        scene = context.scene
-        objex_scene = context.scene.objex_bonus
-
-        box = self.layout.box()
-        box.use_property_split = False
-        row = box.row()
-        row.alignment = 'CENTER'
-        row.label(text='Folding')
-        armature = rigging_helpers.AutofoldOperator.get_armature(self, context)
-        # 421todo make it easier/more obvious to use...
-        # 421todo export/import saved poses
-        row = box.row()
-        row.operator('objex.autofold_save_pose', text='Save pose')
-        row.operator('objex.autofold_restore_pose', text='Restore pose')
-        row = box.row()
-        row.operator('objex.autofold_fold_unfold', text='Fold').action = 'FOLD'
-        row.operator('objex.autofold_fold_unfold', text='Unfold').action = 'UNFOLD'
-        row.operator('objex.autofold_fold_unfold', text='Switch').action = 'SWITCH'
-        # 421todo better saved poses management (delete)
-        box.label(text='Default saved pose to use for folding:')
-        # 'OBJEX_SavedPose' does not refer to any addon-defined class. see documentation of template_list
-        box.template_list('UI_UL_list', 'OBJEX_SavedPose', scene.objex_bonus, 'saved_poses', armature.data.objex_bonus, 'fold_unfold_saved_pose_index', rows=2)
-        box.operator('objex.autofold_delete_pose', text='Delete pose')
+        object = context.object
+        return object.type == 'MESH'
 
 # armature
 
@@ -200,7 +206,60 @@ class OBJEX_UL_actions(bpy.types.UIList):
         else:
             layout.prop(item, 'action', text='')
 
-class OBJEX_PT_armature(bpy.types.Panel):
+def menu_draw_armature(self:bpy.types.Panel, context:bpy.types.Context, armature:bpy.types.Armature):
+    object = context.object
+    data = armature.objex_bonus
+    # actions
+
+    box = self.layout.box()
+    box.use_property_split = False
+    row = box.row()
+    row.alignment = 'CENTER'
+    row.label(text='SkelAnime')
+
+    box.row().prop(data, 'type', expand=True)
+    row2 = box.row()
+    row2.prop(data, 'export_all_actions')
+    row2.prop(data, 'start_frame_clamp')
+    if data.start_frame_clamp == True:
+        box.prop(data, 'start_frame_clamp_value')
+
+    if not data.export_all_actions:
+        box.label(text='Actions to export:')
+        box.template_list('OBJEX_UL_actions', '', data, 'export_actions', data, 'export_actions_active')
+        
+    if data.pbody:
+        sub_box = box.box()
+        sub_box.prop(data, 'pbody')
+        def prop_pbody_parent_object(layout, icon='NONE'):
+            if blender_version_compatibility.no_ID_PointerProperty:
+                layout.prop_search(data, 'pbody_parent_object', bpy.data, 'objects', icon=icon)
+            else:
+                layout.prop(data, 'pbody_parent_object', icon=icon)
+        if data.pbody_parent_object:
+            if blender_version_compatibility.no_ID_PointerProperty:
+                pbody_parent_object = bpy.data.objects[data.pbody_parent_object]
+            else:
+                pbody_parent_object = data.pbody_parent_object
+            if hasattr(pbody_parent_object, 'type') and pbody_parent_object.type == 'ARMATURE':
+                prop_pbody_parent_object(sub_box)
+                valid_bone = data.pbody_parent_bone in pbody_parent_object.data.bones
+                sub_box.prop_search(data, 'pbody_parent_bone', pbody_parent_object.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
+                if not valid_bone:
+                    sub_box.label(text='A bone must be picked')
+            else:
+                prop_pbody_parent_object(sub_box, icon='ERROR')
+                sub_box.label(text='If set, parent must be an armature')
+        else:
+            prop_pbody_parent_object(sub_box)
+    else:
+        box.box().prop(data, 'pbody')
+    # segment
+    sub_box = box.box()
+    propOffset(sub_box, data, 'segment', 'Segment')
+    sub_box.prop(data, 'segment_local')
+
+class OBJEX_PT_armature_prop(bpy.types.Panel):
     bl_label = 'Objex'
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -212,61 +271,23 @@ class OBJEX_PT_armature(bpy.types.Panel):
         return armature is not None
     
     def draw(self, context):
-        armature = context.armature
-        data = armature.objex_bonus
-        # actions
+        menu_draw_armature(self, context, context.armature)
 
-        box = self.layout.box()
-        box.use_property_split = False
-        row = box.row()
-        row.alignment = 'CENTER'
-        row.label(text='SkelAnime')
-
-        box.row().prop(data, 'type', expand=True)
-        row2 = box.row()
-        row2.prop(data, 'export_all_actions')
-        row2.prop(data, 'start_frame_clamp')
-        if data.start_frame_clamp == True:
-            box.prop(data, 'start_frame_clamp_value')
-
-        if not data.export_all_actions:
-            box.label(text='Actions to export:')
-            box.template_list('OBJEX_UL_actions', '', data, 'export_actions', data, 'export_actions_active')
-        # type
-        # pbody
-        if data.pbody:
-            sub_box = box.box()
-            sub_box.prop(data, 'pbody')
-            def prop_pbody_parent_object(layout, icon='NONE'):
-                if blender_version_compatibility.no_ID_PointerProperty:
-                    layout.prop_search(data, 'pbody_parent_object', bpy.data, 'objects', icon=icon)
-                else:
-                    layout.prop(data, 'pbody_parent_object', icon=icon)
-            if data.pbody_parent_object:
-                if blender_version_compatibility.no_ID_PointerProperty:
-                    pbody_parent_object = bpy.data.objects[data.pbody_parent_object]
-                else:
-                    pbody_parent_object = data.pbody_parent_object
-                if hasattr(pbody_parent_object, 'type') and pbody_parent_object.type == 'ARMATURE':
-                    prop_pbody_parent_object(sub_box)
-                    valid_bone = data.pbody_parent_bone in pbody_parent_object.data.bones
-                    sub_box.prop_search(data, 'pbody_parent_bone', pbody_parent_object.data, 'bones', icon=('NONE' if valid_bone else 'ERROR'))
-                    if not valid_bone:
-                        sub_box.label(text='A bone must be picked')
-                else:
-                    prop_pbody_parent_object(sub_box, icon='ERROR')
-                    sub_box.label(text='If set, parent must be an armature')
-            else:
-                prop_pbody_parent_object(sub_box)
-        else:
-            box.box().prop(data, 'pbody')
-        # segment
-        sub_box = box.box()
-        propOffset(sub_box, data, 'segment', 'Segment')
-        sub_box.prop(data, 'segment_local')
-
-        # folding/unfolding
-        OBJEX_PT_folding.draw(self, context)
+class OBJEX_PT_armature_view3d(bpy.types.Panel):
+    bl_category = "Objex"
+    bl_label = 'Skeleton'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_context = '.objectmode'
+    
+    @classmethod
+    def poll(self, context:bpy.types.Context):
+        if context.object.find_armature():
+            return True
+        return False
+    
+    def draw(self, context):
+        menu_draw_armature(self, context, context.object.find_armature().data)
 
 # material
 
@@ -286,22 +307,8 @@ class OBJEX_NodeSocketInterface_CombinerInput(bpy.types.NodeSocketInterface, OBJ
 
 # registering NodeSocketInterface classes without registering their NodeSocket classes
 # led to many EXCEPTION_ACCESS_VIOLATION crashs, so don't do that
-if bpy.app.version < (2, 80, 0):
-    class OBJEX_NodeSocketInterface_CombinerOutput(bpy.types.NodeSocketInterface, OBJEX_NodeSocketInterface_CombinerIO):
-        bl_socket_idname = 'OBJEX_NodeSocket_CombinerOutput'
-
-    class OBJEX_NodeSocketInterface_RGBA_Color(bpy.types.NodeSocketInterface):
-        bl_socket_idname = 'OBJEX_NodeSocket_RGBA_Color'
-        # 421fixme COLOR_GAMMA or COLOR for the different uses in this file?
-        # 421fixme is default_value in interface used at all?
-        default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,1,1), min=0, max=1, subtype='COLOR')
-        def draw(self, context, layout):
-            pass
-        def draw_color(self, context):
-            return CST.COLOR_RGBA_COLOR
-else: # 2.80+
-    OBJEX_NodeSocketInterface_CombinerOutput = None
-    OBJEX_NodeSocketInterface_RGBA_Color = None
+OBJEX_NodeSocketInterface_CombinerOutput = None
+OBJEX_NodeSocketInterface_RGBA_Color = None
 
 class OBJEX_NodeSocketInterface_Dummy():
     def draw(self, context, layout):
@@ -442,51 +449,12 @@ del input_flag_list_choose_get
 
 combinerInputClassName = 'OBJEX_NodeSocket_CombinerInput'
 
-if bpy.app.version < (2, 80, 0):
-
-    class OBJEX_NodeSocket_CombinerOutput(bpy.types.NodeSocket):
-        default_value = bpy.props.FloatVectorProperty(name='default_value', default=(1,0,0), min=0, max=1, subtype='COLOR')
-
-        flagColorCycle = bpy.props.StringProperty(default='')
-        flagAlphaCycle = bpy.props.StringProperty(default='')
-
-        def draw(self, context, layout, node, text):
-            layout.label(text=text)
-            #layout.label(text='%s/%s' % (stripPrefix(self.flagColorCycle, 'G_CCMUX_'), stripPrefix(self.flagAlphaCycle, 'G_ACMUX_')))
-            # todo "show compat" operator which makes A/B/C/D blink when they support this output?
-
-        def draw_color(self, context, node):
-            return CST.COLOR_OK
-
-    class OBJEX_NodeSocket_RGBA_Color(bpy.types.NodeSocket):
-        default_value = bpy.props.FloatVectorProperty(
-            name='default_value', default=(1,1,1),
-            min=0, max=1, subtype='COLOR',
-        )
-
-        def draw(self, context, layout, node, text):
-            if self.is_linked:
-                layout.label(text=text)
-            else:
-                col = layout.column()
-                col.label(text=text,icon='ERROR')
-                col.label(text='MUST BE LINKED',icon='ERROR')
-
-        def draw_color(self, context, node):
-            return CST.COLOR_RGBA_COLOR if self.is_linked else CST.COLOR_BAD
-
-        def text(self, txt):
-            return txt
-
-    combinerOutputClassName = 'OBJEX_NodeSocket_CombinerOutput'
-    rgbaColorClassName = 'OBJEX_NodeSocket_RGBA_Color'
-else: # 2.80+
-    # 421FIXME_UPDATE this could use refactoring?
-    # I have no idea how to do custom color sockets in 2.80+...
-    OBJEX_NodeSocket_CombinerOutput = None
-    OBJEX_NodeSocket_RGBA_Color = None
-    combinerOutputClassName = 'NodeSocketColor'
-    rgbaColorClassName = 'NodeSocketColor'
+# 421FIXME_UPDATE this could use refactoring?
+# I have no idea how to do custom color sockets in 2.80+...
+OBJEX_NodeSocket_CombinerOutput = None
+OBJEX_NodeSocket_RGBA_Color = None
+combinerOutputClassName = 'NodeSocketColor'
+rgbaColorClassName = 'NodeSocketColor'
 
 class OBJEX_NodeSocket_IntProperty():
     def update_prop(self, context):
@@ -924,6 +892,10 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
     # create basic links (eg vanilla RGB node OBJEX_PrimColorRGB to RGB pipe node OBJEX_PrimColor)
     set_basic_links = bpy.props.BoolProperty()
 
+    @classmethod
+    def poll(cls, context):
+        return context.object and context.object.data.objex_bonus.type == 'MESH'
+
     def execute(self, context):
         log = getLogger('OBJEX_OT_material_build_nodes')
 
@@ -1278,13 +1250,17 @@ class OBJEX_OT_material_init_collision(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.object and context.object.name.startswith('collision.')
+        return context.object and context.object.data.objex_bonus.type == 'COLLISION'
 
     def execute(self, context):
         material = context.material
+        node = material.node_tree.nodes['Principled BSDF']
+
+        node.inputs[7].default_value = 0.005
         material.objex_bonus.is_objex_material = True
         material.objex_bonus.use_display = False
         material.objex_bonus.use_collision = True
+
         return {'FINISHED'}
 
 # properties and non-node UI
@@ -1366,42 +1342,22 @@ class OBJEX_PT_material(bpy.types.Panel):
         if not data.is_objex_material:
             draw_build_nodes_operator(self.layout, 'Init Display Objex material', init=True)
             self.layout.operator('objex.material_init_collision', text='Init Collision Objex material')
-            if context.object and not context.object.name.startswith('collision.'):
-                self.layout.label(text='Objects used as collision', icon='INFO')
-                self.layout.label(text='must be prefixed with')
-                self.layout.label(text='"collision.", for example')
-                self.layout.label(text='"collision.{}"'.format(context.object.name))
             return
         if data.use_collision:
-            if not context.object.name.startswith('collision.'):
+            if not context.object.data.objex_bonus.type == 'COLLISION':
                 box = self.layout.box()
                 box.alert = True
                 box.label(text='', icon='ERROR')
-                box.label(text='This material is not for mesh.')
-                box.label(text='The object should be prefixed')
-                box.label(text='with "collision."')
-                box.separator()
-                box.label(text='For example:')
-                box.box().label(text='collision.{}'.format(context.object.name), icon='OUTLINER_OB_MESH')
+                box.label(text='Can\'t use collision material for mesh!')
                 return
             self.menu_collision(context)
 
             return
-        if context.object and context.object.name.startswith('collision.'):
+        if context.object and context.object.data.objex_bonus.type == 'COLLISION':
             box = self.layout.box()
             box.alert = True
             box.label(text='', icon='ERROR')
-            box.label(text='This material is not')
-            box.label(text='for collision, but')
-            box.label(text='the object is prefixed')
-            box.label(text='with "collision."')
-            box = self.layout.box()
-            box.label(text='', icon='INFO')
-            box.label(text='Remove this material')
-            box.label(text='or rename the object.')
-            box.separator()
-            box.label(text='For example:')
-            box.box().label(text=context.object.name[len('collision.'):], icon='OUTLINER_OB_MESH')
+            box.label(text='Can\'t use mesh material for collision!')
             return
         # handle is_objex_material, use_nodes mismatch
         if not material.use_nodes:
@@ -1455,7 +1411,9 @@ class OBJEX_PT_material(bpy.types.Panel):
 
     def menu_collision(self, context):
         objex_scene = context.scene.objex_bonus
-        material = context.material
+        material:bpy.types.Material = context.material
+        color_value = material.node_tree.nodes["Principled BSDF"].inputs[0]
+        alpha_value = material.node_tree.nodes["Principled BSDF"].inputs[21]
         data = material.objex_bonus
 
         box = self.layout.box()
@@ -1465,6 +1423,10 @@ class OBJEX_PT_material(bpy.types.Panel):
         row.label(text='Collision')
 
         col = data.collision
+
+        row = box.row()
+        row.prop(color_value, 'default_value', text="")
+        row.prop(col, 'alpha', text="", slider=True)
 
         box.prop(col, 'sound')
         box.prop(col, 'floor')
@@ -1803,11 +1765,11 @@ class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
         return {'FINISHED'}
 
 classes = (
-    OBJEX_PT_mesh,
-    OBJEX_PT_folding,
-
     OBJEX_UL_actions,
-    OBJEX_PT_armature,
+    OBJEX_PT_armature_prop,
+    OBJEX_PT_armature_view3d,
+    OBJEX_PT_mesh_object_view3d,
+    OBJEX_PT_mesh_object_prop,
 
     # order matters: each socket interface must be registered before its matching socket
     OBJEX_NodeSocketInterface_CombinerOutput,

@@ -23,8 +23,29 @@ from . import node_setup_helpers
 from . import template
 from .logging_util import getLogger
 
-# scene
+def hexify(segment: str):
+    if len(segment) == 0:
+        return ""
 
+    if segment.startswith("0x"):
+        if segment.startswith("0x0"):
+            if segment.endswith("000000"):
+                return segment
+            segment = segment + "000000"
+        else:
+            if not segment.endswith("000000"):
+                segment = segment + "000000"
+            segment = segment[:2] + "0" + segment[2:]
+    else:
+        if len(segment) > 1:
+            return ""
+        segment = "0x0" + segment + "000000"
+    
+    slist = list(segment.upper())
+    slist[1] = 'x'
+    return ''.join(slist)
+
+# scene
 class SavedPoseBone(bpy.types.PropertyGroup):
     bone_name = bpy.props.StringProperty()
     location = bpy.props.FloatVectorProperty(size=3)
@@ -89,8 +110,15 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
         default='menu_mode_texture',
     )
 
-
 # mesh
+def omt_object_name(self, context:bpy.types.Context):
+    object:bpy.types.Object = context.object
+    objex = object.data.objex_bonus
+
+    if objex.type == 'COLLISION' and not object.name.startswith('collision.'):
+        object.name = 'collision.' + object.name
+    if objex.type == 'MESH' and object.name.startswith('collision.'):
+        object.name = object.name[10:]
 
 class ObjexMeshProperties(bpy.types.PropertyGroup):
     priority = bpy.props.IntProperty(
@@ -119,6 +147,14 @@ class ObjexMeshProperties(bpy.types.PropertyGroup):
             description='Billboard type',
             default='NONE'
         )
+    type = bpy.props.EnumProperty(
+        items=[
+            ('MESH', 'Mesh', ''),
+            ('COLLISION', 'Collision', ''),
+        ],
+        default='MESH',
+        update=omt_object_name
+    )
 
 # 421todo copied straight from specs, may want to improve wording / properties names
 for attrib, desc in (
@@ -138,9 +174,7 @@ for attrib, desc in (
             default=False
     ))
 
-
 # armature
-
 class ObjexArmatureExportActionsItem(bpy.types.PropertyGroup):
     action = bpy.props.PointerProperty(
             type=bpy.types.Action,
@@ -148,6 +182,12 @@ class ObjexArmatureExportActionsItem(bpy.types.PropertyGroup):
             description='',
             update=interface.armature_export_actions_change
         )
+
+def omp_armature_segment(self, context):
+    armature:bpy.types.Image = self.id_data
+    segment:str = armature.objex_bonus.segment
+    
+    armature.objex_bonus.segment = hexify(segment)
 
 class ObjexArmatureProperties(bpy.types.PropertyGroup):
     export_all_actions = bpy.props.BoolProperty(
@@ -165,14 +205,13 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
     
     type = bpy.props.EnumProperty(
             items=[
-                ('z64player','z64player','',1),
-                ('z64npc','z64npc','',2),
-                ('z64dummy','z64dummy','',3),
-                ('NONE','','',4)
+                ('z64npc','Flex','',2),
+                ('z64player','Player','',1),
+                ('z64dummy','Dummy','',3),
             ],
             name='Type',
             description='',
-            default='NONE'
+            default='z64npc'
         )
     
     pbody = bpy.props.BoolProperty(
@@ -192,7 +231,8 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
     
     segment = bpy.props.StringProperty(
             name='Segment',
-            description='Hexadecimal'
+            description='Hexadecimal',
+            update=omp_armature_segment
         )
     segment_local = bpy.props.BoolProperty(
             name='Local',
@@ -212,8 +252,19 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
 
     fold_unfold_saved_pose_index = bpy.props.IntProperty()
 
-# material
+def omp_updated_alpha(self, context:bpy.types.Context):
+    material:bpy.types.Material = self.id_data
+    data = material.objex_bonus
+    alpha_value = material.node_tree.nodes["Principled BSDF"].inputs[21]
 
+    alpha_value.default_value = data.collision.alpha
+
+    if data.collision.alpha == 1 or data.collision.alpha == 0:
+        material.blend_method = 'CLIP'
+    else:
+        material.blend_method = 'BLEND'
+
+# material
 class ObjexMaterialCollisionProperties(bpy.types.PropertyGroup):
     WATERBOX = bpy.props.BoolProperty()
     # 421todo WATERBOX properties
@@ -391,6 +442,7 @@ class ObjexMaterialCollisionProperties(bpy.types.PropertyGroup):
             description='Inherit speed from previously stepped-on conveyor surface',
             default=False
         )
+    alpha = bpy.props.FloatProperty(default=1,min=0,max=1,update=omp_updated_alpha)
 
 # ObjexMaterialProperties (omp)
 def omp_change_alpha(self, context):
@@ -474,28 +526,6 @@ def omp_change_texture_filter(self, context):
     else:
         material.node_tree.nodes["OBJEX_Texel0Texture"].interpolation = 'Linear'
         material.node_tree.nodes["OBJEX_Texel1Texture"].interpolation = 'Linear'
-
-def hexify(segment: str):
-    if len(segment) == 0:
-        return ""
-
-    if segment.startswith("0x"):
-        if segment.startswith("0x0"):
-            if segment.endswith("000000"):
-                return segment
-            segment = segment + "000000"
-        else:
-            if not segment.endswith("000000"):
-                segment = segment + "000000"
-            segment = segment[:2] + "0" + segment[2:]
-    else:
-        if len(segment) > 1:
-            return ""
-        segment = "0x0" + segment + "000000"
-    
-    slist = list(segment.upper())
-    slist[1] = 'x'
-    return ''.join(slist)
 
 def omp_change_external_segment(self, context):
     material:bpy.types.Material = self.id_data
@@ -784,7 +814,6 @@ for c in (0,1):
         ))
 
 # images
-
 class ObjexImageProperties(bpy.types.PropertyGroup):
     format = bpy.props.EnumProperty(
             items=[
@@ -852,7 +881,6 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
             name='Bank',
             description='Image data to write instead of this texture, useful for dynamic textures (eyes, windows)'
         )
-
 
 classes = (
     SavedPoseBone,
