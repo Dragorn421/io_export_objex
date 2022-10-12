@@ -111,7 +111,7 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
     )
 
 # mesh
-def omt_object_name(self, context:bpy.types.Context):
+def omp_object_name(self, context:bpy.types.Context):
     object:bpy.types.Object = context.object
     objex = object.data.objex_bonus
 
@@ -153,7 +153,7 @@ class ObjexMeshProperties(bpy.types.PropertyGroup):
             ('COLLISION', 'Collision', ''),
         ],
         default='MESH',
-        update=omt_object_name
+        update=omp_object_name
     )
 
 # 421todo copied straight from specs, may want to improve wording / properties names
@@ -447,13 +447,20 @@ class ObjexMaterialCollisionProperties(bpy.types.PropertyGroup):
 # ObjexMaterialProperties (omp)
 def omp_change_alpha(self, context):
     material = self.id_data
-    material.blend_method = material.objex_bonus.alpha_mode
+    objex:ObjexMaterialProperties = material.objex_bonus
+    material.blend_method = objex.alpha_mode
+
+    if objex.lock_material == False:
+        objex.material_template = objex.alpha_mode
+    
+    if material.blend_method == 'CLIP':
+        material.alpha_threshold = 0.120
 
 def omp_change_shade(self, context):
     material = self.id_data
 
     if material.objex_bonus.shading == 'VERTEX_COLOR':
-        node_setup_helpers.set_shade_source_vertex_colors(material)
+        node_setup_helpers.set_shade_source_vertex_colors_and_alpha(material)
     else:
         node_setup_helpers.set_shade_source_lighting(material)
 
@@ -643,12 +650,12 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     rendermode_blending_cycle0 = bpy.props.EnumProperty(
             items=[
-                ('FOG_PRIM','Fog RGBA','Blend with fog color and alpha (G_RM_FOG_PRIM_A)',1),  # G_BL_CLR_FOG   G_BL_A_FOG     G_BL_CLR_IN    G_BL_1MA
-                ('FOG_SHADE','Fog RGB, shade A','Blend with fog color and shade alpha (shade from combiner cycles) (G_RM_FOG_SHADE_A)',2),  # G_BL_CLR_FOG   G_BL_A_SHADE   G_BL_CLR_IN    G_BL_1MA
-                ('PASS','Pass','Let the input pixel color through unaltered (G_RM_PASS...)',3), # G_BL_CLR_IN    G_BL_0         G_BL_CLR_IN    G_BL_1
-                ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',4), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
-                ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',5), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
-                ('CUSTOM','Custom','Define a custom blending cycle',7),
+                ('FOG_PRIM',  'FOG_PRIM', 'Blend with fog color and alpha (G_RM_FOG_PRIM_A)',1),  # G_BL_CLR_FOG   G_BL_A_FOG     G_BL_CLR_IN    G_BL_1MA
+                ('FOG_SHADE', 'FOG_SHADE','Blend with fog color and shade alpha (shade from combiner cycles) (G_RM_FOG_SHADE_A)',2),  # G_BL_CLR_FOG   G_BL_A_SHADE   G_BL_CLR_IN    G_BL_1MA
+                ('PASS',      'Pass',     'Let the input pixel color through unaltered (G_RM_PASS...)',3), # G_BL_CLR_IN    G_BL_0         G_BL_CLR_IN    G_BL_1
+                ('OPA',       'OPA',      'Blend with the buffer\nCycle settings mainly used with OPA',4), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
+                ('XLU',       'XLU',      'Blend with the buffer\nCycle settings mainly used with XLU',5), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
+                ('CUSTOM',    'Custom',   'Define a custom blending cycle',7),
             ],
             name='Blend1',
             description='First cycle\nHow to blend the pixels being rendered with the frame buffer\nResponsible for at least transparency effects and fog',
@@ -656,9 +663,9 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         )
     rendermode_blending_cycle1 = bpy.props.EnumProperty(
             items=[
-                ('OPA','OPA-like','Blend with the buffer\nCycle settings mainly used with OPA',1), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
-                ('XLU','XLU-like','Blend with the buffer\nCycle settings mainly used with XLU',2), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
-                ('CUSTOM','Custom','Define a custom blending cycle',4),
+                ('OPA',    'OPA',    'Blend with the buffer\nCycle settings mainly used with OPA',1), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
+                ('XLU',    'XLU',    'Blend with the buffer\nCycle settings mainly used with XLU',2), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
+                ('CUSTOM', 'Custom', 'Define a custom blending cycle',4),
             ],
             name='Blend2',
             description='Second cycle\nHow to blend the pixels being rendered with the frame buffer\nResponsible for at least transparency effects and fog',
@@ -769,8 +776,8 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
 
     shading = bpy.props.EnumProperty(
         items=[
-            ('LIGHTING',     'Lighting'     ,''),
-            ('VERTEX_COLOR', 'Vertex Color' ,''),
+            ('LIGHTING',           'Lighting',      'OoT Lighting'),
+            ('VERTEX_COLOR',       'Vertex Color',     'Vertex Color'),
         ],
         name='Shading',
         default='LIGHTING',
@@ -784,7 +791,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         ],
         name='Alpha Mode',
         default='OPAQUE',
-        update=template.material_apply_template
+        update=omp_change_alpha
     )
 
     texture_filter = bpy.props.EnumProperty(
@@ -796,6 +803,22 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         name='Texture Filter',
         default='G_TF_BILERP',
         update=omp_change_texture_filter
+    )
+
+    lock_material = bpy.props.BoolProperty(
+        name='Lock',
+        description='Do not let alpha switching affect these settings'
+    )
+
+    material_template = bpy.props.EnumProperty(
+        items=[
+            ('OPAQUE',     'Opaque',       ''),
+            ('CLIP',       'Clip',         ''),
+            ('BLEND',      'Blend',        ''),
+            ('OPAQUE_XLU', 'Shade Alpha',  ''),
+        ],
+        name='Template',
+        update=template.material_apply_template
     )
 
 # add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B

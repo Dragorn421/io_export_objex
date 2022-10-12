@@ -1243,7 +1243,6 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
         return {'FINISHED'}
 
 class OBJEX_OT_material_init_collision(bpy.types.Operator):
-
     bl_idname = 'objex.material_init_collision'
     bl_label = 'Initialize a material for use on Objex export as collision'
     bl_options = {'INTERNAL', 'UNDO'}
@@ -1577,6 +1576,8 @@ class OBJEX_PT_material(bpy.types.Panel):
             if mode_menu == 'menu_mode_render':
                 sub_box = box.box()
                 
+                sub_box.prop(data, 'lock_material')
+                sub_box.prop(data, 'material_template')
                 sub_box.prop(data, 'texture_filter')
 
                 row = sub_box.row()

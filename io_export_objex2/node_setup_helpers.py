@@ -421,14 +421,22 @@ class OBJEX_OT_material_set_shade_source(bpy.types.Operator):
 def set_shade_source_vertex_colors(material):
     tree = material.node_tree
     shadeNode = tree.nodes['OBJEX_Shade']
-    if hasattr(bpy.types, 'ShaderNodeVertexColor'): # 2.80+
-        vertexColorNode = tree.nodes['Vertex Color']
-        vertexColorSocketColor = vertexColorNode.outputs['Color']
-        vertexColorSocketAlpha = vertexColorNode.outputs['Alpha']
-    else: # < 2.80
-        geometryNode = tree.nodes['Geometry']
-        vertexColorSocketColor = geometryNode.outputs['Vertex Color']
-        vertexColorSocketAlpha = geometryNode.outputs['Vertex Alpha']
+    vertexColorNode = tree.nodes['Vertex Color']
+    vertexColorSocketColor = vertexColorNode.outputs['Color']
+    color1socket = tree.nodes['OBJEX_Color1'].outputs[0]
+
+    clearLinks(tree, shadeNode.inputs['Color'])
+    clearLinks(tree, shadeNode.inputs['Alpha'])
+    tree.links.new(vertexColorSocketColor, shadeNode.inputs['Color'])
+    tree.links.new(color1socket, shadeNode.inputs['Alpha'])
+
+def set_shade_source_vertex_colors_and_alpha(material):
+    tree = material.node_tree
+    shadeNode = tree.nodes['OBJEX_Shade']
+    vertexColorNode = tree.nodes['Vertex Color']
+    vertexColorSocketColor = vertexColorNode.outputs['Color']
+    vertexColorSocketAlpha = vertexColorNode.outputs['Alpha']
+
     clearLinks(tree, shadeNode.inputs['Color'])
     clearLinks(tree, shadeNode.inputs['Alpha'])
     tree.links.new(vertexColorSocketColor, shadeNode.inputs['Color'])
@@ -437,9 +445,10 @@ def set_shade_source_vertex_colors(material):
 def set_shade_source_lighting(material):
     tree = material.node_tree
     shadeNode = tree.nodes['OBJEX_Shade']
+    color1socket = tree.nodes['OBJEX_Color1'].outputs[0]
+
     clearLinks(tree, shadeNode.inputs['Color'])
     clearLinks(tree, shadeNode.inputs['Alpha'])
-    color1socket = tree.nodes['OBJEX_Color1'].outputs[0]
     tree.links.new(color1socket, shadeNode.inputs['Color'])
     tree.links.new(color1socket, shadeNode.inputs['Alpha'])
 
