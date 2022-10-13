@@ -1576,8 +1576,12 @@ class OBJEX_PT_material(bpy.types.Panel):
             if mode_menu == 'menu_mode_render':
                 sub_box = box.box()
                 
-                sub_box.prop(data, 'lock_material')
-                sub_box.prop(data, 'material_template')
+                row = sub_box.row()
+                if data.lock_material == True:
+                    row.prop(data, 'lock_material', icon='LOCKED')
+                else:
+                    row.prop(data, 'lock_material', icon='UNLOCKED')
+                row.operator('objex.material_material', text='Template')
                 sub_box.prop(data, 'texture_filter')
 
                 row = sub_box.row()
@@ -1679,6 +1683,9 @@ class OBJEX_PT_material(bpy.types.Panel):
                 box.operator('objex.set_pixels_along_uv_from_image_dimensions', text='Fix clamping')
             elif mode_menu == 'menu_mode_combiner':
                 sub_box = box.box()
+
+                sub_box.operator('objex.material_combiner', text='Template')
+
                 sub_box.label(text='Color')
                 cc0 = material.node_tree.nodes["OBJEX_ColorCycle0"]
                 cc1 = material.node_tree.nodes["OBJEX_ColorCycle1"]

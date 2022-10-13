@@ -16,8 +16,8 @@
 import bpy
 
 from . import interface
-
 from . import blender_version_compatibility
+from . import template
 
 def clearLinks(tree, socket):
     while socket.links:
@@ -60,6 +60,72 @@ def setLinks_multiply_by(tree, colorSocket, alphaSocket, multiply_by):
         else: # 2.80+
             tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Color'], colorSocket)
             tree.links.new(tree.nodes['OBJEX_PrimColor'].outputs['Alpha'], alphaSocket)
+
+class OBJEX_OT_material_combiner(bpy.types.Operator):
+    bl_idname = 'objex.material_combiner'
+    bl_label = 'Setup Combiner Template'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    template_enum = bpy.props.EnumProperty(
+        items=[
+            ('DEFAULT',     'Default (Texel0, Prim, Shade)',            '', 'SHADING_RENDERED', 0),
+            ('DEFAULT_ENV', 'Default (Texel0, Env, Shade)',             '', 'SHADING_RENDERED', 1),
+            ('MIX',         'Mix (Texel0, Texel1, Prim, Shade)',        '', 'XRAY',             2),
+            ('MIX_ENV',     'Mix (Texel0, Texel1, Env, Shade)',         '', 'XRAY',             3),
+            ('MULT',        'Multiply (Texel0, Texel1, Shade)',         '', 'SELECT_EXTEND',    4),
+            ('FLAME_TEXEL', 'Flame (Texel0, Texel1, Prim, Env, Shade)', '', 'OUTLINER_OB_FORCE_FIELD', 59),
+        ],
+        default='DEFAULT',
+        name='txt'
+    )
+
+    def draw(self, context):
+        box = self.layout.box()
+        box.prop_tabs_enum(self, 'template_enum')
+
+    @classmethod
+    def poll(self, context):
+        material = context.material if hasattr(context, 'material') else None
+        return material and material.objex_bonus.is_objex_material and material.objex_bonus.use_display
+    
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+    
+    def execute(self, context):
+        template.combiner_apply_template(self.template_enum, context.material)
+        return {'FINISHED'}
+
+class OBJEX_OT_material_material(bpy.types.Operator):
+    bl_idname = 'objex.material_material'
+    bl_label = 'Setup Material Template'
+    bl_options = {'REGISTER', 'UNDO'}
+
+    template_enum = bpy.props.EnumProperty(
+        items=[
+            ('OPAQUE',     'OPAQUE',     ''),
+            ('CLIP',       'CLIP',       ''),
+            ('BLEND',      'BLEND',      ''),
+            ('OPAQUE_XLU', 'OPAQUE_XLU', ''),
+        ],
+        default='OPAQUE',
+        name='txt'
+    )
+
+    def draw(self, context):
+        box = self.layout.box()
+        box.prop_tabs_enum(self, 'template_enum')
+
+    @classmethod
+    def poll(self, context):
+        material = context.material if hasattr(context, 'material') else None
+        return material and material.objex_bonus.is_objex_material and material.objex_bonus.use_display
+    
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+    
+    def execute(self, context):
+        template.material_apply_template(self.template_enum, context.material)
+        return {'FINISHED'}
 
 class OBJEX_OT_material_single_texture(bpy.types.Operator):
 
@@ -495,6 +561,8 @@ class OBJEX_OT_material_set_shade_source_lighting(bpy.types.Operator):
         return {'FINISHED'}
 
 classes = (
+    OBJEX_OT_material_combiner,
+    OBJEX_OT_material_material,
     OBJEX_OT_material_single_texture,
     OBJEX_OT_material_multitexture,
     OBJEX_OT_material_flat_color,

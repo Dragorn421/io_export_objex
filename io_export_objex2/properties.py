@@ -13,15 +13,14 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this objex2 addon.  If not, see <https://www.gnu.org/licenses/>.
 
-from textwrap import wrap
 from . import blender_version_compatibility
 
 import bpy
 
 from . import interface
 from . import node_setup_helpers
-from . import template
 from .logging_util import getLogger
+from . import template
 
 def hexify(segment: str):
     if len(segment) == 0:
@@ -451,7 +450,7 @@ def omp_change_alpha(self, context):
     material.blend_method = objex.alpha_mode
 
     if objex.lock_material == False:
-        objex.material_template = objex.alpha_mode
+        template.material_apply_template(objex.alpha_mode, material)
     
     if material.blend_method == 'CLIP':
         material.alpha_threshold = 0.120
@@ -808,17 +807,6 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     lock_material = bpy.props.BoolProperty(
         name='Lock',
         description='Do not let alpha switching affect these settings'
-    )
-
-    material_template = bpy.props.EnumProperty(
-        items=[
-            ('OPAQUE',     'Opaque',       ''),
-            ('CLIP',       'Clip',         ''),
-            ('BLEND',      'Blend',        ''),
-            ('OPAQUE_XLU', 'Shade Alpha',  ''),
-        ],
-        name='Template',
-        update=template.material_apply_template
     )
 
 # add rendermode_blending_cycle%d_custom_%s properties to ObjexMaterialProperties for each cycle 0,1 and each variable P,A,M,B
