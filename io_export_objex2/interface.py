@@ -1489,10 +1489,6 @@ class OBJEX_PT_material(bpy.types.Panel):
 
             draw_build_nodes_operator(shared_row, 'Reset nodes', init=True, reset=True)
             draw_build_nodes_operator(shared_row, 'Fix nodes')
-            shared_row = box.row()
-            shared_row.operator('objex.material_single_texture', text='Single Texture')
-            shared_row.operator('objex.material_multitexture', text='Multitexture')
-            shared_row.operator('objex.material_flat_color', text='Flat Color')
 
             scene = context.scene
             sub_box = box.box()

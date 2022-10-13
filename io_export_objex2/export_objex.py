@@ -302,9 +302,9 @@ class ObjexWriter():
                                 '(move the triangulate modifier up, or check export options)')
                     else:
                         notes.append('mesh has no triangulate modifier')
-                    log.warning('Mesh {} is not triangulated and will be triangulated automatically (for exporting only).\n'
-                        'Preview accuracy (UVs, shading, vertex colors) is improved by using a triangulated mesh.'
-                        '{}', ob.name, ''.join('\nNote: %s' % note for note in notes))
+                    # log.warning('Mesh {} is not triangulated and will be triangulated automatically (for exporting only).\n'
+                    #     'Preview accuracy (UVs, shading, vertex colors) is improved by using a triangulated mesh.'
+                    #     '{}', ob.name, ''.join('\nNote: %s' % note for note in notes))
                     # _must_ do this first since it re-allocs arrays
                     mesh_triangulate(me)
                 else:
