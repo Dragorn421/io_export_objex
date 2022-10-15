@@ -106,6 +106,27 @@ COMBINER_TEMPLATES = {
         'input_flags_A_C_1': ( 'OBJEX_AlphaCycle1', 'C', 'G_ACMUX_SHADE' ),
         'input_flags_A_D_1': ( 'OBJEX_AlphaCycle1', 'D', 'G_ACMUX_0' ),
     },
+    'LIGHTED': {
+        'input_flags_C_A_0': ( 'OBJEX_ColorCycle0', 'A', 'G_CCMUX_TEXEL0' ),
+        'input_flags_C_B_0': ( 'OBJEX_ColorCycle0', 'B', 'G_CCMUX_0' ),
+        'input_flags_C_C_0': ( 'OBJEX_ColorCycle0', 'C', 'G_CCMUX_PRIMITIVE' ),
+        'input_flags_C_D_0': ( 'OBJEX_ColorCycle0', 'D', 'G_CCMUX_0' ),
+
+        'input_flags_C_A_1': ( 'OBJEX_ColorCycle1', 'A', 'G_CCMUX_COMBINED' ),
+        'input_flags_C_B_1': ( 'OBJEX_ColorCycle1', 'B', 'G_CCMUX_0' ),
+        'input_flags_C_C_1': ( 'OBJEX_ColorCycle1', 'C', 'G_CCMUX_SHADE' ),
+        'input_flags_C_D_1': ( 'OBJEX_ColorCycle1', 'D', 'G_CCMUX_0' ),
+
+        'input_flags_A_A_0': ( 'OBJEX_AlphaCycle0', 'A', 'G_ACMUX_TEXEL0' ),
+        'input_flags_A_B_0': ( 'OBJEX_AlphaCycle0', 'B', 'G_ACMUX_0' ),
+        'input_flags_A_C_0': ( 'OBJEX_AlphaCycle0', 'C', 'G_ACMUX_PRIMITIVE' ),
+        'input_flags_A_D_0': ( 'OBJEX_AlphaCycle0', 'D', 'G_ACMUX_0' ),
+
+        'input_flags_A_A_1': ( 'OBJEX_AlphaCycle1', 'A', 'G_ACMUX_0' ),
+        'input_flags_A_B_1': ( 'OBJEX_AlphaCycle1', 'B', 'G_ACMUX_0' ),
+        'input_flags_A_C_1': ( 'OBJEX_AlphaCycle1', 'C', 'G_ACMUX_0' ),
+        'input_flags_A_D_1': ( 'OBJEX_AlphaCycle1', 'D', 'G_ACMUX_COMBINED' ),
+    },
     'FLAME_TEXEL': {
         'input_flags_C_A_0': ( 'OBJEX_ColorCycle0', 'A', 'G_CCMUX_TEXEL1' ),
         'input_flags_C_B_0': ( 'OBJEX_ColorCycle0', 'B', 'G_CCMUX_PRIMITIVE' ),

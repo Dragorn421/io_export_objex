@@ -72,6 +72,7 @@ class OBJEX_OT_material_combiner(bpy.types.Operator):
             ('DEFAULT_ENV', 'Default (Texel0, Env, Shade)',             '', 'SHADING_RENDERED', 1),
             ('MIX',         'Mix (Texel0, Texel1, Prim, Shade)',        '', 'XRAY',             2),
             ('MIX_ENV',     'Mix (Texel0, Texel1, Env, Shade)',         '', 'XRAY',             3),
+            ('LIGHTED',     'Default (Texel0, Prim, Shade Color',       '', 'SHADING_RENDERED', 5),
             ('MULT',        'Multiply (Texel0, Texel1, Shade)',         '', 'SELECT_EXTEND',    4),
             ('FLAME_TEXEL', 'Flame (Texel0, Texel1, Prim, Env, Shade)', '', 'OUTLINER_OB_FORCE_FIELD', 59),
         ],

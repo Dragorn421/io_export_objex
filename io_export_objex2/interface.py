@@ -910,6 +910,7 @@ class OBJEX_OT_material_build_nodes(bpy.types.Operator):
         # exporting to distinguish opaque and translucent geometry
         #material.use_transparency = True # < 2.80
         material.use_nodes = True
+        material.preview_render_type = 'FLAT'
         update_node_groups()
         node_tree = material.node_tree
         nodes = node_tree.nodes

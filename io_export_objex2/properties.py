@@ -445,9 +445,11 @@ class ObjexMaterialCollisionProperties(bpy.types.PropertyGroup):
 
 # ObjexMaterialProperties (omp)
 def omp_change_alpha(self, context):
-    material = self.id_data
+    material:bpy.types.Material = self.id_data
     objex:ObjexMaterialProperties = material.objex_bonus
     material.blend_method = objex.alpha_mode
+
+    material.preview_render_type = 'FLAT'
 
     if objex.lock_material == False:
         template.material_apply_template(objex.alpha_mode, material)
@@ -458,6 +460,8 @@ def omp_change_alpha(self, context):
 def omp_change_shade(self, context):
     material = self.id_data
 
+    material.preview_render_type = 'FLAT'
+
     if material.objex_bonus.shading == 'VERTEX_COLOR':
         node_setup_helpers.set_shade_source_vertex_colors_and_alpha(material)
     else:
@@ -467,6 +471,8 @@ def omp_change_texture_u_0(self, context):
     material:bpy.types.Material = self.id_data
     wrap   = material.node_tree.nodes["OBJEX_TransformUV0"].inputs[3]
     mirror = material.node_tree.nodes["OBJEX_TransformUV0"].inputs[5]
+
+    material.preview_render_type = 'FLAT'
 
     setattr(wrap, 'default_value', False)
     setattr(mirror, 'default_value', False)
@@ -482,6 +488,8 @@ def omp_change_texture_u_1(self, context):
     material:bpy.types.Material = self.id_data
     wrap   = material.node_tree.nodes["OBJEX_TransformUV1"].inputs[3]
     mirror = material.node_tree.nodes["OBJEX_TransformUV1"].inputs[5]
+
+    material.preview_render_type = 'FLAT'
 
     setattr(wrap, 'default_value', False)
     setattr(mirror, 'default_value', False)
