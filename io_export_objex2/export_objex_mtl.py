@@ -725,7 +725,8 @@ count  P              A              M              B            comment
                 for flag, set_flag in (
                     ('G_SHADE', shadingType is not None),
                     ('G_SHADING_SMOOTH', objex_data.geometrymode_G_SHADING_SMOOTH),
-                    ('G_CULL_FRONT', objex_data.frontface_culling),
+                    ('G_LIGHTING_POSITIONAL', objex_data.geometrymode_G_LIGHTING_POSITIONAL),
+                    ('G_CULL_FRONT', False),
                     ('G_CULL_BACK', objex_data.backface_culling),
                     ('G_ZBUFFER', objex_data.geometrymode_G_ZBUFFER),
                     ('G_TEXTURE_GEN', 'uv_main' in data and data['uv_main']['texgen']),

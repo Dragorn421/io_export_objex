@@ -1596,7 +1596,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 row = sub_box.row()
                 row.prop(data, 'geometrymode_G_SHADING_SMOOTH')
                 row.prop(data, 'rendermode_forceblending')
-                row.label(text="")
+                row.prop(data, 'geometrymode_G_LIGHTING_POSITIONAL')
 
                 sub_box.row().prop(data, 'rendermode_blender_flag_CVG_DST_', expand=True)
                 sub_box.row().prop(data, 'rendermode_zmode', expand=True)

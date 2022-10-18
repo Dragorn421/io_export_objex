@@ -738,7 +738,10 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
         description='G_SHADING_SMOOTH\n' 'Enable smooth shading (vertex colors, lighting)',
         default=True
     )
-    
+    geometrymode_G_LIGHTING_POSITIONAL = bpy.props.BoolProperty(
+        name='Point Lighting'
+    )
+
     texture_u_0 = bpy.props.EnumProperty(
         items=[
             ('WRAP',   'Wrap'   ,'', 'TEXTURE', 0),
