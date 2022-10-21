@@ -206,8 +206,7 @@ class OBJEX_UL_actions(bpy.types.UIList):
         else:
             layout.prop(item, 'action', text='')
 
-def menu_draw_armature(self:bpy.types.Panel, context:bpy.types.Context, armature:bpy.types.Armature):
-    object = context.object
+def menu_draw_armature(self:bpy.types.Panel, armature:bpy.types.Armature):
     data = armature.objex_bonus
     # actions
 
@@ -271,7 +270,7 @@ class OBJEX_PT_armature_prop(bpy.types.Panel):
         return armature is not None
     
     def draw(self, context):
-        menu_draw_armature(self, context, context.armature)
+        menu_draw_armature(self, context.armature)
 
 class OBJEX_PT_armature_view3d(bpy.types.Panel):
     bl_category = "Objex"
@@ -280,14 +279,20 @@ class OBJEX_PT_armature_view3d(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_context = '.objectmode'
     
+    @staticmethod
+    def get_armature_object(context):
+        if context.object is not None:
+            if context.object.type == "ARMATURE":
+                return context.object
+            return context.object.find_armature()
+        return None
+
     @classmethod
     def poll(self, context:bpy.types.Context):
-        if context.object.find_armature():
-            return True
-        return False
+        return OBJEX_PT_armature_view3d.get_armature_object(context) is not None
     
     def draw(self, context):
-        menu_draw_armature(self, context, context.object.find_armature().data)
+        menu_draw_armature(self, OBJEX_PT_armature_view3d.get_armature_object(context).data)
 
 # material
 
