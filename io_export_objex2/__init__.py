@@ -565,9 +565,15 @@ def register():
     node_setup_helpers.register()
     view3d_copybuffer_patch.register()
 
+    from . import export_objex_anim
+    bpy.utils.register_class(export_objex_anim.OBJEX_OT_export_link_anim_bin)
+
 
 # reverse register() order
 def unregister():
+    from . import export_objex_anim
+    bpy.utils.unregister_class(export_objex_anim.OBJEX_OT_export_link_anim_bin)
+
     view3d_copybuffer_patch.unregister()
     node_setup_helpers.unregister()
     interface.unregister_interface()
