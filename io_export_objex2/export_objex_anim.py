@@ -171,7 +171,7 @@ def write_animations(file_write_anim, scene, global_matrix, object_transform, ar
 
         link_anim_file = None
         if link_anim_basepath is not None:
-            link_anim_filename = link_anim_basepath + ''.join(c for c in action.name if c.isalnum()) + '_' + str(frame_count) + '.bin'
+            link_anim_filename = link_anim_basepath + action.name + '.bin'
             link_anim_file = open(link_anim_filename, 'wb')
 
         try:
@@ -297,32 +297,17 @@ def write_action(fw, scene, global_matrix, object_transform, armature, root_bone
                 texanimvalue |= (i+1) << 4
             link_anim_file.write(texanimvalue.to_bytes(2, byteorder='big'))
 
-
-
-
-from bpy_extras.io_utils import orientation_helper, axis_conversion, ExportHelper
+from bpy_extras.io_utils import orientation_helper, axis_conversion
+import os
 
 @orientation_helper(axis_forward='-Z', axis_up="Y")
-class OBJEX_OT_export_link_anim_bin(bpy.types.Operator, ExportHelper):
+class OBJEX_OT_export_link_anim_bin(bpy.types.Operator):
     bl_idname = 'objex.export_link_anim_bin'
     bl_label = 'Export Link anim bin'
     bl_options = {'PRESET'}
 
-    filename_ext = '.bin'
-    filter_glob: bpy.props.StringProperty(
-            default='*.bin',
-            options={'HIDDEN'},
-            )
-
-    link_bin_scale: bpy.props.IntProperty(
-        default=1, # ?
-        name = "Link Scale",
-    )
-
     def execute(self, context):
-        global_matrix = axis_conversion(to_forward=self.axis_forward,
-                                         to_up=self.axis_up,
-                                         ).to_4x4()
+        global_matrix = axis_conversion(to_forward=self.axis_forward, to_up=self.axis_up,).to_4x4()
         if context.object.type == "ARMATURE":
             armature = context.object
         else:
@@ -332,9 +317,9 @@ class OBJEX_OT_export_link_anim_bin(bpy.types.Operator, ExportHelper):
         armature_name_q = '"armature"' # whatever
         object_transform = armature.matrix_world
         actions = list(bpy.data.actions) # todo?
-        link_anim_basepath = self.filepath.removesuffix(".bin") + "_"
-        link_bin_scale = self.link_bin_scale
+        file_path = bpy.path.abspath(armature.data.objex_bonus.anim_filepath)
+        print(file_path)
         def noop(*args, **kwargs):
             pass
-        write_armatures(noop, noop, context.scene, global_matrix, [(armature_name_q, armature, object_transform, actions)], link_anim_basepath, link_bin_scale)
+        write_armatures(noop, noop, context.scene, global_matrix, [(armature_name_q, armature, object_transform, actions)], file_path, 1000)
         return {"FINISHED"}

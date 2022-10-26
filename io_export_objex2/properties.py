@@ -154,7 +154,7 @@ class ObjexMeshProperties(bpy.types.PropertyGroup):
         default='MESH',
         update=omp_object_name
     )
-
+    
 # 421todo copied straight from specs, may want to improve wording / properties names
 for attrib, desc in (
     ('LIMBMTX', 'include explicit limb matrix at start of Dlist'),
@@ -250,6 +250,11 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
     )
 
     fold_unfold_saved_pose_index = bpy.props.IntProperty()
+
+    anim_filepath = bpy.props.StringProperty(
+        name='Path',
+        subtype="FILE_PATH"
+    )
 
 def omp_updated_alpha(self, context:bpy.types.Context):
     material:bpy.types.Material = self.id_data

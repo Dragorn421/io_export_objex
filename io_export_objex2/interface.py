@@ -259,7 +259,13 @@ def menu_draw_armature(self:bpy.types.Panel, armature:bpy.types.Armature):
     sub_box.prop(data, 'segment_local')
 
     if data.type == "z64player":
-        box.operator("objex.export_link_anim_bin")
+        box.prop(data, "anim_filepath")
+        row = box.row()
+
+        if data.anim_filepath == "":
+            row.enabled = False
+
+        row.operator("objex.export_link_anim_bin")
 
 class OBJEX_PT_armature_prop(bpy.types.Panel):
     bl_label = 'Objex'
