@@ -352,6 +352,21 @@ class OBJEX_OT_import_link_anim_bin(bpy.types.Operator):
             'fk_09', 'fk_10', 'fk_11', 'fk_12', 'fk_13', 'fk_14', 'fk_15', 'fk_16', 'fk_17',
             'fk_18', 'fk_19', 'fk_20'
         ]
+        ik_bone = {
+            'Control.HeadIK':      'fk_head',      
+            'Control.Root':        'fk_root',      
+            'Control.Sheath':      'fk_sheath',    
+
+            'Control.Arm.IK.L':    'fk_15',        
+            'Control.Arm.IK.R':    'fk_R_Hand',    
+            'Arm.Pole.L':          'fk.arm.pole.R',
+            'Arm.Pole.R':          'fk.arm.pole.L',
+
+            'Leg.IK.L':            'fk_L_leg',     
+            'Leg.IK.R':            'fk_R_leg',     
+            'Control.Leg.Pole.L':  'fk.leg.pole.L',
+            'Control.Leg.Pole.R':  'fk.leg.pole.R',
+        }
 
         if context.object.type == "ARMATURE":
             armature = context.object
@@ -366,13 +381,18 @@ class OBJEX_OT_import_link_anim_bin(bpy.types.Operator):
         axis_count = (21 + 1) * 3 + 1
         frame_size = axis_count * 2
         frame_num = int(size / frame_size)
-
         frame_data = struct.unpack('>'+'h' * int(size / 2), data)
+        anim_name = name=Path(file).stem
 
-        new_action = bpy.data.actions.new(name=Path(file).stem)
         if armature.animation_data is None:
             armature.animation_data_create()
-        armature.animation_data.action = new_action
+        
+        if anim_name in bpy.data.actions:
+            action = bpy.data.actions[anim_name]
+        else:
+            action = bpy.data.actions.new(anim_name)
+
+        armature.animation_data.action = action
 
         for i in range(frame_num):
             frame = frame_data[axis_count * i:]
@@ -380,7 +400,7 @@ class OBJEX_OT_import_link_anim_bin(bpy.types.Operator):
             armature.pose.bones[bone_name[0]].location[0] = frame[0] / 1000
             armature.pose.bones[bone_name[0]].location[1] = frame[1] / 1000
             armature.pose.bones[bone_name[0]].location[2] = frame[2] / 1000
-            armature.pose.bones[bone_name[0]].keyframe_insert(data_path='location', frame=i)
+            # armature.pose.bones[bone_name[0]].keyframe_insert(data_path='location', frame=i)
 
             for j in range(21):
                 bone = armature.pose.bones[bone_name[j]]
@@ -393,7 +413,29 @@ class OBJEX_OT_import_link_anim_bin(bpy.types.Operator):
                 print(hex(frame[3 + j * 3]))
                 print(hex(frame[3 + j * 3 + 1]))
                 print(hex(frame[3 + j * 3 + 2]))
-                bone.keyframe_insert(data_path='rotation_euler', frame=i)
-            
+                # bone.keyframe_insert(data_path='rotation_euler', frame=i)
+        
+            for name_control, name_source in ik_bone.items():
+                context_copy = context.copy()
+                bone_control = armature.pose.bones[name_control]
+                bone_source = armature.pose.bones[name_source]
+
+                # 6Heads Hacks
+                context_copy['active_pose_bone'] = bone_control 
+                context_copy['active_object'] = armature
+                context_copy['object'] = armature
+
+                constraint:bpy.types.CopyTransformsConstraint = bone_control.constraints.new(type='COPY_TRANSFORMS')
+                constraint.target = armature
+                constraint.subtarget = bone_source.name
+
+                bpy.ops.constraint.apply(
+                    context_copy,
+                    constraint=constraint.name, 
+                    owner='BONE'
+                    )
+                bone_control.keyframe_insert(data_path='location', frame=i)
+                bone_control.keyframe_insert(data_path='rotation_quaternion', frame=i)
+
 
         return {"FINISHED"}

@@ -270,10 +270,8 @@ def menu_draw_armature(self:bpy.types.Panel, armature:bpy.types.Armature):
         box.prop(data, "anim_filepath", text='Output')
 
         row = box.row()
-
         if data.src_bin_anim_filepath == "":
             row.enabled = False
-
         row.operator("objex.import_link_anim_bin")
         box.prop(data, "src_bin_anim_filepath", text='Input')
 
@@ -312,6 +310,28 @@ class OBJEX_PT_armature_view3d(bpy.types.Panel):
     
     def draw(self, context):
         menu_draw_armature(self, OBJEX_PT_armature_view3d.get_armature_object(context).data)
+
+class OBJEX_PT_armature_posemode(bpy.types.Panel):
+    bl_category = "Objex"
+    bl_label = 'Skeleton'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_context = '.posemode'
+    
+    @staticmethod
+    def get_armature_object(context):
+        if context.object is not None:
+            if context.object.type == "ARMATURE":
+                return context.object
+            return context.object.find_armature()
+        return None
+
+    @classmethod
+    def poll(self, context:bpy.types.Context):
+        return OBJEX_PT_armature_posemode.get_armature_object(context) is not None
+    
+    def draw(self, context):
+        menu_draw_armature(self, OBJEX_PT_armature_posemode.get_armature_object(context).data)
 
 # material
 
@@ -1797,6 +1817,7 @@ classes = (
     OBJEX_UL_actions,
     OBJEX_PT_armature_prop,
     OBJEX_PT_armature_view3d,
+    OBJEX_PT_armature_posemode,
     OBJEX_PT_mesh_object_view3d,
     OBJEX_PT_mesh_object_prop,
 
