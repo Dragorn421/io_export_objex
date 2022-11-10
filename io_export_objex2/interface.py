@@ -166,7 +166,7 @@ class OBJEX_PT_mesh_object_view3d(bpy.types.Panel):
     @classmethod
     def poll(self, context):
         object = context.object
-        return object.type == 'MESH'
+        return object != None and object.type == 'MESH'
 
 class OBJEX_PT_mesh_object_prop(bpy.types.Panel):
     bl_label = 'Objex'
@@ -259,13 +259,23 @@ def menu_draw_armature(self:bpy.types.Panel, armature:bpy.types.Armature):
     sub_box.prop(data, 'segment_local')
 
     if data.type == "z64player":
-        box.prop(data, "anim_filepath")
+        box = box.box()
+
         row = box.row()
 
         if data.anim_filepath == "":
             row.enabled = False
 
         row.operator("objex.export_link_anim_bin")
+        box.prop(data, "anim_filepath", text='Output')
+
+        row = box.row()
+
+        if data.src_bin_anim_filepath == "":
+            row.enabled = False
+
+        row.operator("objex.import_link_anim_bin")
+        box.prop(data, "src_bin_anim_filepath", text='Input')
 
 class OBJEX_PT_armature_prop(bpy.types.Panel):
     bl_label = 'Objex'

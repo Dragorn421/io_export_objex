@@ -256,6 +256,11 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
         subtype="FILE_PATH"
     )
 
+    src_bin_anim_filepath = bpy.props.StringProperty(
+        name='Path',
+        subtype="FILE_PATH"
+    )
+
 def omp_updated_alpha(self, context:bpy.types.Context):
     material:bpy.types.Material = self.id_data
     data = material.objex_bonus

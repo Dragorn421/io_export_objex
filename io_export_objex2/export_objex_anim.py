@@ -323,3 +323,77 @@ class OBJEX_OT_export_link_anim_bin(bpy.types.Operator):
             pass
         write_armatures(noop, noop, context.scene, global_matrix, [(armature_name_q, armature, object_transform, actions)], file_path, 1000)
         return {"FINISHED"}
+
+import struct
+from pathlib import Path
+
+@orientation_helper(axis_forward='-Z', axis_up="Y")
+class OBJEX_OT_import_link_anim_bin(bpy.types.Operator):
+    bl_idname = 'objex.import_link_anim_bin'
+    bl_label = 'Import Link anim bin'
+    bl_options = {'PRESET'}
+
+    def read_file(self, file) -> bytes:
+        data_file = open(file, "rb")
+        data = data_file.read()
+        data_file.close()
+        return data
+    
+    def read_file_size(self, file) -> int:
+        data_stat = os.stat(file)
+        return data_stat.st_size
+
+    def binang_to_rad(self, rot):
+        return rot * (math.pi / 0x8000)
+
+    def execute(self, context):
+        bone_name = [
+            'fk_00', 'fk_01', 'fk_02', 'fk_03', 'fk_04', 'fk_05', 'fk_06', 'fk_07', 'fk_08',
+            'fk_09', 'fk_10', 'fk_11', 'fk_12', 'fk_13', 'fk_14', 'fk_15', 'fk_16', 'fk_17',
+            'fk_18', 'fk_19', 'fk_20'
+        ]
+
+        if context.object.type == "ARMATURE":
+            armature = context.object
+        else:
+            armature = context.object.find_armature()
+
+        file = bpy.path.abspath(armature.data.objex_bonus.src_bin_anim_filepath)
+        data:bytes = self.read_file(file)
+        size:int = self.read_file_size(file)
+        # (rot + trans) * axis * sizeof(s16) + sizeof(s16)
+        #                                      face anims
+        axis_count = (21 + 1) * 3 + 1
+        frame_size = axis_count * 2
+        frame_num = int(size / frame_size)
+
+        frame_data = struct.unpack('>'+'h' * int(size / 2), data)
+
+        new_action = bpy.data.actions.new(name=Path(file).stem)
+        if armature.animation_data is None:
+            armature.animation_data_create()
+        armature.animation_data.action = new_action
+
+        for i in range(frame_num):
+            frame = frame_data[axis_count * i:]
+
+            armature.pose.bones[bone_name[0]].location[0] = frame[0] / 1000
+            armature.pose.bones[bone_name[0]].location[1] = frame[1] / 1000
+            armature.pose.bones[bone_name[0]].location[2] = frame[2] / 1000
+            armature.pose.bones[bone_name[0]].keyframe_insert(data_path='location', frame=i)
+
+            for j in range(21):
+                bone = armature.pose.bones[bone_name[j]]
+
+                bone.rotation_mode = 'XYZ'
+                bone.rotation_euler[0] = self.binang_to_rad(frame[3 + j * 3])
+                bone.rotation_euler[1] = self.binang_to_rad(frame[3 + j * 3 + 1])
+                bone.rotation_euler[2] = self.binang_to_rad(frame[3 + j * 3 + 2])
+                # bpy.data.objects["import_armature"].pose.bones["fk.arm.pole.L"].rotation_euler[0]
+                print(hex(frame[3 + j * 3]))
+                print(hex(frame[3 + j * 3 + 1]))
+                print(hex(frame[3 + j * 3 + 2]))
+                bone.keyframe_insert(data_path='rotation_euler', frame=i)
+            
+
+        return {"FINISHED"}
