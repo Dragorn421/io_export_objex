@@ -400,7 +400,6 @@ class OBJEX_OT_import_link_anim_bin(bpy.types.Operator):
             armature.pose.bones[bone_name[0]].location[0] = frame[0] / 1000
             armature.pose.bones[bone_name[0]].location[1] = frame[1] / 1000
             armature.pose.bones[bone_name[0]].location[2] = frame[2] / 1000
-            # armature.pose.bones[bone_name[0]].keyframe_insert(data_path='location', frame=i)
 
             for j in range(21):
                 bone = armature.pose.bones[bone_name[j]]
@@ -409,33 +408,37 @@ class OBJEX_OT_import_link_anim_bin(bpy.types.Operator):
                 bone.rotation_euler[0] = self.binang_to_rad(frame[3 + j * 3])
                 bone.rotation_euler[1] = self.binang_to_rad(frame[3 + j * 3 + 1])
                 bone.rotation_euler[2] = self.binang_to_rad(frame[3 + j * 3 + 2])
-                # bpy.data.objects["import_armature"].pose.bones["fk.arm.pole.L"].rotation_euler[0]
-                print(hex(frame[3 + j * 3]))
-                print(hex(frame[3 + j * 3 + 1]))
-                print(hex(frame[3 + j * 3 + 2]))
-                # bone.keyframe_insert(data_path='rotation_euler', frame=i)
+            
+            eye_bone = armature.pose.bones['Eyes']
+            mouth_bone = armature.pose.bones['Mouth']
+
+            eye_bone.location[0] = -((frame[(21 + 1) * 3] & 0xF) - 1)
+            mouth_bone.location[0] = -((frame[(21 + 1) * 3] >> 4) - 1)
+            eye_bone.keyframe_insert(data_path='location', frame=i, group='Eye')
+            mouth_bone.keyframe_insert(data_path='location', frame=i, group='Mouth')
         
             for name_control, name_source in ik_bone.items():
-                context_copy = context.copy()
                 bone_control = armature.pose.bones[name_control]
                 bone_source = armature.pose.bones[name_source]
-
-                # 6Heads Hacks
-                context_copy['active_pose_bone'] = bone_control 
-                context_copy['active_object'] = armature
-                context_copy['object'] = armature
 
                 constraint:bpy.types.CopyTransformsConstraint = bone_control.constraints.new(type='COPY_TRANSFORMS')
                 constraint.target = armature
                 constraint.subtarget = bone_source.name
 
+                # 5Head Hacks
+                context_copy = context.copy()
+                context_copy['active_pose_bone'] = bone_control 
+                context_copy['active_object'] = armature
+                context_copy['object'] = armature
+
                 bpy.ops.constraint.apply(
                     context_copy,
                     constraint=constraint.name, 
                     owner='BONE'
-                    )
-                bone_control.keyframe_insert(data_path='location', frame=i)
-                bone_control.keyframe_insert(data_path='rotation_quaternion', frame=i)
-
+                )
+                bone_control.keyframe_insert(data_path='location', frame=i, group=name_control)
+                bone_control.keyframe_insert(data_path='rotation_quaternion', frame=i, group=name_control)
+        
+        # bpy.ops.action.clean(context_copy, channels=True)
 
         return {"FINISHED"}
