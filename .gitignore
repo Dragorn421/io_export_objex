@@ -1,6 +1,6 @@
 __pycache__
-io_export_objex2/io_export_objex2_updater/
 .directory
 *.blend1
 *.json
-Makefile
+.tmp
+*.zip
