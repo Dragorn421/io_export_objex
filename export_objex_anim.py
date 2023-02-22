@@ -166,7 +166,12 @@ def write_animations(file_write_anim, scene, global_matrix, object_transform, ar
         if data.start_frame_clamp == True:
             if frame_start < data.start_frame_clamp_value:
                 frame_start = data.start_frame_clamp_value
+        
         frame_count = int(frame_end - frame_start + 1)
+
+        if data.end_frame_minus == True:
+            frame_count = frame_count - data.end_frame_minus_value
+
         fw('newanim %s %s %d\n' % (armature_name_q, util.quote(action.name), frame_count))
 
         link_anim_file = None
@@ -352,7 +357,7 @@ class OBJEX_OT_import_link_anim_bin(bpy.types.Operator):
             'fk_09', 'fk_10', 'fk_11', 'fk_12', 'fk_13', 'fk_14', 'fk_15', 'fk_16', 'fk_17',
             'fk_18', 'fk_19', 'fk_20'
         ]
-        ik_bone = {
+        ik_bone = { 
             'Control.HeadIK':      'fk_head',      
             'Control.Root':        'fk_root',      
             'Control.Sheath':      'fk_sheath',    
@@ -393,6 +398,17 @@ class OBJEX_OT_import_link_anim_bin(bpy.types.Operator):
             action = bpy.data.actions.new(anim_name)
 
         armature.animation_data.action = action
+
+        master = armature.pose.bones['Control.Master']
+        master.location[0] = 0
+        master.location[1] = 0
+        master.location[2] = 0
+        master.rotation_quaternion[0] = 1
+        master.rotation_quaternion[1] = 0
+        master.rotation_quaternion[2] = 0
+        master.rotation_quaternion[1] = 0
+        master.keyframe_insert(data_path='location', frame=0, group="Master")
+        master.keyframe_insert(data_path='location', frame=0, group="Master")
 
         for i in range(frame_num):
             frame = frame_data[axis_count * i:]

@@ -8,10 +8,10 @@ $(shell mkdir -p .tmp/$(PACKAGE))
 release: $(DS)
 	rm -f $(PACKAGE).zip
 	cd .tmp/ && zip -r ../$(PACKAGE).zip $(PACKAGE)
+	rm -rf .tmp
 
 clean:
 	rm -f $(PACKAGE).zip
-	rm -rf .tmp
 
 .tmp/$(PACKAGE)/%.py: %.py
 	cp $< $@

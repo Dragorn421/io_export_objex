@@ -239,12 +239,24 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
             default=False
         )
     start_frame_clamp = bpy.props.BoolProperty(
-            name='Clamp Start Frame',
+            name='',
             description='',
             default=False
         )
     start_frame_clamp_value = bpy.props.IntProperty(
-        name='Start Frame Clamp',
+        name='Start Frame Minimum',
+        description='',
+        default=0
+    )
+    end_frame_minus = bpy.props.BoolProperty(
+            name='',
+            description='',
+            default=False
+        )
+    end_frame_minus_value = bpy.props.IntProperty(
+        name='End Frame Subtract',
+        min=0,
+        max=999,
         description='',
         default=0
     )
@@ -469,12 +481,35 @@ def omp_change_alpha(self, context):
 
 def omp_change_shade(self, context):
     material = self.id_data
-
+    node_tree = material.node_tree
     material.preview_render_type = 'FLAT'
 
+    combiner = {
+        "shaded": {
+            'input_flags_A_A_1': ( 'OBJEX_AlphaCycle1', 'A', 'G_ACMUX_0' ),
+            'input_flags_A_B_1': ( 'OBJEX_AlphaCycle1', 'B', 'G_ACMUX_0' ),
+            'input_flags_A_C_1': ( 'OBJEX_AlphaCycle1', 'C', 'G_ACMUX_0' ),
+            'input_flags_A_D_1': ( 'OBJEX_AlphaCycle1', 'D', 'G_ACMUX_COMBINED' ),
+        },
+        "colored": {
+            'input_flags_A_A_1': ( 'OBJEX_AlphaCycle1', 'A', 'G_ACMUX_COMBINED' ),
+            'input_flags_A_B_1': ( 'OBJEX_AlphaCycle1', 'B', 'G_ACMUX_0' ),
+            'input_flags_A_C_1': ( 'OBJEX_AlphaCycle1', 'C', 'G_ACMUX_SHADE' ),
+            'input_flags_A_D_1': ( 'OBJEX_AlphaCycle1', 'D', 'G_ACMUX_0' ),
+        }
+    }
+
     if material.objex_bonus.shading == 'VERTEX_COLOR':
+        for input_flag, (node_target, alpha, value) in combiner["colored"].items():
+            node = node_tree.nodes[node_target]
+            setattr(node.inputs[alpha], input_flag, value)
+
         node_setup_helpers.set_shade_source_vertex_colors_and_alpha(material)
     else:
+        for input_flag, (node_target, alpha, value) in combiner["shaded"].items():
+            node = node_tree.nodes[node_target]
+            setattr(node.inputs[alpha], input_flag, value)
+        
         node_setup_helpers.set_shade_source_lighting(material)
 
 def omp_change_texture_u_0(self, context):

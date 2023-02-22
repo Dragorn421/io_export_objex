@@ -217,11 +217,19 @@ def menu_draw_armature(self:bpy.types.Panel, armature:bpy.types.Armature):
     row.label(text='SkelAnime')
 
     box.row().prop(data, 'type', expand=True)
-    row2 = box.row()
-    row2.prop(data, 'export_all_actions')
-    row2.prop(data, 'start_frame_clamp')
-    if data.start_frame_clamp == True:
-        box.prop(data, 'start_frame_clamp_value')
+    box.prop(data, 'export_all_actions')
+
+    box_row = box.row()
+    box_row.prop(data, 'start_frame_clamp')
+    col = box_row.column()
+    col.enabled = data.start_frame_clamp
+    col.prop(data, 'start_frame_clamp_value')
+
+    box_row = box.row()
+    box_row.prop(data, 'end_frame_minus')
+    col = box_row.column()
+    col.enabled = data.end_frame_minus
+    col.prop(data, 'end_frame_minus_value')
 
     if not data.export_all_actions:
         box.label(text='Actions to export:')
