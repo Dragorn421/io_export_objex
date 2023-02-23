@@ -273,6 +273,18 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
         subtype="FILE_PATH"
     )
 
+    uses_joint_spheres = bpy.props.BoolProperty(
+        name='',
+        default=False
+    )
+
+    joint_sphere_scale = bpy.props.FloatProperty(name='', default=0.01, min=0.001, max=1.0)
+
+    joint_sphere_header_filepath = bpy.props.StringProperty(
+        name='Path',
+        subtype="FILE_PATH"
+    )
+
 def omp_updated_alpha(self, context:bpy.types.Context):
     material:bpy.types.Material = self.id_data
     data = material.objex_bonus
@@ -598,6 +610,11 @@ def omp_change_texel_segment(self, context):
     
     image.objex_bonus.pointer = hexify(segment)
 
+def objex_backface_culling_update(self, context):
+    material = self.id_data
+    if material.objex_bonus.is_objex_material:
+        material.use_backface_culling = material.objex_bonus.backface_culling
+
 class ObjexMaterialProperties(bpy.types.PropertyGroup):
     is_objex_material = bpy.props.BoolProperty(default=False)
     objex_version = bpy.props.IntProperty(default=0) # see data_updater.py
@@ -618,7 +635,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
     backface_culling = bpy.props.BoolProperty(
             name='Backface Culling',
             description='Culls the back face of geometry',
-            update=interface.objex_backface_culling_update,
+            update=objex_backface_culling_update,
             default=True
         )
     frontface_culling = bpy.props.BoolProperty(
@@ -949,14 +966,6 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
             description='Image data to write instead of this texture, useful for dynamic textures (eyes, windows)'
         )
 
-class ObjexObjectProperties(bpy.types.PropertyGroup):
-    type = bpy.props.EnumProperty(
-        items=[
-            ('NONE', '', ''),
-            ('JOINT_SPHERE', '', ''),
-        ]
-    )
-
 classes = (
     SavedPoseBone,
     SavedPose,
@@ -972,8 +981,6 @@ classes = (
     ObjexMaterialProperties,
 
     ObjexImageProperties,
-
-    ObjexObjectProperties,
 )
 
 def register_properties():
@@ -991,7 +998,6 @@ def register_properties():
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
     bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
     bpy.types.Image.objex_bonus = bpy.props.PointerProperty(type=ObjexImageProperties)
-    bpy.types.Object.objex_bonus = bpy.props.PointerProperty(type=ObjexObjectProperties)
 
 def unregister_properties():
     del bpy.types.Scene.objex_bonus
