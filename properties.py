@@ -949,6 +949,14 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
             description='Image data to write instead of this texture, useful for dynamic textures (eyes, windows)'
         )
 
+class ObjexObjectProperties(bpy.types.PropertyGroup):
+    type = bpy.props.EnumProperty(
+        items=[
+            ('NONE', '', ''),
+            ('JOINT_SPHERE', '', ''),
+        ]
+    )
+
 classes = (
     SavedPoseBone,
     SavedPose,
@@ -964,6 +972,8 @@ classes = (
     ObjexMaterialProperties,
 
     ObjexImageProperties,
+
+    ObjexObjectProperties,
 )
 
 def register_properties():
@@ -981,6 +991,7 @@ def register_properties():
     bpy.types.Armature.objex_bonus = bpy.props.PointerProperty(type=ObjexArmatureProperties)
     bpy.types.Material.objex_bonus = bpy.props.PointerProperty(type=ObjexMaterialProperties)
     bpy.types.Image.objex_bonus = bpy.props.PointerProperty(type=ObjexImageProperties)
+    bpy.types.Object.objex_bonus = bpy.props.PointerProperty(type=ObjexObjectProperties)
 
 def unregister_properties():
     del bpy.types.Scene.objex_bonus

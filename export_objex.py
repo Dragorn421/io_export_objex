@@ -660,6 +660,8 @@ class ObjexWriter():
                     # Get all meshes
                     subprogress1.enter_substeps(len(self.objects))
                     for ob_main in self.objects:
+                        if ob_main.hide_render:
+                            continue
                         # 421todo I don't know what this dupli stuff is about
                         # ("instancer" stuff in 2.80+)
                         use_old_dupli = hasattr(ob_main, 'dupli_type') # True in < 2.80

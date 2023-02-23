@@ -171,6 +171,10 @@ def write_animations(file_write_anim, scene, global_matrix, object_transform, ar
 
         if data.end_frame_minus == True:
             frame_count = frame_count - data.end_frame_minus_value
+        
+        if frame_count <= 0:
+            frame_start, frame_end = action.freame_range
+            frame_count = 1
 
         fw('newanim %s %s %d\n' % (armature_name_q, util.quote(action.name), frame_count))
 
@@ -217,6 +221,10 @@ def write_action(fw, scene, global_matrix, object_transform, armature, root_bone
             log.debug('origins of object {} {!r} and parent armature {} {!r} mismatch', child.name, child.location, armature.name, armature.location)
         if child.location != mathutils.Vector((0,0,0)):
             log.debug('origin of object {} {!r} (parent armature {}) is not world origin (0,0,0)', child.name, child.location, armature.name)
+
+    # Iterate in case of wonky IK setup
+    for i in range(10):
+        scene.frame_set(frame_start)
 
     for frame_current_offset in range(frame_count):
         frame_current = frame_start + frame_current_offset

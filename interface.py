@@ -77,15 +77,15 @@ def propOffset(layout, data, key, propName):
 
 # mesh
 
-def menu_draw_mesh(self:bpy.types.Panel, context:bpy.types.Context):
+def menu_draw_mesh(layout:bpy.types.UILayout, context:bpy.types.Context):
     objex_scene = context.scene.objex_bonus
     object = context.object
     data = object.data.objex_bonus # ObjexMeshProperties
 
-    box = self.layout.box()
+    box = layout.box()
     box.row().prop(data, 'type', expand=True)
 
-    box = self.layout.box()
+    box = layout.box()
     row = box.row()
     row.alignment = 'CENTER'
     row.label(text='Mesh')
@@ -155,18 +155,9 @@ def menu_draw_mesh(self:bpy.types.Panel, context:bpy.types.Context):
             box.template_list('UI_UL_list', 'OBJEX_SavedPose', scene.objex_bonus, 'saved_poses', armature.data.objex_bonus, 'fold_unfold_saved_pose_index', rows=2)
             box.operator('objex.autofold_delete_pose', text='Delete pose')
 
-class OBJEX_PT_mesh_object_view3d(bpy.types.Panel):
-    bl_category = "Objex"
-    bl_label = 'Mesh'
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_context = '.objectmode'
-    draw = menu_draw_mesh
-
-    @classmethod
-    def poll(self, context):
-        object = context.object
-        return object != None and object.type == 'MESH'
+def get_active_object(context:bpy.types.Context):
+    object = context.object
+    return object != None and object.type == 'MESH'
 
 class OBJEX_PT_mesh_object_prop(bpy.types.Panel):
     bl_label = 'Objex'
@@ -177,8 +168,7 @@ class OBJEX_PT_mesh_object_prop(bpy.types.Panel):
 
     @classmethod
     def poll(self, context):
-        object = context.object
-        return object.type == 'MESH'
+        return get_active_object(context)
 
 # armature
 
@@ -206,11 +196,49 @@ class OBJEX_UL_actions(bpy.types.UIList):
         else:
             layout.prop(item, 'action', text='')
 
-def menu_draw_armature(self:bpy.types.Panel, armature:bpy.types.Armature):
+class OBJEX_OT_add_joint_sphere(bpy.types.Operator):
+    bl_idname = 'objex.add_joint_sphere'
+    bl_label = 'Add Joint Sphere'
+    bl_options = {'INTERNAL', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        bone = context.active_bone
+        armature = context.active_object
+
+        if armature.type != 'ARMATURE':
+            return False
+        if bone == None:
+            return False
+
+        sphere_name = armature.name + '_JointSphere_' + bone.name
+
+        return sphere_name not in bpy.data.objects
+
+    def execute(self, context):
+        bone = context.active_bone
+        armature = context.active_object
+        sphere_name = armature.name + '_JointSphere_' + bone.name
+        
+        sphere = bpy.data.objects.new(sphere_name, None)
+        context.scene.collection.objects.link(sphere)
+
+        sphere.objex_bonus.type = 'JOINT_SPHERE'
+        sphere.empty_display_type = 'SPHERE'
+
+        sphere.parent = armature
+        sphere.parent_type = 'BONE'
+        sphere.parent_bone = bone.name
+
+        sphere.scale = 10, 10, 10
+
+        return {'FINISHED'}
+
+def menu_draw_armature(layout:bpy.types.UILayout, armature:bpy.types.Armature):
     data = armature.objex_bonus
     # actions
 
-    box = self.layout.box()
+    box = layout.box()
     box.use_property_split = False
     row = box.row()
     row.alignment = 'CENTER'
@@ -283,6 +311,22 @@ def menu_draw_armature(self:bpy.types.Panel, armature:bpy.types.Armature):
         row.operator("objex.import_link_anim_bin")
         box.prop(data, "src_bin_anim_filepath", text='Input')
 
+    pose_bone = bpy.context.active_bone
+    if pose_bone != None:
+        sub_box = box.box()
+        sub_box.label(text='Selected Bone')
+        sub_box.prop(pose_bone, 'name')
+        row = sub_box.row()
+        row.prop(pose_bone, 'use_deform')
+        row.operator('objex.add_joint_sphere', text='Add Joint Sphere')
+
+def get_active_armature(context:bpy.types.Context):
+    if context.object is not None:
+        if context.object.type == "ARMATURE":
+            return context.object
+        return context.object.find_armature()
+    return None
+
 class OBJEX_PT_armature_prop(bpy.types.Panel):
     bl_label = 'Objex'
     bl_space_type = 'PROPERTIES'
@@ -295,51 +339,30 @@ class OBJEX_PT_armature_prop(bpy.types.Panel):
         return armature is not None
     
     def draw(self, context):
-        menu_draw_armature(self, context.armature)
+        menu_draw_armature(self.layout, context.armature)
 
-class OBJEX_PT_armature_view3d(bpy.types.Panel):
-    bl_category = "Objex"
-    bl_label = 'Skeleton'
+def menu_draw_jointsphere(layout:bpy.types.UILayout, context:bpy.types.Context):
+    sphere = context.active_object
+    armature:bpy.types.Armature = sphere.parent.data
+
+    box = layout.box()
+    if armature.bones[sphere.parent_bone].use_deform == False:
+        box.label(text='Warning! Parent bone is non-deform!')
+    box.prop_search(sphere, 'parent_bone', armature, 'bones', text='Parent')
+
+class OBJECT_PT_panel3d(bpy.types.Panel):
+    bl_category = 'Objex'
+    bl_label = 'Objex'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_context = '.objectmode'
-    
-    @staticmethod
-    def get_armature_object(context):
-        if context.object is not None:
-            if context.object.type == "ARMATURE":
-                return context.object
-            return context.object.find_armature()
-        return None
-
-    @classmethod
-    def poll(self, context:bpy.types.Context):
-        return OBJEX_PT_armature_view3d.get_armature_object(context) is not None
     
     def draw(self, context):
-        menu_draw_armature(self, OBJEX_PT_armature_view3d.get_armature_object(context).data)
-
-class OBJEX_PT_armature_posemode(bpy.types.Panel):
-    bl_category = "Objex"
-    bl_label = 'Skeleton'
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_context = '.posemode'
-    
-    @staticmethod
-    def get_armature_object(context):
-        if context.object is not None:
-            if context.object.type == "ARMATURE":
-                return context.object
-            return context.object.find_armature()
-        return None
-
-    @classmethod
-    def poll(self, context:bpy.types.Context):
-        return OBJEX_PT_armature_posemode.get_armature_object(context) is not None
-    
-    def draw(self, context):
-        menu_draw_armature(self, OBJEX_PT_armature_posemode.get_armature_object(context).data)
+        if context.active_object != None and context.active_object.objex_bonus.type == 'JOINT_SPHERE':
+            menu_draw_jointsphere(self.layout, context)
+        if get_active_object(context):
+            menu_draw_mesh(self.layout, context)
+        if get_active_armature(context):
+            menu_draw_armature(self.layout, get_active_armature(context).data)
 
 # material
 
@@ -1824,9 +1847,7 @@ class OBJEX_OT_set_pixels_along_uv_from_image_dimensions(bpy.types.Operator):
 classes = (
     OBJEX_UL_actions,
     OBJEX_PT_armature_prop,
-    OBJEX_PT_armature_view3d,
-    OBJEX_PT_armature_posemode,
-    OBJEX_PT_mesh_object_view3d,
+    OBJECT_PT_panel3d,
     OBJEX_PT_mesh_object_prop,
 
     # order matters: each socket interface must be registered before its matching socket
@@ -1838,6 +1859,7 @@ classes = (
     OBJEX_NodeSocket_RGBA_Color,
 
     OBJEX_OT_material_build_nodes,
+    OBJEX_OT_add_joint_sphere,
     OBJEX_OT_material_init_collision,
     OBJEX_OT_set_pixels_along_uv_from_image_dimensions,
     OBJEX_PT_material,
