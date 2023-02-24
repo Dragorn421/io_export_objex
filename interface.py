@@ -60,6 +60,18 @@ add input socket to a specific node instance #bpy.data.materials["Material"].nod
 
 """
 
+def foldable_icon(attr):
+        if attr:
+            return "DOWNARROW_HLT"
+        else:
+            return "RIGHTARROW"
+    
+def foldable_menu(element:bpy.types.UILayout, data, attr:str):
+    element.prop(data, attr, icon=foldable_icon(getattr(data, attr)), emboss=False)
+    if getattr(data, attr) == True:
+        return True
+    return False
+
 def propOffset(layout, data, key, propName):
     offsetStr = getattr(data, key)
     bad_offset = None
@@ -260,11 +272,11 @@ class OBJEX_OT_export_joint_sphere_header(bpy.types.Operator):
 
     @classmethod
     def poll(self, context:bpy.types.Context):
-        return get_active_armature(context.active_object) != None
+        return get_active_armature(context.object) != None
 
 
     def execute(self, context:bpy.types.Context):
-        armature = get_active_armature(context.active_object)
+        armature = get_active_armature(context.object)
 
         if armature == None:
             return {"CANCELLED"}
@@ -334,30 +346,11 @@ class OBJEX_OT_export_joint_sphere_header(bpy.types.Operator):
 
 def menu_draw_armature(layout:bpy.types.UILayout, armature:bpy.types.Armature):
     data = armature.objex_bonus
-    pose_bone = bpy.context.active_bone
 
-    if pose_bone != None:
-        box = layout.box()
-        box.label(text="Selected Bone")
-        box.prop(pose_bone, "name")
-        row = box.row()
-        row.prop(pose_bone, "use_deform")
-        row.operator("objex.add_joint_sphere", text="Add Joint Sphere")
-
-        if data.uses_joint_spheres:
-            box = box.box()
-            box.prop(data, "joint_sphere_header_filepath")
-            box.prop(data, "joint_sphere_scale")
-            box.operator("objex.export_joint_sphere_header")
-
-    box = layout.box()
+    box = layout
     box.use_property_split = False
-    row = box.row()
-    row.alignment = "CENTER"
-    row.label(text="SkelAnime")
 
     box.row().prop(data, "type", expand=True)
-    box.prop(data, "export_all_actions")
 
     box_row = box.row()
     box_row.prop(data, "start_frame_clamp")
@@ -370,6 +363,7 @@ def menu_draw_armature(layout:bpy.types.UILayout, armature:bpy.types.Armature):
     col = box_row.column()
     col.enabled = data.end_frame_minus
     col.prop(data, "end_frame_minus_value")
+    box.prop(data, "export_all_actions")
 
     if not data.export_all_actions:
         box.label(text="Actions to export:")
@@ -442,9 +436,11 @@ def menu_draw_jointsphere(layout:bpy.types.UILayout, context:bpy.types.Context):
     armature:bpy.types.Armature = sphere.parent.data
 
     box = layout.box()
+    box.label(text='Joint Sphere')
     if armature.bones[sphere.parent_bone].use_deform == False:
         box.label(text="Warning! Parent bone is non-deform!")
     box.prop_search(sphere, "parent_bone", armature, "bones", text="Parent")
+    box.prop(sphere, "location")
 
 class OBJECT_PT_panel3d(bpy.types.Panel):
     bl_category = "Objex"
@@ -453,12 +449,39 @@ class OBJECT_PT_panel3d(bpy.types.Panel):
     bl_region_type = "UI"
     
     def draw(self, context):
-        if context.active_object != None and context.active_object.type == None:
+        armature = get_active_armature(context.object)
+
+        if context.active_object != None and context.active_object.type == "EMPTY" and context.active_object.parent_type == "BONE":
             menu_draw_jointsphere(self.layout, context)
-        if get_active_object(context):
-            menu_draw_mesh(self.layout, context)
-        if get_active_armature(context.object):
-            menu_draw_armature(self.layout, get_active_armature(context.object).data)
+        
+        box = self.layout.box()
+        if foldable_menu(box, context.scene.objex_bonus, "menu_mesh"):
+            if get_active_object(context):
+                menu_draw_mesh(box, context)
+        
+        box = self.layout.box()
+        if foldable_menu(box, context.scene.objex_bonus, "menu_bone"):
+            if armature and context.mode != "OBJECT":
+                pose_bone = bpy.context.active_bone
+
+                if pose_bone != None:
+                    box.label(text="Selected Bone")
+                    box.prop(pose_bone, "name")
+                    row = box.row()
+                    row.prop(pose_bone, "use_deform")
+                    row.operator("objex.add_joint_sphere", text="Add Joint Sphere")
+        
+        box = self.layout.box()
+        if foldable_menu(box, context.scene.objex_bonus, "menu_skelanime"):
+            if armature:
+                menu_draw_armature(box, armature.data)
+                
+        box = box.box()
+        if foldable_menu(box, context.scene.objex_bonus, "menu_joint"):
+            if armature.data.objex_bonus.uses_joint_spheres:
+                box.prop(armature.data.objex_bonus, "joint_sphere_header_filepath")
+                box.prop(armature.data.objex_bonus, "joint_sphere_scale")
+                box.operator("objex.export_joint_sphere_header")
 
 # material
 
@@ -1563,18 +1586,6 @@ class OBJEX_PT_material(bpy.types.Panel):
         
         self.menu_material(context)
     
-    def get_icon(self, attr):
-        if attr:
-            return "DOWNARROW_HLT"
-        else:
-            return "RIGHTARROW"
-    
-    def foldable_menu(self, element, data, attr):
-        element.prop(data, attr, icon=self.get_icon(getattr(data, attr)), emboss=False)
-        if getattr(data, attr) == True:
-            return True
-        return False
-
     def menu_collision(self, context):
         objex_scene = context.scene.objex_bonus
         material:bpy.types.Material = context.material
@@ -1651,7 +1662,7 @@ class OBJEX_PT_material(bpy.types.Panel):
 
         box = self.layout.box()
         box.use_property_split = False
-        if self.foldable_menu(box, objex_scene, "menu_tools"):
+        if foldable_menu(box, objex_scene, "menu_tools"):
             shared_row = box.row()
 
             draw_build_nodes_operator(shared_row, "Reset nodes", init=True, reset=True)
@@ -1664,7 +1675,7 @@ class OBJEX_PT_material(bpy.types.Panel):
 
         box = self.layout.box()
         box.use_property_split = False
-        if self.foldable_menu(box, objex_scene, "menu_common"):
+        if foldable_menu(box, objex_scene, "menu_common"):
             row = box.row()
             row.use_property_split = False
             row.prop(data, "alpha_mode", expand=True)
@@ -1703,7 +1714,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 row.prop(alpha_node, "default_value", text="")
 
         box = self.layout.box()
-        if self.foldable_menu(box, objex_scene, "menu_material"):
+        if foldable_menu(box, objex_scene, "menu_material"):
             row = box.row()
             row.enabled = not(data_is_empty)
             row.prop(objex_scene, "mode_menu", expand=True)

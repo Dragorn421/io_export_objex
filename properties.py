@@ -98,6 +98,10 @@ class ObjexSceneProperties(bpy.types.PropertyGroup):
     menu_material = bpy.props.BoolProperty( name='Material', default=True)
     menu_texel0 = bpy.props.BoolProperty(name='Texel0')
     menu_texel1 = bpy.props.BoolProperty(name='Texel1')
+    menu_skelanime = bpy.props.BoolProperty(name='SkelAnime')
+    menu_bone = bpy.props.BoolProperty(name='Bone')
+    menu_joint = bpy.props.BoolProperty(name='Joint Sphere')
+    menu_mesh = bpy.props.BoolProperty(name='Mesh')
     mode_menu = bpy.props.EnumProperty(
         items=[
             ('menu_mode_combiner',    'Combiner', '(A-B)*C+D',                'SHADING_RENDERED', 0),
