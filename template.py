@@ -172,6 +172,10 @@ def material_apply_template(template:str, material:bpy.types.Material):
     
     for key, value in MATERIAL_TEMPLATES[template].items():
         setattr(objex, key, value)
+        if key == "rendermode_blending_cycle0":
+            if objex.shading == "VERTEX_ALL":
+                setattr(objex, key, "VC_SHADE")
+            
 
 def combiner_apply_template(template:str, material:bpy.types.Material):
     node_tree = material.node_tree

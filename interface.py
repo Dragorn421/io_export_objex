@@ -152,11 +152,12 @@ class OBJEX_PT_mesh_object_prop(bpy.types.Panel):
     bl_space_type = "PROPERTIES"
     bl_region_type = "WINDOW"
     bl_context = "data"
-    draw = menu_draw_mesh
 
     @classmethod
     def poll(self, context):
         return get_active_object(context)
+    def draw(self, context):
+        menu_draw_mesh(self.layout, context)
 
 # armature
 
@@ -299,7 +300,6 @@ class OBJEX_OT_export_joint_sphere_header(bpy.types.Operator):
 
             for bone in bones:
                 bone:bpy.types.Bone
-
                 for child in armature.children:
                     child:bpy.types.Object
 
@@ -313,16 +313,16 @@ class OBJEX_OT_export_joint_sphere_header(bpy.types.Operator):
                     pos /= scale
 
                     fw(
-                        "    /* " + bone.name + " */ {\n"
-                        "        .info.bumperFlags = BUMP_ON,\n"
-                        "        \n"
-                        "        .dim.limb = " + str(bone_index) + ",\n"
-                        "        .dim.modelSphere ={\n"
-                        "            { " + str(int(-pos[0])) + ", " + str(int(-pos[2])) + ", " + str(int(pos[1])) + " },\n"
-                        "            " + str(int(sphere.scale[0])) +",\n"
-                        "        },\n"
-                        "        .dim.scale = " + str(int(1 / scale)) + ",\n"
-                        "    },\n"
+                    "    /* " + bone.name + " */ {\n"
+                    "        .info.bumperFlags = BUMP_ON,\n"
+                    "        \n"
+                    "        .dim.limb = " + str(bone_index) + ",\n"
+                    "        .dim.modelSphere ={\n"
+                    "            { " + str(int(-pos[0])) + ", " + str(int(-pos[2])) + ", " + str(int(pos[1])) + " },\n"
+                    "            " + str(int(sphere.scale[0])) +",\n"
+                    "        },\n"
+                    "        .dim.scale = " + str(int(1 / scale)) + ",\n"
+                    "    },\n"
                     )
 
                 bone_index += 1
@@ -1707,8 +1707,8 @@ class OBJEX_PT_material(bpy.types.Panel):
                 row = sub_box.row()
                 row.prop(data, property, text="")
                 col = row.column()
-                if not getattr(data, property):
-                    col.enabled = False
+                # if not getattr(data, property):
+                #     col.enabled = False
                 row = col.row()
                 row.prop(color_node, "default_value", text="")
                 row.prop(alpha_node, "default_value", text="")
@@ -1789,6 +1789,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 if data.rendermode_blending_cycle1 == "CUSTOM":
                     for v in ("P","A","M","B"):
                         sub_sub_box.prop(data, "rendermode_blending_cycle1_custom_%s" % v, text="")
+            
             elif mode_menu == "menu_mode_texture":
                 for texel, u_scale, v_scale, texture_u, texture_v, menu in (
                     (
@@ -1810,7 +1811,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 ):
                     sub_box = box.box()
                     
-                    sub_box.prop(objex_scene, menu, icon=self.get_icon(getattr(objex_scene, menu)), emboss=False)
+                    sub_box.prop(objex_scene, menu, icon=foldable_icon(getattr(objex_scene, menu)), emboss=False)
                     sub_box.template_ID(texel, "image", open="image.open")
 
                     if texel.image:
@@ -1821,6 +1822,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                         row.prop(material.objex_bonus, texture_v, text="", icon="EVENT_Y")
 
                         if getattr(objex_scene, menu):
+                            sub_box.separator()
                             row = sub_box.row()
                             row.prop(u_scale, "default_value", text="X Exp")
                             row.prop(v_scale, "default_value", text="Y Exp")
@@ -1829,11 +1831,18 @@ class OBJEX_PT_material(bpy.types.Panel):
                             row = sub_box.row()
                             row.label(text="Texture bank:")
                             row.template_ID(imdata, "texture_bank", open="image.open")
-                            sub_box.prop(imdata, "format")
+
+                            row = sub_box.row()
+                            row.prop(imdata, "format")
                             if imdata.format[:2] == "CI":
-                                sub_box.prop(imdata, "palette")
-                            sub_box.prop(imdata, "alphamode")
+                                row.prop(imdata, "palette")
+
+                            row = sub_box.row()
+                            row.prop(imdata, "alphamode")
+                            row.prop(imdata, "alphasource")
+
                             sub_box.prop(imdata, "force_write")
+                        sub_box.separator()
 
 
 
@@ -1855,6 +1864,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 row.prop(material.node_tree.nodes["OBJEX_TransformUV_Main"].inputs[5], "default_value", text="V Scale")
 
                 box.operator("objex.set_pixels_along_uv_from_image_dimensions", text="Fix clamping")
+            
             elif mode_menu == "menu_mode_combiner":
                 sub_box = box.box()
 
@@ -1899,6 +1909,7 @@ class OBJEX_PT_material(bpy.types.Panel):
                 row = sub_box.row()
                 row.prop(ac0.inputs[3], "input_flags_A_D_0", text="", icon="EVENT_D")
                 row.prop(ac1.inputs[3], "input_flags_A_D_1", text="", icon="EVENT_D")
+            
             elif mode_menu == "menu_mode_settings":
                 sub_box = box.box()
                 sub_box.use_property_split = False

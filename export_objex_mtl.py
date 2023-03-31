@@ -628,11 +628,12 @@ count  P              A              M              B            comment
                 rm_bl_c1 = objex_data.rendermode_blending_cycle1
                 
                 presets = {
-                    'FOG_PRIM': ('G_BL_CLR_FOG','G_BL_A_FOG',  'G_BL_CLR_IN', 'G_BL_1MA'),
-                    'FOG_SHADE':('G_BL_CLR_FOG','G_BL_A_SHADE','G_BL_CLR_IN', 'G_BL_1MA'),
-                    'PASS':     ('G_BL_CLR_IN', 'G_BL_0',      'G_BL_CLR_IN', 'G_BL_1'),
-                    'OPA':      ('G_BL_CLR_IN', 'G_BL_A_IN',   'G_BL_CLR_MEM','G_BL_A_MEM'),
-                    'XLU':      ('G_BL_CLR_IN', 'G_BL_A_IN',   'G_BL_CLR_MEM','G_BL_1MA'),
+                    'FOG_PRIM':             ('G_BL_CLR_FOG', 'G_BL_A_FOG',   'G_BL_CLR_IN',  'G_BL_1MA'),
+                    'FOG_SHADE':            ('G_BL_CLR_FOG', 'G_BL_A_SHADE', 'G_BL_CLR_IN',  'G_BL_1MA'),
+                    'PASS':                 ('G_BL_CLR_IN',  'G_BL_0',       'G_BL_CLR_IN',  'G_BL_1'),
+                    'OPA':                  ('G_BL_CLR_IN',  'G_BL_A_IN',    'G_BL_CLR_MEM', 'G_BL_A_MEM'),
+                    'XLU':                  ('G_BL_CLR_IN',  'G_BL_A_IN',    'G_BL_CLR_MEM', 'G_BL_1MA'),
+                    'VC_SHADE':             ('G_BL_CLR_IN',  'G_BL_0',       'G_BL_CLR_IN',  'G_BL_1'),
                 }
                 if rm_bl_c0 == 'CUSTOM':
                     blendCycle0flags = (getattr(objex_data, 'rendermode_blending_cycle0_custom_%s' % v) for v in ('P','A','M','B'))
@@ -732,7 +733,7 @@ count  P              A              M              B            comment
                     ('G_TEXTURE_GEN', 'uv_main' in data and data['uv_main']['texgen']),
                     ('G_TEXTURE_GEN_LINEAR', 'uv_main' in data and data['uv_main']['texgen_linear']),
                     ('G_FOG', objex_data.geometrymode_G_FOG),
-                    ('G_LIGHTING', objex_data.shading == 'LIGHTING'),
+                    ('G_LIGHTING', objex_data.shading == 'LIGHTING' or objex_data.vertex_shading == "DYNAMIC"),
                 ):
                     if set_flag:
                         geometryModeFlagsSet.append(flag)

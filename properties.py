@@ -501,32 +501,39 @@ def omp_change_shade(self, context):
     material.preview_render_type = 'FLAT'
 
     combiner = {
-        "shaded": {
+        "LIGHTING": {
             'input_flags_A_A_1': ( 'OBJEX_AlphaCycle1', 'A', 'G_ACMUX_0' ),
             'input_flags_A_B_1': ( 'OBJEX_AlphaCycle1', 'B', 'G_ACMUX_0' ),
             'input_flags_A_C_1': ( 'OBJEX_AlphaCycle1', 'C', 'G_ACMUX_0' ),
             'input_flags_A_D_1': ( 'OBJEX_AlphaCycle1', 'D', 'G_ACMUX_COMBINED' ),
         },
-        "colored": {
+        "VERTEX_COLOR": {
+            'input_flags_A_A_1': ( 'OBJEX_AlphaCycle1', 'A', 'G_ACMUX_0' ),
+            'input_flags_A_B_1': ( 'OBJEX_AlphaCycle1', 'B', 'G_ACMUX_0' ),
+            'input_flags_A_C_1': ( 'OBJEX_AlphaCycle1', 'C', 'G_ACMUX_0' ),
+            'input_flags_A_D_1': ( 'OBJEX_AlphaCycle1', 'D', 'G_ACMUX_COMBINED' ),
+        },
+        "VERTEX_ALL": {
             'input_flags_A_A_1': ( 'OBJEX_AlphaCycle1', 'A', 'G_ACMUX_COMBINED' ),
             'input_flags_A_B_1': ( 'OBJEX_AlphaCycle1', 'B', 'G_ACMUX_0' ),
             'input_flags_A_C_1': ( 'OBJEX_AlphaCycle1', 'C', 'G_ACMUX_SHADE' ),
             'input_flags_A_D_1': ( 'OBJEX_AlphaCycle1', 'D', 'G_ACMUX_0' ),
-        }
+        },
     }
 
-    if material.objex_bonus.shading == 'VERTEX_COLOR':
-        for input_flag, (node_target, alpha, value) in combiner["colored"].items():
-            node = node_tree.nodes[node_target]
-            setattr(node.inputs[alpha], input_flag, value)
+    for input_flag, (node_target, alpha, value) in combiner[material.objex_bonus.shading].items():
+        node = node_tree.nodes[node_target]
+        setattr(node.inputs[alpha], input_flag, value)
 
-        node_setup_helpers.set_shade_source_vertex_colors_and_alpha(material)
-    else:
-        for input_flag, (node_target, alpha, value) in combiner["shaded"].items():
-            node = node_tree.nodes[node_target]
-            setattr(node.inputs[alpha], input_flag, value)
-        
+    if material.objex_bonus.shading == "LIGHTING":
         node_setup_helpers.set_shade_source_lighting(material)
+    elif material.objex_bonus.shading == "VERTEX_COLOR":
+        node_setup_helpers.set_shade_source_vertex_colors(material)
+    else:
+        node_setup_helpers.set_shade_source_vertex_colors_and_alpha(material)
+
+    if material.objex_bonus.lock_material == False:
+        template.material_apply_template(material.objex_bonus.alpha_mode, material)
 
 def omp_change_texture_u_0(self, context):
     material:bpy.types.Material = self.id_data
@@ -607,6 +614,36 @@ def omp_change_external_segment(self, context):
     segment:str = material.objex_bonus.external_material_segment
     
     material.objex_bonus.external_material_segment = hexify(segment)
+
+def omp_change_texel_alpha_source(self, context:bpy.types.Context):
+    image:bpy.types.Image = self.id_data
+    objex = image.objex_bonus
+
+    for mtl in bpy.data.materials:
+        if mtl.objex_bonus.is_objex_material == False:
+            continue
+        if mtl.objex_bonus.use_collision == True:
+            continue
+        
+        node_tree:bpy.types.NodeTree = mtl.node_tree
+        texel0 = node_tree.nodes["OBJEX_Texel0"]
+        texel1 = node_tree.nodes["OBJEX_Texel1"]
+        image0:bpy.types.ShaderNodeTexImage = node_tree.nodes["OBJEX_Texel0Texture"]
+        image1:bpy.types.ShaderNodeTexImage = node_tree.nodes["OBJEX_Texel1Texture"]
+
+        def clearLinks(tree, socket):
+            while socket.links:
+                tree.links.remove(socket.links[0])
+        
+        def relink(image:bpy.types.ShaderNodeTexImage, texel:bpy.types.ShaderNodeGroup):
+            clearLinks(node_tree, texel.inputs['Alpha'])
+            node_tree.links.new(texel.inputs['Alpha'], image.outputs[objex.alphasource])
+
+        if image0.image == image:
+            relink(image0, texel0)
+        if image1.image == image:
+            relink(image1, texel1)
+            
 
 def omp_change_texel_segment(self, context):
     image:bpy.types.Image = self.id_data
@@ -728,6 +765,7 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
                 ('PASS',      'Pass',     'Let the input pixel color through unaltered (G_RM_PASS...)',3), # G_BL_CLR_IN    G_BL_0         G_BL_CLR_IN    G_BL_1
                 ('OPA',       'OPA',      'Blend with the buffer\nCycle settings mainly used with OPA',4), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_A_MEM
                 ('XLU',       'XLU',      'Blend with the buffer\nCycle settings mainly used with XLU',5), # G_BL_CLR_IN    G_BL_A_IN      G_BL_CLR_MEM   G_BL_1MA
+                ('VC_SHADE',  'VC_SHADE', '', 6),
                 ('CUSTOM',    'Custom',   'Define a custom blending cycle',7),
             ],
             name='Blend1',
@@ -852,8 +890,9 @@ class ObjexMaterialProperties(bpy.types.PropertyGroup):
 
     shading = bpy.props.EnumProperty(
         items=[
-            ('LIGHTING',           'Lighting',      'OoT Lighting'),
-            ('VERTEX_COLOR',       'Vertex Color',     'Vertex Color'),
+            ('LIGHTING',         'Lighting',      'OoT Lighting'),
+            ('VERTEX_COLOR',     'Vertex Color',  'Vertex Color'),
+            ('VERTEX_ALL',       'Vertex Full',   'Vertex Full'),
         ],
         name='Shading',
         default='LIGHTING',
@@ -943,6 +982,15 @@ class ObjexImageProperties(bpy.types.PropertyGroup):
                         '(color of such pixels can indeed still show due to not-nearest-neighbour texture filtering)',
             default='AUTO'
         )
+    alphasource = bpy.props.EnumProperty(
+        items=[
+            ("Alpha","Alpha",""),
+            ("Color","Color",""),
+        ],
+        name="Source",
+        default="Alpha",
+        update=omp_change_texel_alpha_source
+    )
     pointer = bpy.props.StringProperty(
             name='Segment',
             description='The address that should be used when referencing this texture',
