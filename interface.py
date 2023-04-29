@@ -192,43 +192,7 @@ def get_active_armature(object:bpy.types.Object):
         return object.find_armature()
     return None
 
-def order_bones(armature):
-    log = getLogger("anim")
-    """
-    find root bone in armature
-    list bones in hierarchy order, preserving the armature order
-    """
-    bones = armature.data.bones
-    root_bone = None
-    bones_ordered = []
-    skipped_bones = []
-    for bone in bones:
-        # 421todo skip bones assigned to no vertex if they"re root
-        # 421todo do not skip non-root bones if parent isnt skipped
-        if not bone.use_deform:
-            log.info("Skipping non-deform bone {} (intended for eg IK bones)", bone.name)
-            skipped_bones.append(bone)
-            continue
-        bone_parents = bone.parent_recursive
-        for skipped_bone in skipped_bones:
-            if skipped_bone in bone_parents:
-                log.error("bone {} has bone {} in its parents, but that bone was skipped", bone.name, skipped_bone.name)
-        # make sure there is only one root bone
-        root_parent_bone = bone_parents[-1] if bone_parents else bone
-        if root_bone and root_parent_bone.name != root_bone.name:
-            log.debug("bone_parents={!r} root_bone={!r} root_parent_bone={!r}", bone_parents, root_bone, root_parent_bone)
-            log.error("armature {} has multiple root bones, at least {} and {}", armature.name, root_bone.name, root_parent_bone.name)
-        root_bone = root_parent_bone
-        
-        # preserve ordering from armature
-        if bone_parents:
-            # from top parent to closest parent
-            for parent in reversed(bone_parents):
-                if parent not in bones_ordered:
-                    bones_ordered.append(parent)
-        bones_ordered.append(bone)
-    
-    return root_bone, bones_ordered
+from .export_objex_anim import order_bones
 
 class OBJEX_OT_add_joint_sphere(bpy.types.Operator):
     bl_idname = "objex.add_joint_sphere"
@@ -240,8 +204,11 @@ class OBJEX_OT_add_joint_sphere(bpy.types.Operator):
         return get_active_armature(context.active_object) != None and context.active_bone != None and context.active_bone.use_deform == True
 
     def execute(self, context):
-        bone = context.active_bone
         armature = context.active_object
+        armature_data = armature.data
+        assert isinstance(armature_data, bpy.types.Armature)
+        # get a Bone regardless of context.active_bone being a Bone or EditBone
+        bone = armature_data.bones[context.active_bone.name]
 
         sphere_name = armature.name + "_JointSphere_" + bone.name
         armature.data.objex_bonus.uses_joint_spheres = True
@@ -261,8 +228,11 @@ class OBJEX_OT_add_joint_sphere(bpy.types.Operator):
         sphere.parent = armature
         sphere.parent_type = "BONE"
         sphere.parent_bone = bone.name
+        sphere.show_in_front = True
 
-        sphere.scale = 10, 10, 10
+        # Place the empty so that it covers the bone: centered on the middle of the bone and of radius half the bone length
+        sphere.location = (0, -bone.length/2, 0)
+        sphere.scale = [bone.length / 2] * 3
 
         return {"FINISHED"}
 
@@ -282,10 +252,16 @@ class OBJEX_OT_export_joint_sphere_header(bpy.types.Operator):
         if armature == None:
             return {"CANCELLED"}
         
+        armature_data = armature.data
+        assert isinstance(armature_data, bpy.types.Armature)
+
         data = armature.data.objex_bonus
         filename = Path(bpy.path.abspath(data.joint_sphere_header_filepath))
         basename = filename.stem
-        scale = armature.data.objex_bonus.joint_sphere_scale
+        joint_sphere_scale = armature.data.objex_bonus.joint_sphere_scale
+
+        # blender to z64
+        transform_zup_to_yup = mathutils.Matrix([[1,0,0,0],[0,0,1,0],[0,-1,0,0],[0,0,0,1],])
 
         with filename.open("w", newline="\n") as f:
             fw = f.write
@@ -295,37 +271,55 @@ class OBJEX_OT_export_joint_sphere_header(bpy.types.Operator):
             fw("#include <global.h>\n\n")
             fw("static ColliderJntSphElementInit s" + basename + "Elems[] = {\n")
             
-            root_bone, bones = order_bones(armature)
-            bone_index = 1
+            root_bone, bones_ordered = order_bones(armature)
 
-            for bone in bones:
-                bone:bpy.types.Bone
-                for child in armature.children:
-                    child:bpy.types.Object
+            for child in armature.children:
+                child:bpy.types.Object
 
-                    if child.parent_type != "BONE":
-                        continue
-                    if child.parent_bone != bone.name:
-                        continue
-                    sphere = child
+                if child.parent_type != "BONE":
+                    continue
+                bone = armature_data.bones[child.parent_bone]
+                bone_index = 1 + bones_ordered.index(bone)
+                sphere = child
 
-                    pos = sphere.location.copy()
-                    pos /= scale
+                # notes on Blender bones:
+                # 1) their own space is origin=head (thick end), with +y towards the tail (thin end)
+                # 2) bone.matrix_local is a transform from their own space to armature space
 
-                    fw(
-                    "    /* " + bone.name + " */ {\n"
-                    "        .info.bumperFlags = BUMP_ON,\n"
-                    "        \n"
-                    "        .dim.limb = " + str(bone_index) + ",\n"
-                    "        .dim.modelSphere ={\n"
-                    "            { " + str(int(-pos[0])) + ", " + str(int(-pos[2])) + ", " + str(int(pos[1])) + " },\n"
-                    "            " + str(int(sphere.scale[0])) +",\n"
-                    "        },\n"
-                    "        .dim.scale = " + str(int(1 / scale)) + ",\n"
-                    "    },\n"
+                pos_blender = (
+                    (
+                        # from bone space (relative to bone head) to armature space (relative to armature)
+                        # This mimics (1/2) export_objex_anim.write_skeleton which writes the skeleton in armature(/world?) space
+                        # Note: idk how this behaves in the end if the armature has a non-0 location/rotation/scale
+                        bone.matrix_local @ (
+                            # bone parenting is relative to the bone tail, make the position relative to the bone head
+                            sphere.location + mathutils.Vector((0, bone.length, 0))
+                        )
                     )
+                    # Make position relative to bone head (in armature space)
+                    - bone.head_local
+                )
+                pos = transform_zup_to_yup @ pos_blender
+                pos *= joint_sphere_scale
 
-                bone_index += 1
+                assert (sum((s - sum(sphere.scale)/3)**2 for s in sphere.scale[:])/(sum(sphere.scale)/3)) < 1e-5, sphere.scale
+                radius_blender = sphere.scale[0] * sphere.empty_display_size
+                radius = radius_blender
+
+                fw(
+                "    /* " + bone.name + " */ {\n"
+                "        .info.bumperFlags = BUMP_ON,\n"
+                "        \n"
+                "        .dim.limb = " + str(bone_index) + ",\n"
+                "        .dim.modelSphere ={\n"
+                "            { " + str(int(pos.x)) + ", " + str(int(pos.y)) + ", " + str(int(pos.z)) + " },\n"
+                "            " + str(int(radius * joint_sphere_scale)) +",\n"
+                "        },\n"
+                # note joint_sphere_scale must be <= 100 for the dim.scale (integer) to stay > 0
+                "        .dim.scale = " + str(int(100 * 1 / joint_sphere_scale)) + ",\n"
+                "    },\n"
+                )
+
 
             fw("};\n\n")
 
@@ -478,7 +472,7 @@ class OBJECT_PT_panel3d(bpy.types.Panel):
                 
         box = box.box()
         if foldable_menu(box, context.scene.objex_bonus, "menu_joint"):
-            if armature.data.objex_bonus.uses_joint_spheres:
+            if armature and armature.data.objex_bonus.uses_joint_spheres:
                 box.prop(armature.data.objex_bonus, "joint_sphere_header_filepath")
                 box.prop(armature.data.objex_bonus, "joint_sphere_scale")
                 box.operator("objex.export_joint_sphere_header")

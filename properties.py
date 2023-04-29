@@ -282,7 +282,10 @@ class ObjexArmatureProperties(bpy.types.PropertyGroup):
         default=False
     )
 
-    joint_sphere_scale = bpy.props.FloatProperty(name='', default=0.01, min=0.001, max=1.0)
+    joint_sphere_scale = bpy.props.FloatProperty(name='Scale', default=100, soft_min=1.0, max=100.0,
+                                                 description="The scale at which the model the jntSph relies upon is exported\n"
+                                                             "For example if 100 (default), the blender coordinates are multiplied by 100 before writing to the .h,"
+                                                             "so that then when used by the game they are multiplied by 0.01 (default actor scale) as part of the transform.")
 
     joint_sphere_header_filepath = bpy.props.StringProperty(
         name='Path',
