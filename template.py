@@ -143,8 +143,8 @@ MATERIAL_TEMPLATES = {
     'BLEND': {
         'geometrymode_G_FOG': False,
         'rendermode_forceblending': True,
-        'rendermode_blender_flag_CVG_X_ALPHA': True,
-        'rendermode_blender_flag_CLR_ON_CVG': False,
+        'rendermode_blender_flag_CVG_X_ALPHA': False,
+        'rendermode_blender_flag_CLR_ON_CVG': True,
         'rendermode_blender_flag_ALPHA_CVG_SEL': False,
         'rendermode_blender_flag_CVG_DST_': 'CVG_DST_WRAP',
         'rendermode_zmode': 'XLU',
