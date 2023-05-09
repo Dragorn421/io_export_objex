@@ -1,3 +1,7 @@
-*/__pycache__/
-io_export_objex2/io_export_objex2_updater/
+__pycache__
 .directory
+*.blend1
+*.json
+.tmp
+*.zip
+.venv
